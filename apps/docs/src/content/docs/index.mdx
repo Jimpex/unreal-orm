@@ -1,0 +1,60 @@
+---
+title: unreal-orm
+description: A type-safe TypeScript ORM for SurrealDB that stays close to native capabilities
+template: splash
+hero:
+  tagline: Type-safe SurrealDB queries with TypeScript without abstractions
+  image:
+    file: ../../assets/houston.webp
+  actions:
+    - text: Get Started
+      link: /package/readme/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/jimpex/unreal-orm
+      icon: github
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Key Features
+
+<CardGrid stagger>
+	<Card title="Native First" icon="rocket">
+		Stays close to SurrealDB's native capabilities, avoiding unnecessary abstractions that hide SurrealDB's powerful features.
+	</Card>
+	<Card title="Type Safety" icon="approve-check-circle">
+		Full TypeScript type inference for your schema, queries, and results without runtime overhead.
+	</Card>
+	<Card title="Schema Generation" icon="setting">
+		Generate valid SurrealDB schema definitions directly from your TypeScript code.
+	</Card>
+	<Card title="Query Building" icon="open-book">
+		Type-safe query building that mirrors SurrealQL syntax while providing autocomplete and type checking.
+	</Card>
+</CardGrid>
+
+## Easy to Use
+
+```typescript
+// Define your schema
+const User = Table.define({
+  name: 'user',
+  fields: {
+    name: Field.string(),
+    email: Field.string({ 
+      assert: 'string::is::email($value)' 
+    }),
+    createdAt: Field.datetime({ 
+      default: 'time::now()' 
+    })
+  }
+});
+
+// Type-safe queries
+const users = await User.select(db, {
+  where: 'email LIKE $pattern',
+  limit: 10
+}, { pattern: '%@example.com' });
+```
