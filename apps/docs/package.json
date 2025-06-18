@@ -5,18 +5,19 @@
   "scripts": {
     "copy-docs": "bun ./scripts/copy-package-docs.ts",
     "dev": "bun run copy-docs && astro dev",
-    "start": "bun run copy-docs && astro dev",
+    "start": "bun ./dist/server/entry.mjs",
     "build": "bun run copy-docs && astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/node": "^9.2.2",
     "@astrojs/starlight": "^0.34.3",
     "@types/node": "^22.15.29",
     "astro": "^5.6.1",
     "chalk": "^5.4.1",
     "glob": "^11.0.2",
-    "sharp": "^0.32.5",
+    "sharp": "^0.34.2",
     "starlight-typedoc": "^0.21.3",
     "typedoc": "^0.28.5",
     "typedoc-plugin-markdown": "^4.6.4",

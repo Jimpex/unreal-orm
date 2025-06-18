@@ -3,6 +3,8 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import starlightTypeDoc, { typeDocSidebarGroup } from "starlight-typedoc";
 
+import node from "@astrojs/node";
+
 // https://astro.build/config
 
 export default defineConfig({
@@ -61,4 +63,7 @@ export default defineConfig({
       ],
     }),
   ],
+  adapter: node({
+    mode: "standalone",
+  }),
 });
