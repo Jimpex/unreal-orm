@@ -3,10 +3,10 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "copy-docs": "bun ./scripts/copy-package-docs.ts",
-    "dev": "bun run copy-docs && astro dev",
-    "start": "bun ./dist/server/entry.mjs",
-    "build": "bun run copy-docs && astro build",
+    "copy-docs": "tsx ./scripts/copy-package-docs.ts",
+    "dev": "pnpm run copy-docs && astro dev",
+    "start": "pnpm run copy-docs && node ./dist/server/entry.mjs",
+    "build": "pnpm run copy-docs && astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
@@ -22,5 +22,9 @@
     "typedoc": "^0.28.5",
     "typedoc-plugin-markdown": "^4.6.4",
     "unreal-orm": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
   }
 }
