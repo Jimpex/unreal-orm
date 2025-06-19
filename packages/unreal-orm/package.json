@@ -1,7 +1,7 @@
 {
   "name": "unreal-orm",
   "version": "0.4.3",
-  "description": "unreal-orm is a modern, type-safe ORM for SurrealDB that gives you native SurrealDB power, full TypeScript safety, and zero abstraction—no decorators, no magic, just classes and functions. Designed for developers who want direct control, advanced schema features, and a frictionless experience.",
+  "description": "UnrealORM is a modern, type-safe ORM for SurrealDB that gives you native SurrealDB power, full TypeScript safety, and zero abstraction—no decorators, no magic, just classes and functions. Designed for developers who want direct control, advanced schema features, and a frictionless experience.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -52,5 +52,5 @@
   "bugs": {
     "url": "https://github.com/jimpex/unreal-orm/issues"
   },
-  "homepage": "https://github.com/jimpex/unreal-orm#readme"
+  "homepage": "https://unreal-orm.jimpex.dev"
 }

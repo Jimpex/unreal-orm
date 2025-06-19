@@ -2,17 +2,33 @@
   <img src="https://raw.githubusercontent.com/jimpex/unreal-orm/main/logo.svg" alt="Unreal ORM Logo" height="100" />
 </p>
 
+<div align="center">
+
+[![GitHub Stars](https://img.shields.io/github/stars/Jimpex/unreal-orm?style=social)](https://github.com/Jimpex/unreal-orm)
 [![npm version](https://badge.fury.io/js/unreal-orm.svg)](https://www.npmjs.com/package/unreal-orm)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
-[![Build Status](https://github.com/jimpex/unreal-orm/actions/workflows/ci.yml/badge.svg)](https://github.com/jimpex/unreal-orm/actions/workflows/ci.yml)
 [![npm downloads](https://img.shields.io/npm/dm/unreal-orm)](https://www.npmjs.com/package/unreal-orm)
+![npm bundle size](https://img.shields.io/bundlephobia/min/unreal-orm)
 ![TypeScript](https://img.shields.io/badge/TypeScript-blue?logo=typescript)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Ko--fi-ff5f5f?logo=ko-fi&logoColor=white)](https://ko-fi.com/jimpex)
 
-# unreal-orm
+</div>
 
-**unreal-orm** is a modern, type-safe ORM for SurrealDB that gives you native SurrealDB power, full TypeScript safety, and zero abstraction—no decorators, no magic, just classes and functions. Designed for developers who want direct control, advanced schema features, and a frictionless experience.
+<div align="center">
+  <a href="https://unreal-orm.jimpex.dev"><b>Documentation</b></a> •
+  <a href="https://github.com/Jimpex/unreal-orm"><b>GitHub</b></a> •
+  <a href="https://github.com/Jimpex/unreal-orm/discussions"><b>GitHub Discussions</b></a> •
+  <a href="https://ko-fi.com/jimpex"><b>Buy Me a Coffee</b></a>
+</div>
 
-> **Note:** unreal-orm is not at version 1.0 yet. While the API is stabilizing and major breaking changes are unlikely, please be aware that some changes may still occur before the 1.0 release.
+<br><br>
+# What's UnrealORM?
+UnrealORM is a modern, type-safe ORM for SurrealDB that gives you native SurrealDB power, full TypeScript safety, and zero abstraction—no decorators, no magic, just classes and functions. Designed for developers who want direct control, advanced schema features, and a frictionless experience.
+
+**Why UnrealORM?**
+I created this package because I wanted something like it for my own projects. Building UnrealORM gave me the perfect excuse to spend more time crafting an even better, reusable solution for the community.
+
+> **Note:** UnrealORM is not at version 1.0 yet. While the API is stabilizing and major breaking changes are unlikely, please be aware that some changes may still occur before the 1.0 release.
 
 ## Core Philosophy
 
@@ -43,7 +59,7 @@ A direct comparison between unreal-orm and the official [surrealdb](https://www.
 | **Raw SurrealQL Support**     | ✅ Use raw SurrealQL when needed                          | ✅ Full SurrealQL access           |
 | **Error Handling**            | ✅ Native SurrealDB errors, no ORM wrappers               | ✅ Native SurrealDB errors         |
 
-> unreal-orm builds on top of the official surrealdb package, providing a modern TypeScript ORM experience while preserving full access to SurrealDB's native features.
+> UnrealORM builds on top of the official surrealdb package, providing a modern TypeScript ORM experience while preserving full access to SurrealDB's native features.
 
 ## Installation
 
