@@ -38,4 +38,4 @@ This repository is organized as a monorepo, making it easy to develop, test, and
 
 ## License
 
-This project is MIT licensed. See [`packages/unreal-orm/LICENSE`](packages/unreal-orm/LICENSE) for full details.
+This project is ISC licensed. See [`packages/unreal-orm/LICENSE`](packages/unreal-orm/LICENSE) for full details.
