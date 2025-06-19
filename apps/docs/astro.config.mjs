@@ -52,14 +52,9 @@ export default defineConfig({
           items: [
             // Internal documentation for contributors
             { label: "Contributing Guide", slug: "package/internal/contributing" },
-            { label: "Design Principles", slug: "package/design-principles" },
-            { label: "Testing", slug: "package/internal/tests" },
+            { label: "Design Principles", slug: "package/design-principles" }
           ],
         },
-        // {
-        //   label: "Additional Documentation",
-        //   autogenerate: { directory: "package/additional" },
-        // },
       ],
     }),
   ],
