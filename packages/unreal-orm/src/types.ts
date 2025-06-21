@@ -1,4 +1,4 @@
-import type { Surreal, RecordId } from 'surrealdb';
+import type { Surreal, RecordId } from "surrealdb";
 
 /** Represents a generic function with unknown arguments and return type */
 // // biome-ignore lint/suspicious/noExplicitAny: Generic function type requires 'any'.
@@ -8,19 +8,24 @@ import type { Surreal, RecordId } from 'surrealdb';
 
 /** Base options applicable to most field types */
 export interface FieldOptions {
-  assert?: string;          // SurrealQL assertion
-  default?: string;        // Default value (can be a literal or a function string like 'time::now()')
-  value?: string;           // SurrealDB value expression (e.g., 'string::lowercase($value)')
-  readonly?: boolean;        // If true, field is readonly after creation
+  assert?: string; // SurrealQL assertion
+  default?: string; // Default value (can be a literal or a function string like 'time::now()')
+  value?: string; // SurrealDB value expression (e.g., 'string::lowercase($value)')
+  readonly?: boolean; // If true, field is readonly after creation
   permissions?: string | FieldPermissionsOptions; // Field-level permissions
-  comment?: string;         // Comment for the field
+  comment?: string; // Comment for the field
 }
 
-/** 
+/**
  * Represents the definition of a single field in a table schema.
  * @template T The TypeScript type this field maps to.
  */
 export interface FieldDefinition<T = unknown> extends FieldOptions {
+  /**
+   * If true, generates SurrealQL 'FLEXIBLE' for object/custom fields. Only set by Field.object/custom builders.
+   */
+  flexible?: boolean;
+
   type: string; // Internal representation of the SurrealDB type (e.g., 'string', 'number', 'record<user>')
   // T (the generic parameter) represents the TypeScript type. No explicit 'tsType' property is needed at runtime.
   isOptional?: boolean; // True if the field is optional (e.g. Field.option())
@@ -30,7 +35,7 @@ export interface FieldDefinition<T = unknown> extends FieldOptions {
   // biome-ignore lint/suspicious/noExplicitAny: 'any' is used as a placeholder for generic args of ModelStatic in this context.
   recordTableThunk?: () => ModelStatic<any, any>; // For Field.record(), stores a thunk to resolve the model class lazily.
   recordReference?: boolean; // For Field.record()
-  recordOnDelete?: 'cascade' | 'set null' | 'none'; // For Field.record()
+  recordOnDelete?: "cascade" | "set null" | "none"; // For Field.record()
 }
 
 // --- Table Schema and Configuration ---
@@ -71,38 +76,40 @@ export interface TableDefineOptions<
   permissions?: TablePermissionsOptions;
   indexes?: IndexDefinition[];
   changefeed?: ChangefeedConfig;
-  type?: 'normal' | 'relation' | string; // SurrealDB table type
+  type?: "normal" | "relation" | string; // SurrealDB table type
   comment?: string;
 }
 
 /** Represents any table definition (used for circular dependencies in Field.record) */
-export interface AnyTableDefinition extends TableDefineOptions<Record<string, FieldDefinition<unknown>>> {}
+export interface AnyTableDefinition
+  extends TableDefineOptions<Record<string, FieldDefinition<unknown>>> {}
 
-// --- Querying --- 
+// --- Querying ---
 
 export interface OrderByClause {
   field: string;
-  order?: 'ASC' | 'DESC' | 'asc' | 'desc';
+  order?: "ASC" | "DESC" | "asc" | "desc";
   collate?: boolean; // For string collation
   numeric?: boolean; // For numeric collation of strings
 }
 
 /** Options for select queries */
-export interface SelectQueryOptions<TTable> { // TTable will be the model type
-  from?: string | RecordId<string>;   // The table or record to select from
+export interface SelectQueryOptions<TTable> {
+  // TTable will be the model type
+  from?: string | RecordId<string>; // The table or record to select from
   select?: (keyof TTable | string)[]; // Array of field names to select, or raw SurrealQL select statements
-  where?: string;                     // SurrealQL WHERE clause (e.g., 'age > $minAge')
+  where?: string; // SurrealQL WHERE clause (e.g., 'age > $minAge')
   orderBy?: OrderByClause[];
   limit?: number;
   start?: number;
-  fetch?: string[];                   // Array of relationship field names to fetch
+  fetch?: string[]; // Array of relationship field names to fetch
   groupBy?: (keyof TTable | string)[];
   parallel?: boolean;
-  timeout?: string | number;          // Query timeout (e.g., '5s' or 5000ms)
-  with?: string[];                    // Index hints (e.g., ['idx_user_email'])
-  explain?: boolean;                  // If true, returns query execution plan
-  only?: boolean;                     // If true, expects a single record and returns it directly
-  vars?: Record<string, unknown>;         // Bind parameters for the query
+  timeout?: string | number; // Query timeout (e.g., '5s' or 5000ms)
+  with?: string[]; // Index hints (e.g., ['idx_user_email'])
+  explain?: boolean; // If true, returns query execution plan
+  only?: boolean; // If true, expects a single record and returns it directly
+  vars?: Record<string, unknown>; // Bind parameters for the query
 }
 
 /** Options for count queries (subset of SelectQueryOptions) */
@@ -116,40 +123,50 @@ export interface CountQueryOptions<TTable> {
 // --- Utility Types for Inference (Placeholders - to be refined) ---
 
 /** Infers the basic key-value shape from field definitions, without special top-level properties like 'id' */
-export type InferShapeFromFields<TFields extends Record<string, FieldDefinition<unknown>>> = {
-  [K in keyof TFields]: TFields[K]['isOptional'] extends true
+export type InferShapeFromFields<
+  TFields extends Record<string, FieldDefinition<unknown>>
+> = {
+  [K in keyof TFields]: TFields[K]["isOptional"] extends true
     ? InferFieldType<TFields[K]> | undefined
     : InferFieldType<TFields[K]>;
 };
 
 /** Infers the data shape for a table record, including the mandatory 'id' field */
-export type InferTableDataFromFields<TFields extends Record<string, FieldDefinition<unknown>>> =
-  InferShapeFromFields<TFields> & { id: RecordId<string> };
+export type InferTableDataFromFields<
+  TFields extends Record<string, FieldDefinition<unknown>>
+> = InferShapeFromFields<TFields> & { id: RecordId<string> };
 
 /** Infers the TypeScript type from a single FieldDefinition */
 // This will become more sophisticated, especially for records and objects
-export type InferFieldType<F extends FieldDefinition<unknown>> = F extends FieldDefinition<infer T> ? T : never;
+export type InferFieldType<F extends FieldDefinition<unknown>> =
+  F extends FieldDefinition<infer T> ? T : never;
 
-/** Helper to get keys of fields that are optional on creation 
+/** Helper to get keys of fields that are optional on creation
  * (either marked as optional or have a default value).
  */
-type OptionalOnCreate<TFields extends Record<string, FieldDefinition<unknown>>> = {
-  [K in keyof TFields]: TFields[K]['isOptional'] extends true
+type OptionalOnCreate<
+  TFields extends Record<string, FieldDefinition<unknown>>
+> = {
+  [K in keyof TFields]: TFields[K]["isOptional"] extends true
     ? K
-    : TFields[K]['default'] extends undefined
-      ? never
-      : K;
+    : TFields[K]["default"] extends undefined
+    ? never
+    : K;
 }[keyof TFields];
 
 /** Helper to get keys of fields that are required on creation. */
-type RequiredOnCreate<TFields extends Record<string, FieldDefinition<unknown>>> = Exclude<keyof TFields, OptionalOnCreate<TFields>>;
+type RequiredOnCreate<
+  TFields extends Record<string, FieldDefinition<unknown>>
+> = Exclude<keyof TFields, OptionalOnCreate<TFields>>;
 
 /**
  * Represents the shape of data for creating a new record.
  * Fields with default values or marked as optional are not required.
  * The 'id' field is also optional.
  */
-export type CreateData<TFields extends Record<string, FieldDefinition<unknown>>> = {
+export type CreateData<
+  TFields extends Record<string, FieldDefinition<unknown>>
+> = {
   [K in RequiredOnCreate<TFields>]: InferFieldType<TFields[K]>;
 } & {
   [K in OptionalOnCreate<TFields>]?: InferFieldType<TFields[K]>;
@@ -158,13 +175,16 @@ export type CreateData<TFields extends Record<string, FieldDefinition<unknown>>>
 };
 
 /** Represents the shape of data for updating a record (all fields are optional) */
-export type UpdateData<TTableData extends { id: RecordId }> = Partial<Omit<TTableData, 'id'>>;
+export type UpdateData<TTableData extends { id: RecordId }> = Partial<
+  Omit<TTableData, "id">
+>;
 
 /** Represents a fully instantiated model instance, including methods */
 export abstract class BaseTable<TData extends Record<string, unknown>> {
   id: RecordId;
 
-  constructor(data: TData & { id?: RecordId }) { // data should conform to TData, id is part of TData via InferTableDataFromFields
+  constructor(data: TData & { id?: RecordId }) {
+    // data should conform to TData, id is part of TData via InferTableDataFromFields
     // biome-ignore lint/suspicious/noExplicitAny: Dynamic assignment from DB data.
     Object.assign(this as any, data);
     // Ensure 'id' is set. The concrete class (e.g., via its static create method)
@@ -172,12 +192,17 @@ export abstract class BaseTable<TData extends Record<string, unknown>> {
     if (data.id === undefined) {
       // This should ideally not happen if concrete classes fulfill the contract
       // of providing an ID, e.g., through their static create method.
-      throw new Error("BaseTable constructor requires an 'id' in the data argument.");
+      throw new Error(
+        "BaseTable constructor requires an 'id' in the data argument."
+      );
     }
     this.id = data.id;
   }
 
-  async update(db: Surreal, data: UpdateData<TData & {id: RecordId}>): Promise<void> {
+  async update(
+    db: Surreal,
+    data: UpdateData<TData & { id: RecordId }>
+  ): Promise<void> {
     if (!this.id) throw new Error("Instance must have an ID to be updated.");
     // biome-ignore lint/suspicious/noExplicitAny: Surreal's update method can take partial data.
     await db.update(this.id, data as any);
@@ -195,11 +220,12 @@ export abstract class BaseTable<TData extends Record<string, unknown>> {
   [key: string]: any;
 }
 
-/** 
+/**
  * Base type for an instance of a model (a single record).
  * @template TData The shape of the record's data (fields).
  */
-export type ModelInstance<TData extends Record<string, unknown>> = BaseTable<TData> & TData;
+export type ModelInstance<TData extends Record<string, unknown>> =
+  BaseTable<TData> & TData;
 
 /**
  * Represents the static side of a model class (the class itself).
@@ -218,25 +244,56 @@ export type ModelStatic<
 
   // Standard static CRUD methods
   getTableName(): string;
-  create(this: ModelStatic<TInstance, TFields>, db: Surreal, data: CreateData<TFields>): Promise<TInstance>;
-  
+  create(
+    this: ModelStatic<TInstance, TFields>,
+    db: Surreal,
+    data: CreateData<TFields>
+  ): Promise<TInstance>;
+
   // Select overloads: Order matters - specific to general.
 
   // 1. Projection (specific fields) AND only one record expected
-  select<QueryOptions extends SelectQueryOptions<InferTableDataFromFields<TFields>>>(this: ModelStatic<TInstance, TFields>, db: Surreal, options: QueryOptions & { select: string[]; only: true }): Promise<Record<string, unknown> | undefined>;
+  select<
+    QueryOptions extends SelectQueryOptions<InferTableDataFromFields<TFields>>
+  >(
+    this: ModelStatic<TInstance, TFields>,
+    db: Surreal,
+    options: QueryOptions & { select: string[]; only: true }
+  ): Promise<Record<string, unknown> | undefined>;
 
   // 2. Projection (specific fields) AND array of records expected
-  select<QueryOptions extends SelectQueryOptions<InferTableDataFromFields<TFields>>>(this: ModelStatic<TInstance, TFields>, db: Surreal, options: QueryOptions & { select: string[] }): Promise<Record<string, unknown>[]>;
+  select<
+    QueryOptions extends SelectQueryOptions<InferTableDataFromFields<TFields>>
+  >(
+    this: ModelStatic<TInstance, TFields>,
+    db: Surreal,
+    options: QueryOptions & { select: string[] }
+  ): Promise<Record<string, unknown>[]>;
 
   // 3. Full instance AND only one record expected (no projection)
-  select<QueryOptions extends SelectQueryOptions<InferTableDataFromFields<TFields>>>(this: ModelStatic<TInstance, TFields>, db: Surreal, options: QueryOptions & { only: true; select?: undefined }): Promise<TInstance | undefined>;
-  
+  select<
+    QueryOptions extends SelectQueryOptions<InferTableDataFromFields<TFields>>
+  >(
+    this: ModelStatic<TInstance, TFields>,
+    db: Surreal,
+    options: QueryOptions & { only: true; select?: undefined }
+  ): Promise<TInstance | undefined>;
+
   // 4. Full instances AND array of records expected (with options, but no projection)
-  select<QueryOptions extends SelectQueryOptions<InferTableDataFromFields<TFields>>>(this: ModelStatic<TInstance, TFields>, db: Surreal, options: QueryOptions & { select?: undefined }): Promise<TInstance[]>;
+  select<
+    QueryOptions extends SelectQueryOptions<InferTableDataFromFields<TFields>>
+  >(
+    this: ModelStatic<TInstance, TFields>,
+    db: Surreal,
+    options: QueryOptions & { select?: undefined }
+  ): Promise<TInstance[]>;
 
   // 5. Full instances AND array of records expected (no options provided)
-  select(this: ModelStatic<TInstance, TFields>, db: Surreal): Promise<TInstance[]>;
-}; 
+  select(
+    this: ModelStatic<TInstance, TFields>,
+    db: Surreal
+  ): Promise<TInstance[]>;
+};
 
 // Placeholder for the type of class returned by defineTable
 // This is what Field.record() will expect as an argument for table linking.

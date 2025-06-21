@@ -87,7 +87,10 @@ export function generateTableSchemaQl(
       // First, define the current field (which could be an object itself)
       let fieldStatement = `DEFINE FIELD ${fullFieldName} ON TABLE ${tableName}`;
 
-      // The `type` is now pre-formatted by the Field definition functions
+      // Emit FLEXIBLE before TYPE if requested (for object or custom fields)
+      if (fieldDef.flexible === true) {
+        fieldStatement += ' FLEXIBLE';
+      }
       fieldStatement += ` TYPE ${fieldDef.type}`;
 
       if (fieldDef.assert) {

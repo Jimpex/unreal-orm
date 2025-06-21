@@ -1,17 +1,13 @@
-import type { RecordId } from 'surrealdb';
+import type { RecordId } from "surrealdb";
 import type {
   FieldOptions,
   FieldDefinition,
   InferFieldType,
-  AnyTableDefinition,
   AnyModelClass,
   InferShapeFromFields,
-  ModelInstance,
-  InferTableDataFromFields
-} from './types';
+} from "./types";
 
 // --- Field Definition Functions ---
-
 
 /** Options for array fields */
 /**
@@ -22,13 +18,21 @@ export interface ArrayFieldOptions<T> extends FieldOptions {
   max?: number;
 }
 
-
 /** Options for record link fields */
-export interface RecordFieldOptions extends FieldOptions {
-  reference?: boolean;
-  onDelete?: 'cascade' | 'set null' | 'none';
+export interface ObjectFieldOptions extends FieldOptions {
+  /**
+   * If true, generates SurrealQL 'FLEXIBLE' for object fields. Only valid for Field.object() or Field.custom().
+   * @see https://surrealdb.com/docs/surrealql/statements/define/field#flexible-data-types
+   */
+  flexible?: boolean;
 }
 
+export interface CustomFieldOptions extends ObjectFieldOptions {}
+
+export interface RecordFieldOptions extends FieldOptions {
+  reference?: boolean;
+  onDelete?: "cascade" | "set null" | "none";
+}
 
 export const Field = {
   /**
@@ -40,7 +44,7 @@ export const Field = {
    *   name: Field.string({ assert: '$value.length > 3', comment: 'User name' })
    */
   string(options: FieldOptions = {}): FieldDefinition<string> {
-    return { ...options, type: 'string' };
+    return { ...options, type: "string" };
   },
 
   /**
@@ -52,7 +56,7 @@ export const Field = {
    *   age: Field.number({ assert: '$value >= 0', default: '0' })
    */
   number(options: FieldOptions = {}): FieldDefinition<number> {
-    return { ...options, type: 'number' };
+    return { ...options, type: "number" };
   },
 
   /**
@@ -64,7 +68,7 @@ export const Field = {
    *   isActive: Field.bool({ default: 'true' })
    */
   bool(options: FieldOptions = {}): FieldDefinition<boolean> {
-    return { ...options, type: 'bool' };
+    return { ...options, type: "bool" };
   },
 
   /**
@@ -76,7 +80,7 @@ export const Field = {
    *   createdAt: Field.datetime({ default: 'time::now()' })
    */
   datetime(options: FieldOptions = {}): FieldDefinition<Date> {
-    return { ...options, type: 'datetime' };
+    return { ...options, type: "datetime" };
   },
 
   /**
@@ -84,13 +88,17 @@ export const Field = {
    * Useful for advanced or not-yet-implemented types.
    *
    * @param typeString The raw SurrealQL type (e.g., 'duration', 'geometry<point>').
-   * @param options Optional field options.
+   * @param options Optional custom field options. Use { flexible: true } for FLEXIBLE custom fields.
    * @returns FieldDefinition<T>
    * @example
    *   duration: Field.custom<number>('duration')
+   *   meta: Field.custom<object>('object', { flexible: true })
    */
-  custom<T>(typeString: string, options: FieldOptions = {}): FieldDefinition<T> {
-    return { ...options, type: typeString };
+  custom<T>(
+    typeString: string,
+    options: CustomFieldOptions = {}
+  ): FieldDefinition<T> {
+    return { ...options, type: typeString, flexible: options.flexible };
   },
 
   /**
@@ -107,7 +115,8 @@ export const Field = {
   ): FieldDefinition<InferFieldType<FD> | undefined> {
     return {
       ...fieldDefinition, // Inherit base properties (assert, default, permissions, etc.)
-      get type() { // Override type
+      get type() {
+        // Override type
         return `option<${fieldDefinition.type}>`;
       },
       isOptional: true, // Add option-specific property
@@ -132,7 +141,9 @@ export const Field = {
     return {
       ...options, // Apply options specific to the array field (e.g., default for the array)
       get type() {
-        return options.max ? `array<${element.type}, ${options.max}>` : `array<${element.type}>`;
+        return options.max
+          ? `array<${element.type}, ${options.max}>`
+          : `array<${element.type}>`;
       },
       arrayElementType: element, // Store the full definition of the element type
     };
@@ -143,22 +154,23 @@ export const Field = {
    * The schema generator will handle defining sub-fields with dot notation.
    *
    * @param schema The field definitions for the nested object.
-   * @param options Optional field options.
+   * @param options Object field options. Use { flexible: true } to emit SurrealQL FLEXIBLE.
    * @returns FieldDefinition<object>
    * @example
    *   profile: Field.object({
    *     bio: Field.string(),
    *     website: Field.option(Field.string()),
-   *   })
+   *   }, { flexible: true })
    */
   object<TSchema extends Record<string, FieldDefinition<unknown>>>(
     schema: TSchema,
-    options: FieldOptions = {}
+    options: ObjectFieldOptions = {}
   ): FieldDefinition<InferShapeFromFields<TSchema>> {
     return {
       ...options,
-      type: 'object',
+      type: "object",
       objectSchema: schema,
+      flexible: options.flexible,
     };
   },
 
@@ -176,10 +188,7 @@ export const Field = {
   record<TModel extends AnyModelClass>(
     tableClassThunk: () => TModel,
     options: RecordFieldOptions = {}
-  ): FieldDefinition<
-    | InstanceType<TModel>
-    | RecordId<TModel['_tableName']>
-  > {
+  ): FieldDefinition<InstanceType<TModel> | RecordId<TModel["_tableName"]>> {
     return {
       ...options,
       get type() {
