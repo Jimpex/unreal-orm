@@ -8,57 +8,58 @@ import node from "@astrojs/node";
 // https://astro.build/config
 
 export default defineConfig({
-  integrations: [
-    starlight({
-      plugins: [
-        // Generate the documentation
-        starlightTypeDoc({
-          entryPoints: ["../../packages/unreal-orm/src/index.ts"],
-          tsconfig: "../../packages/unreal-orm/tsconfig.json",
-          watch: true,
-          typeDoc: { skipErrorChecking: true },
-        }),
-      ],
-      title: "unreal-orm",
-      logo: {
-        dark: "./src/assets/unreal-orm-logo-white.svg",
-        light: "./src/assets/unreal-orm-logo-black.svg",
-        alt: "unreal-orm-logo",
-        replacesTitle: true,
-      },
-      social: [
-        {
-          icon: "github",
-          label: "GitHub",
-          href: "https://github.com/jimpex/unreal-orm",
-        },
-      ],
-      sidebar: [
-        {
-          label: "Getting Started",
-          items: [
-            // User-facing documentation
-            { label: "Introduction", slug: "package/readme" },
-            { label: "Capabilities", slug: "package/capabilities" },
-            // { label: "Example Guide", slug: "guides/example" },
-          ],
-        },
-        {
-          label: "API Reference",
-          autogenerate: { directory: "api" },
-        },
-        {
-          label: "Contributing",
-          items: [
-            // Internal documentation for contributors
-            { label: "Contributing Guide", slug: "package/internal/contributing" },
-            { label: "Design Principles", slug: "package/design-principles" }
-          ],
-        },
-      ],
-    }),
-  ],
-  adapter: node({
-    mode: "standalone",
-  }),
+	integrations: [
+		starlight({
+			plugins: [
+				// Generate the documentation
+				starlightTypeDoc({
+					entryPoints: ["../../packages/unreal-orm/src/index.ts"],
+					tsconfig: "../../packages/unreal-orm/tsconfig.json",
+					watch: true,
+					typeDoc: { skipErrorChecking: true },
+				}),
+			],
+			title: "unreal-orm",
+			logo: {
+				dark: "./src/assets/unreal-orm-logo-white.svg",
+				light: "./src/assets/unreal-orm-logo-black.svg",
+				alt: "unreal-orm-logo",
+				replacesTitle: true,
+			},
+			social: [
+				{
+					icon: "github",
+					label: "GitHub",
+					href: "https://github.com/jimpex/unreal-orm",
+				},
+			],
+			sidebar: [
+				{
+					label: "Getting Started",
+					items: [
+						{ label: "Introduction", slug: "getting-started/readme" },
+						{ label: "Capabilities", slug: "getting-started/capabilities" },
+					],
+				},
+				{
+					label: "Contributing",
+					items: [
+						{ label: "Contributing Guide", slug: "contributing/guide" },
+						{
+							label: "Design Principles",
+							slug: "contributing/design-principles",
+						},
+					],
+				},
+				{
+					label: "API Reference",
+					autogenerate: { directory: "api" },
+					collapsed: true,
+				},
+			],
+		}),
+	],
+	adapter: node({
+		mode: "standalone",
+	}),
 });

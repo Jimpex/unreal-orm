@@ -23,16 +23,16 @@ This repository is organized as a monorepo, making it easy to develop, test, and
 
 ---
 
-## Key Documents
-- [`CONTRIBUTING.md`](CONTRIBUTING.md): Guidelines for contributing, code style, and submitting issues/PRs.
-- [`packages/unreal-orm/src/DESIGN_PRINCIPLES.md`](packages/unreal-orm/src/DESIGN_PRINCIPLES.md): Project philosophy, technical decisions, and design rationale.
-- [`packages/unreal-orm/CAPABILITIES.md`](packages/unreal-orm/CAPABILITIES.md): List of supported SurrealDB features.
+## Documentation
+- [UnrealORM Documentation Site](https://unreal-orm.jimpex.dev/): Full docs, guides, and API reference
+- [Getting Started](https://unreal-orm.jimpex.dev/getting-started/readme/): Quickstart, installation, and onboarding
+- [Capabilities](https://unreal-orm.jimpex.dev/getting-started/capabilities/): Supported SurrealDB features
+- [Design Principles](https://unreal-orm.jimpex.dev/contributing/design-principles/): Project philosophy and technical decisions
+- [Contributing Guide](https://unreal-orm.jimpex.dev/contributing/guide/): How to contribute, code style, and submitting issues/PRs
+- [API Reference](https://unreal-orm.jimpex.dev/api/): Full API documentation
 
----
-
-## Navigation
 - **Main ORM package:** See [`packages/unreal-orm/README.md`](packages/unreal-orm/README.md) for usage, API, and details.
-- **Documentation site:** See [`apps/docs/`](apps/docs/) for the Astro-powered docs.
+- **Documentation site source:** See [`apps/docs/`](apps/docs/) for the Astro-powered docs.
 
 ---
 

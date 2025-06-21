@@ -146,16 +146,25 @@ const ddl = generateTableSchemaQl(User);
 // Or automatically generate & apply
 await applySchema(db, [User, Post]);
 ```
-> See [CAPABILITIES.md](./CAPABILITIES.md) for all supported field options, validation, and SurrealDB mappings.
+> See [Capabilities](https://unreal-orm.jimpex.dev/getting-started/capabilities/) for all supported field options, validation, and SurrealDB mappings.
 
 
 ## Documentation
 
-For more detailed information, API reference, and advanced usage, please visit our [full documentation site](https://unreal-orm.jimpex.dev).
+For more detailed information, API reference, and advanced usage, visit the [UnrealORM documentation](https://unreal-orm.jimpex.dev/).
+
+- [Getting Started](https://unreal-orm.jimpex.dev/getting-started/readme/)
+- [Capabilities](https://unreal-orm.jimpex.dev/getting-started/capabilities/)
+- [Contributing Guide](https://unreal-orm.jimpex.dev/contributing/guide/)
+- [Design Principles](https://unreal-orm.jimpex.dev/contributing/design-principles/)
+- [API Reference](https://unreal-orm.jimpex.dev/api/)
 
 ## Contributing
 
-Contributions are welcome and appreciated! Please see our [Contributing Guidelines](https://github.com/jimpex/unreal-orm/blob/main/CONTRIBUTING.md) for more details on how to get started.
+We welcome contributions of all kinds!  
+Please read our [Contributing Guide](https://unreal-orm.jimpex.dev/contributing/guide/) for how to get started, coding standards, and guidelines.
+
+If you have questions, ideas, or want to discuss improvements, join our [GitHub Discussions](https://github.com/Jimpex/unreal-orm/discussions).
 
 ## Author & Support
 

@@ -22,4 +22,5 @@ pnpm-debug.log*
 
 src/content/docs/api
 src/content/docs/package
+src/content/docs/getting-started/readme.md
 

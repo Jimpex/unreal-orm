@@ -1,6 +1,12 @@
-# Unreal-ORM SurrealDB 2.x Feature Support
+---
+title: Capabilities
+description: Overview of SurrealDB features supported by unreal-orm, including table, field, and index schema support.
+---
 
-This document outlines the support status of various SurrealDB 2.x schema definition features within the `unreal-orm` library. The ORM aims to provide a type-safe way to define and generate SurrealDB schemas.
+:::tip
+This page summarizes which SurrealDB schema features are supported by unreal-orm. For details on usage, see the Introduction doc.
+:::
+
 
 ## `DEFINE TABLE` Features
 
@@ -98,86 +104,4 @@ const User = Table.define({
   indexes: [
     { name: 'user_name_idx', fields: ['name'], unique: true },
   ],
-});
-
-// Add instance/static methods directly in the class body
-class UserWithMethods extends User {
-  getDisplayName(): string {
-    return this.name.toUpperCase();
-  }
-  static async findByName(db, name: string) {
-    return this.select(db, { where: `name = $name`, vars: { name }, only: true });
-  }
-}
-```
-
-### Schema Generation & Application
-
-```ts
-import { applySchema, generateTableSchemaQl } from 'unreal-orm';
-
-// Generate SurrealQL DDL for a single model
-const ddl = generateTableSchemaQl(User);
-// Generate DDL for multiple models
-generateFullSchemaQl([User, Post]);
-// Apply schema to the database
-await applySchema(db, [User, Post]);
-```
-
-### Field Options Structure
-- All field helpers accept a single `FieldOptions` object for options like `assert`, `default`, `permissions`, `comment`, etc.
-- Only `Field.array` and `Field.record` accept extra options (`max` for arrays, reference options for records).
-- There are no longer redundant option interfaces for each field type.
-
-### Validation & Min/Max
-- Use the `assert` option for validation, e.g. `Field.number({ assert: '$value >= 0' })` for min, or `Field.string({ assert: '$value.length < 20' })` for max length.
-- For arrays, use the `max` option: `Field.array(Field.string(), { max: 10 })`.
-
----
-
-SurrealDB supports a wide variety of data types. Below is the mapping between SurrealDB data types and unreal-orm field factories:
-
-| SurrealDB Type | SurrealDB Syntax | `unreal-orm` Support | ORM Usage |
-| -------------- | --------------- | -------------------- | --------- |
-| `any` | `TYPE any` | ✅ **Supported** | `Field.any()` |
-| `array` | `TYPE array` | ✅ **Supported** | `Field.array(itemDef)` |
-| `array` with type | `TYPE array<string>` | ✅ **Supported** | `Field.array(Field.string())` |
-| `array` with max length | `TYPE array<string, 10>` | ✅ **Supported** | Use `Field.array(Field.string(), { max: 10 })` |
-| `bool` | `TYPE bool` | ✅ **Supported** | `Field.boolean()` |
-| `bytes` | `TYPE bytes` | ❌ **Not Supported** | Use `Field.custom({ type: 'bytes' })` |
-| `datetime` | `TYPE datetime` | ✅ **Supported** | `Field.datetime()` |
-| `decimal` | `TYPE decimal` | ❌ **Not Supported** | Use `Field.custom({ type: 'decimal' })` |
-| `duration` | `TYPE duration` | ❌ **Not Supported** | Use `Field.custom({ type: 'duration' })` |
-| `float` | `TYPE float` | ❌ **Not Supported** | Use `Field.custom({ type: 'float' })` or `Field.number()` |
-| `geometry` | `TYPE geometry` | ❌ **Not Supported** | Use `Field.custom({ type: 'geometry' })` |
-| `geometry` with subtype | `TYPE geometry<point>` | ❌ **Not Supported** | Use `Field.custom({ type: 'geometry<point>' })` |
-| `int` | `TYPE int` | ❌ **Not Supported** | Use `Field.custom({ type: 'int' })` or `Field.number()` |
-| `number` | `TYPE number` | ✅ **Supported** | `Field.number()` |
-| `object` | `TYPE object` | ✅ **Supported** | `Field.object({ ... })` |
-| `option` | `TYPE option<T>` | ✅ **Supported** | `Field.option(innerTypeDef)` |
-| `range` | `TYPE range` | ❌ **Not Supported** | Use `Field.custom({ type: 'range' })` |
-| `record` | `TYPE record` | ✅ **Supported** | `Field.record((): any => Model)` |
-| `record` with table | `TYPE record<user>` | ✅ **Supported** | `Field.record((): any => User)` |
-| `regex` | `TYPE regex` | ❌ **Not Supported** | Use `Field.custom({ type: 'regex' })` |
-| `set` | `TYPE set` | ❌ **Not Supported** | Use `Field.custom({ type: 'set' })` or `Field.array()` |
-| `string` | `TYPE string` | ✅ **Supported** | `Field.string()` |
-| `literal` | e.g., `"a" \| "b"` | ❌ **Not Supported** | No direct support for union types |
-
-Note on Type Coverage:
-
-1. The `Field.custom()` method can be used as a workaround for any data type not directly supported.
-2. The ORM primarily focuses on the most common data types while allowing advanced types to be used via `custom()`.
-3. Field options like `min` and `max` for numbers are not provided directly as SurrealDB doesn't support them—use the `assert` option for validation.
-
----
-
-## Best Practices
-- Always define instance and static methods directly in your model class body (never via options).
-- Use the `assert` field option for all validation logic (min/max, regex, etc.).
-- Use `Field.option(...)` for nullable/optional fields.
-- Use `Field.record((): any => Model)` for relations, and `Field.array(Field.record(...))` for arrays of relations.
-- Use `Field.custom(typeString)` for any SurrealDB type not natively supported by a Field helper.
-- Use `applySchema` or `generateTableSchemaQl` to generate/apply schemas to your SurrealDB instance.
-- Keep your model and schema definitions in sync for type safety and maintainability.
-
-This list is based on SurrealDB 2.x documentation and the features implemented in `unreal-orm` as of the last update. As SurrealDB and `unreal-orm` evolve, this document will be updated.
+``}]},{
