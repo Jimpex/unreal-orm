@@ -56,6 +56,10 @@ export default defineConfig({
 					autogenerate: { directory: "api" },
 					collapsed: true,
 				},
+				{
+					label: "Changelog",
+					autogenerate: { directory: "changelog" },
+				},
 			],
 		}),
 	],

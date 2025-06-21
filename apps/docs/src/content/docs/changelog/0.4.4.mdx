@@ -1,0 +1,69 @@
+---
+title: v0.4.4
+description: Release notes for UnrealORM v0.4.4 – new features, fixes, and improvements.
+lastUpdated: 2025-06-20
+sidebar_label: 0.4.4
+sidebar_position: 1
+tags:
+  - release
+  - changelog
+toc: true
+feedback: true
+---
+
+## Added
+
+- Support for SurrealDB's `FLEXIBLE` option on object and custom fields via `{ flexible: true }`.
+- Integration tests for flexible object and custom fields.
+
+**Example usage:**
+
+```ts
+import { Table, Field } from "unreal-orm";
+
+class FlexibleModel extends Table.define({
+  name: "flexible_model",
+  fields: {
+    // This field allows storing any object shape, not just the declared one
+    meta: Field.object({ foo: Field.string() }, { flexible: true }),
+    // This custom field is also flexible
+    data: Field.custom<object>("object", { flexible: true }),
+    // This field is NOT flexible, only allows { bar: string }
+    regular: Field.object({ bar: Field.string() }),
+  },
+  schemafull: true,
+}) {}
+```
+
+**Rendered SurrealQL for flexible fields:**
+
+```sql
+DEFINE FIELD meta ON TABLE flexible_model FLEXIBLE TYPE object;
+DEFINE FIELD data ON TABLE flexible_model FLEXIBLE TYPE object;
+DEFINE FIELD regular ON TABLE flexible_model TYPE object;
+```
+
+## Changed
+
+- Migrated all documentation to a new Starlight-powered docs site for improved navigation and onboarding.
+- Updated all links and references in READMEs and documentation to point to the new docs site.
+- Streamlined "Contributing" sections to unify guidance for contributors.
+- Schema generator now emits correct SurrealQL for flexible fields.
+- Extended TypeScript types to support the flexible option safely.
+- Refactored test suite for improved clarity and consistency.
+- README improvements: new shields, motivation, "Why UnrealORM?" section, quick links, and improved layout.
+- Updated package description for consistency with documentation.
+
+## Removed
+
+- Legacy markdown documentation files, replaced by the new docs site.
+- Redundant and outdated documentation entry points.
+
+## Fixed
+
+- Homepage "Get Started" link now points to the correct getting-started route.
+- Fixed `module` field in `package.json` to ensure compatibility with consumers.
+
+---
+
+Other minor changes and improvements not individually listed.
