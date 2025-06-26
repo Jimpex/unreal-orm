@@ -283,7 +283,64 @@ function defineTable<
   return DynamicModelBase as unknown as ModelStatic<ThisModelInstance, TFields>;
 }
 
-export const Table = {
-  define: defineTable,
-}
+// --- API: Table.normal and Table.relation ---
+import type { NormalTableOptions, RelationTableOptions, RelationTableFields } from './types';
+
+const Table = {
+  /**
+   * Define a normal (non-relation) SurrealDB table model.
+   *
+   * @template TFields - The shape of the table's fields.
+   * @param options - Table options including name, fields, indexes, permissions, etc.
+   * @returns A model class with static CRUD/query methods and instance typing.
+   *
+   * @example
+   * class User extends Table.normal({
+   *   name: 'user',
+   *   fields: { name: Field.string(), age: Field.number() },
+   *   schemafull: true,
+   * }) {}
+   */
+  normal<TFields extends Record<string, FieldDefinition<unknown>>>(
+    options: NormalTableOptions<TFields>
+  ): ModelStatic<ModelInstance<InferTableDataFromFields<TFields>>, TFields> {
+    return defineTable({ ...options, type: 'normal' });
+  },
+
+  /**
+   * Define a relation table model (edge table) for SurrealDB.
+   * Enforces presence of 'in' and 'out' fields for relation endpoints.
+   *
+   * @template TIn - FieldDefinition for the 'in' endpoint (source node).
+   * @template TOut - FieldDefinition for the 'out' endpoint (target node).
+   * @template TOther - Additional fields for the relation (optional).
+   * @param options - Relation table options including name, fields (must include 'in' and 'out'), etc.
+   * @returns A model class for the relation table with static CRUD/query methods and instance typing.
+   *
+   * @example
+   * const Authored = Table.relation({
+   *   name: 'authored',
+   *   fields: {
+   *     in: Field.record(() => User),
+   *     out: Field.record(() => Post),
+   *     since: Field.datetime(),
+   *   },
+   * });
+   */
+  relation<
+    TIn extends FieldDefinition<unknown>,
+    TOut extends FieldDefinition<unknown>,
+    TOther extends Record<string, FieldDefinition<unknown>> = Record<string, never>
+  >(
+    options: RelationTableOptions<TIn, TOut, TOther>
+  ): ModelStatic<
+    ModelInstance<InferTableDataFromFields<RelationTableFields<TIn, TOut, TOther>>>,
+    RelationTableFields<TIn, TOut, TOther>
+  > {
+    return defineTable({ ...options, type: 'relation' });
+  },
+
+} as const;
+
+export { Table };
 export default Table;

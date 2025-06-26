@@ -8,7 +8,7 @@ import { applySchema, generateTableSchemaQl } from "../src/schemaGenerator"; // 
 // FLEXIBLE object/custom field schema DDL test
 
 describe("FLEXIBLE object/custom field SurrealQL generation", () => {
-  class FlexibleModel extends Table.define({
+  class FlexibleModel extends Table.normal({
     name: "flexible_model",
     fields: {
       meta: Field.object({ foo: Field.string() }, { flexible: true }),
@@ -79,7 +79,7 @@ describe("FLEXIBLE object/custom field SurrealQL generation", () => {
 });
 
 // Define the User table
-class User extends Table.define({
+class User extends Table.normal({
   fields: {
     name: Field.string({
       assert: "string::len($value) > 0 AND string::len($value) <= 255",
@@ -140,7 +140,7 @@ class User extends Table.define({
 
 // Define the Post table
 // IMPORTANT: Using a thunk `() => User` to avoid circular dependency issues.
-class Post extends Table.define({
+class Post extends Table.normal({
   fields: {
     title: Field.string({ assert: "string::len($value) > 0" }),
     content: Field.string(),
@@ -176,7 +176,7 @@ class Post extends Table.define({
 }
 
 // Define the AdminUser table
-class AdminUser extends Table.define({
+class AdminUser extends Table.normal({
   name: "admin_user",
   fields: {
     username: Field.string(),

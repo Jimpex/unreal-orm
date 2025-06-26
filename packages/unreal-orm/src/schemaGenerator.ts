@@ -6,13 +6,13 @@ export type SchemaApplicationMethod = "IF NOT EXISTS" | "OVERWRITE" | "error";
 /**
  * Generates SurrealQL DDL statements for a single table model, including all fields, indexes, and permissions.
  *
- * @param modelClass The model class (output of Table.define)
+ * @param modelClass The model class (output of Table.normal)
  * @param method How to apply the schema (e.g., 'IF NOT EXISTS', 'DROP', etc.)
  * @returns A string containing SurrealQL DDL statements for the table
  *
  * @example
  *   import { Table, Field, generateTableSchemaQl } from 'unreal-orm';
- *   const User = Table.define({
+ *   const User = Table.normal({
  *     name: 'user',
  *     fields: { name: Field.string() }
  *   });
@@ -164,14 +164,14 @@ export function generateTableSchemaQl(
  * Generates SurrealQL DDL statements for multiple model classes (tables).
  * Useful for initializing or migrating the full database schema.
  *
- * @param modelClasses Array of model classes (output of Table.define)
+ * @param modelClasses Array of model classes (output of Table.normal)
  * @param method How to apply the schema (e.g., 'IF NOT EXISTS', 'DROP', etc.)
  * @returns A string containing SurrealQL DDL statements for all tables
  *
  * @example
  *   import { Table, Field, generateFullSchemaQl } from 'unreal-orm';
- *   const User = Table.define({ ... });
- *   const Post = Table.define({ ... });
+ *   const User = Table.normal({ ... });
+ *   const Post = Table.normal({ ... });
  *   const ddl = generateFullSchemaQl([User, Post]);
  *   // Pass `ddl` to SurrealDB for schema migration
  */
@@ -189,14 +189,14 @@ export function generateFullSchemaQl(
  * Applies the generated SurrealQL schema to the database by executing DDL statements.
  *
  * @param db The SurrealDB client instance
- * @param modelClasses Array of model classes (output of Table.define)
+ * @param modelClasses Array of model classes (output of Table.normal)
  * @param method How to apply the schema (e.g., 'IF NOT EXISTS')
  * @returns Promise<void> (resolves when schema has been applied)
  *
  * @example
  *   import { applySchema, Table, Field } from 'unreal-orm';
- *   const User = Table.define({ ... });
- *   const Post = Table.define({ ... });
+ *   const User = Table.normal({ ... });
+ *   const Post = Table.normal({ ... });
  *   await applySchema(db, [User, Post]);
  */
 export async function applySchema(

@@ -67,6 +67,44 @@ export interface ChangefeedConfig {
 }
 
 /** Core options for defining a table */
+// --- Table API Option Types ---
+
+// For normal tables
+export interface NormalTableOptions<TFields extends Record<string, FieldDefinition<unknown>>> {
+  name: string;
+  fields: TFields;
+  schemafull?: boolean;
+  permissions?: TablePermissionsOptions;
+  indexes?: IndexDefinition[];
+  changefeed?: ChangefeedConfig;
+  comment?: string;
+  // No 'type' field; Table.normal always sets type: 'normal'
+}
+
+// For relation tables: must have 'in' and 'out', but allow others
+export type RelationTableFields<
+  TIn extends FieldDefinition<unknown>,
+  TOut extends FieldDefinition<unknown>,
+  TOther extends Record<string, FieldDefinition<unknown>> = Record<string, never>
+> = TOther & { in: TIn; out: TOut };
+
+export interface RelationTableOptions<
+  TIn extends FieldDefinition<unknown>,
+  TOut extends FieldDefinition<unknown>,
+  TOther extends Record<string, FieldDefinition<unknown>> = Record<string, never>
+> {
+  name: string;
+  fields: RelationTableFields<TIn, TOut, TOther>;
+  schemafull?: boolean;
+  permissions?: TablePermissionsOptions;
+  indexes?: IndexDefinition[];
+  changefeed?: ChangefeedConfig;
+  comment?: string;
+  // No 'type' field; Table.relation always sets type: 'relation'
+}
+
+// --- End Table API Option Types ---
+
 export interface TableDefineOptions<
   TFields extends Record<string, FieldDefinition<unknown>>
 > {

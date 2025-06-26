@@ -87,7 +87,7 @@ bun add unreal-orm surrealdb typescript
 ```typescript
 import { Table, Field } from 'unreal-orm';
 
-class User extends Table.define({
+class User extends Table.normal({
   name: 'user',
   fields: {
     name: Field.string({ assert: '$value.length > 2' }),
@@ -128,7 +128,7 @@ main();
 ## Field Patterns & Schema Generation
 
 ```typescript
-const User = Table.define({
+const User = Table.normal({
   name: 'user',
   fields: {
     name: Field.string({ assert: '$value.length > 2', comment: 'User name' }),
