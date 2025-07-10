@@ -4,8 +4,21 @@ description: Overview of SurrealDB features supported by unreal-orm, including t
 ---
 
 :::tip
-This page summarizes which SurrealDB schema features are supported by unreal-orm. For details on usage, see the Introduction doc.
+This page summarizes which SurrealDB schema features are supported by unreal-orm. For hands-on examples see the [Quick Blog snippet](../readme/) and the [Tutorial](../guides/unreal-orm-tutorial/).
 :::
+
+## Quick Highlights {#highlights}
+
+| 💎 Feature | What it gives you |
+|-----------|------------------|
+| **Schema-only mode** | Generate SurrealQL with `generateFullSchemaQl()` without touching the database—perfect for migrations & CI. |
+| **Embedded testing** | Run SurrealDB fully in-process via `@surrealdb/node` engines (`mem://`) for ultra-fast unit tests. |
+| **Parameterized queries (`vars`)** | Prevent injection; supported in `select`, `count`, `query`, etc. |
+| **Type-safe `fetch` projection** | Automatic hydration of related records (`Field.record`) with full TypeScript types. |
+| **Circular dependency thunk** | Use `Field.record(() => OtherTable)` to avoid import cycles while keeping types. |
+| **Custom Surreal types** | Define `Field.custom<T>('duration')`, vector, decimal, or any database type you need. |
+
+---
 
 
 ## `DEFINE TABLE` Features

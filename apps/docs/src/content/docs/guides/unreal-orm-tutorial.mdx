@@ -1,0 +1,496 @@
+---
+title: "Unreal-ORM Tutorial"
+description: "Learn Unreal-ORM by building a type-safe blog API with SurrealDB. From setup to CRUD operations, relations, and validation in 20 minutes."
+---
+
+We will be building a small **blog API** with users, posts, and comments using **Unreal-ORM** and **SurrealDB**.
+
+This tutorial focuses on Unreal-ORM features and how to use the ORM effectively. We expect it to take around **20-25 minutes** if you follow along.
+
+---
+
+## Setup
+
+Unreal-ORM is designed for **SurrealDB** and can run on **Node.js** or **Bun**. For this tutorial, we'll use Node.js with the in-memory SurrealDB database.
+
+### Install Dependencies
+
+```bash
+npm init -y
+npm install surrealdb unreal-orm @surrealdb/node
+npm install -D typescript @types/node tsx
+```
+
+> **Note:** `@surrealdb/node` is required for running SurrealDB embedded locally in a Node.js environment. This is great for prototyping, development, and testing.
+
+### Project Setup
+
+Create `src/index.ts`:
+
+```ts
+// src/index.ts
+import { Surreal } from 'surrealdb';
+import { surrealdbNodeEngines } from '@surrealdb/node';
+import Table, { Field } from 'unreal-orm';
+
+const db = new Surreal({ engines: surrealdbNodeEngines() });
+
+async function main() {
+  // Connect to in-memory database
+  await db.connect('mem://');
+  await db.use({ namespace: 'blog', database: 'tutorial' });
+  
+  console.log('Connected to SurrealDB!');
+}
+
+main().catch(console.error);
+```
+
+Run it to verify setup:
+```bash
+npx tsx src/index.ts
+```
+
+You should see "Connected to SurrealDB!" output.
+
+---
+
+## Define Your First Model
+
+Let's create a `User` model with basic fields:
+
+```ts
+// src/index.ts
+import { Surreal } from 'surrealdb';
+import Table, { Field, applySchema } from 'unreal-orm';
+
+class User extends Table.normal({
+  name: 'user',
+  fields: {
+    name: Field.string(),
+    email: Field.string(),
+    bio: Field.option(Field.string()),
+  },
+  schemafull: true,
+}) {}
+
+async function main() {
+  const db = new Surreal();
+  await db.connect('memory://');
+  await db.use({ namespace: 'blog', database: 'tutorial' });
+  
+  // Apply schema to database
+  await applySchema(db, [User]);
+  
+  // Create a user
+  const user = await User.create(db, {
+    name: 'Alice',
+    email: 'alice@example.com',
+    bio: 'Full-stack developer'
+  });
+  
+  console.log('Created user:', user);
+}
+```
+
+Run this and you should see your first user created with type safety!
+
+---
+
+## Schema Generation
+
+Unreal-ORM automatically generates **SurrealQL DDL** statements for your models:
+
+> **Note on Required Fields:** In SurrealDB, fields are **required by default**. To make a field optional, you must wrap it in `Field.option()`.
+
+```sql
+-- The ORM generates and applies:
+DEFINE TABLE user SCHEMAFULL;
+DEFINE FIELD name ON TABLE user TYPE string;
+DEFINE FIELD email ON TABLE user TYPE string;
+DEFINE FIELD bio ON TABLE user TYPE option<string>;
+```
+
+The `applySchema` function applies all these definitions to SurrealDB.
+
+### Schema-only Mode
+
+Sometimes you want to **generate DDL without executing it** (e.g.
+for migration scripts or CI schema-drift checks):
+
+```ts
+import { generateFullSchemaQl } from 'unreal-orm';
+
+// Pass one or more model classes – returns a single SurrealQL script
+const ddl = generateFullSchemaQl([User, Post]);
+console.log(ddl);
+// db.query(ddl) // you can run it manually later
+```
+
+Use this in pipelines to compare the generated DDL against committed files and fail the build if they differ.
+
+---
+
+## CRUD Operations
+
+Let's add full CRUD functionality and test it:
+
+```ts
+class User extends Table.normal({
+  name: 'user',
+  fields: {
+    name: Field.string(),
+    email: Field.string(),
+    bio: Field.option(Field.string()),
+  },
+  schemafull: true,
+  indexes: [
+    { unique: true, fields: ['email'] }
+  ]
+}) {
+  // Custom instance method
+  getDisplayName() {
+    return `${this.name} <${this.email}>`;
+  }
+  
+  // Custom static method
+  static async findByEmail(db: Surreal, email: string) {
+    const users = await this.select(db, {
+      where: 'email = $email',
+      vars: { email }
+    });
+    return users[0];
+  }
+}
+
+async function testCRUD() {
+  // Create
+  const alice = await User.create(db, {
+    name: 'Alice',
+    email: 'alice@example.com',
+    bio: 'Developer'
+  });
+  
+  // Read  — *Find by ID*
+  const found = await User.select(db, {
+    from: alice.id, // equivalent to "SELECT * FROM aliceId"
+    only: true
+  });
+  const found = await User.select(db, { from: alice.id, only: true });
+  console.log('Found user:', found?.getDisplayName());
+  
+  // Update (replaces entire record in schemafull mode)
+  await alice.update(db, {
+    name: 'Alice Smith',
+    email: alice.email,
+    bio: 'Senior Developer'
+  });
+  
+  // Custom query
+  const byEmail = await User.findByEmail(db, 'alice@example.com');
+  console.log('By email:', byEmail?.name);
+  
+  // Delete
+  await alice.delete(db);
+}
+```
+
+> **Note:** `update` replaces the whole record. Support for SurrealDB's `merge` (partial update) is comming soon.
+
+---
+
+## Adding Relations
+
+Now let's add a `Post` model with a relation to `User`:
+
+> **Tip – avoiding circular imports**
+> Use a thunk `() : any => OtherModel` inside `Field.record()` when two models reference each other.  
+> The `: any` type annotation suppresses TypeScript's self-referencing complaint and disappears at runtime.
+
+```ts
+class Post extends Table.normal({
+  name: 'post',
+  fields: {
+    title: Field.string(),
+    content: Field.string(),
+    author: Field.record(() => User),
+    tags: Field.option(Field.array(Field.string())),
+    published: Field.bool({ default: false }),
+  },
+  schemafull: true,
+}) {}
+
+async function testRelations() {
+  await applySchema(db, [User, Post]);
+  
+  // Create user and post
+  const author = await User.create(db, {
+    name: 'Bob',
+    email: 'bob@example.com'
+  });
+  
+  const post = await Post.create(db, {
+    title: 'My First Post',
+    content: 'Hello, world!',
+    author: author.id,
+    tags: ['tutorial', 'surrealdb'],
+    published: true
+  });
+  
+  // Query with hydration
+  const hydratedPost = await Post.select(db, {
+    from: post.id,
+    only: true,
+    fetch: ['author']
+  });
+  
+  console.log('Post by:', hydratedPost?.author.name);
+}
+```
+
+---
+
+## Field Options & Custom Fields
+
+Below are two quick ways to go beyond simple `Field.string()`:
+
+### 1. Core `FieldOptions` (assert, default, comment)
+
+```ts
+class Post extends Table.normal({
+  name: 'post',
+  fields: {
+    title: Field.string({
+      assert: '$value.length > 5', // ✅ validation in DB
+      comment: 'Post title (min 6 chars)',
+      default: "'Untitled'",
+    }),
+    content: Field.string(),
+  },
+}) {}
+```
+
+### 2. Custom SurrealDB types
+
+```ts
+const Duration = Field.custom<number>('duration');
+
+class Task extends Table.normal({
+  name: 'task',
+  fields: {
+    title: Field.string(),
+    est: Duration, // stored as SurrealDB duration type, typed as number in TS
+  },
+}) {}
+
+// Projection with type-safety
+await Task.select(db, { select: ['title', 'est'] }) // → ({ title: string; est: number }[])
+```
+
+---
+
+## Parameterized Queries (`vars`)
+
+Whenever you build a custom `where` clause, always inject **parameters** instead of string-interpolating values.  This avoids SurrealQL injection bugs.
+
+```ts
+// Unsafe (🚫 NEVER string-interpolate user input!)
+await User.select(db, {
+  where: `email = '${userInput}'`
+});
+
+// Safe ✅  — use vars
+await User.select(db, {
+  where: 'email = $email',
+  vars: { email: userInput }
+});
+```
+
+`vars` works in **all** Unreal-ORM query helpers. SurrealDB substitutes them server-side, giving you:
+
+* Protection against injection attacks
+* Clear separation between query text and data
+
+---
+
+## Validation & Error Handling
+
+Unreal-ORM provides both TypeScript and SurrealDB-level validation:
+
+```ts
+async function testValidation() {
+  try {
+    // This will fail - missing required field 'name'
+    await User.create(db, { 
+      email: 'incomplete@example.com'
+    });
+  } catch (err) {
+    console.log('Validation error:', err.message);
+  }
+  
+  try {
+    // This will fail - duplicate email (unique index)
+    await User.create(db, {
+      name: 'Another Bob',
+      email: 'bob@example.com' // Already exists
+    });
+  } catch (err) {
+    console.log('Constraint error:', err.message);
+  }
+}
+```
+
+SurrealDB native errors are passed through directly - no ORM-specific error wrapping.
+
+---
+
+## Edge Tables (Many-to-Many)
+
+For many-to-many relationships, use `Table.relation`:
+
+```ts
+class Comment extends Table.normal({
+  name: 'comment',
+  fields: {
+    content: Field.string(),
+    author: Field.record(() => User),
+    post: Field.record(() => Post),
+  },
+  schemafull: true,
+}) {}
+
+// Edge table for likes
+class Liked extends Table.relation({
+  name: 'liked',
+  fields: {
+    in: Field.record(() => User),
+    out: Field.record(() => Post),
+    timestamp: Field.datetime({ default: () => new Date() }),
+  },
+  schemafull: true,
+}) {}
+
+async function testEdges() {
+  await applySchema(db, [User, Post, Comment, Liked]);
+  
+  // Create like relationship
+  const like = await Liked.create(db, {
+    in: user.id,
+    out: post.id,
+    timestamp: new Date()
+  });
+  
+  console.log('User liked post at:', like.timestamp);
+}
+```
+
+---
+
+## Complete Example
+
+Here's the full working blog API:
+
+```ts
+// src/blog-api.ts
+import { Surreal } from 'surrealdb';
+import Table, { Field, applySchema } from 'unreal-orm';
+
+// Models
+class User extends Table.normal({
+  name: 'user',
+  fields: {
+    name: Field.string(),
+    email: Field.string(),
+    bio: Field.option(Field.string()),
+  },
+  schemafull: true,
+  indexes: [{ unique: true, fields: ['email'] }]
+}) {
+  getDisplayName() {
+    return `${this.name} <${this.email}>`;
+  }
+}
+
+class Post extends Table.normal({
+  name: 'post',
+  fields: {
+    title: Field.string(),
+    content: Field.string(),
+    author: Field.record(() => User),
+    published: Field.bool({ default: false }),
+  },
+  schemafull: true,
+}) {}
+
+async function main() {
+  const db = new Surreal();
+  await db.connect('memory://');
+  await db.use({ namespace: 'blog', database: 'tutorial' });
+  
+  // Apply schema
+  await applySchema(db, [User, Post]);
+  
+  // Create and test
+  const author = await User.create(db, {
+    name: 'Tutorial Author',
+    email: 'author@example.com',
+    bio: 'Learning Unreal-ORM'
+  });
+  
+  const post = await Post.create(db, {
+    title: 'Getting Started with Unreal-ORM',
+    content: 'This ORM is amazing for SurrealDB!',
+    author: author.id,
+    published: true
+  });
+  
+  // Query with hydration
+  const result = await Post.select(db, {
+    from: post.id,
+    only: true,
+    fetch: ['author']
+  });
+  
+  console.log(`Post "${result?.title}" by ${result?.author.getDisplayName()}`);
+  
+  await db.close();
+}
+
+main().catch(console.error);
+```
+
+Run this and see your complete blog API in action!
+
+---
+
+## Key Takeaways
+
+**vs SurrealDB JS SDK:**
+
+| Feature | Unreal-ORM | SurrealDB SDK |
+|---------|------------|---------------|
+| Type Safety | ✅ Full TypeScript | ❌ Manual typing |
+| Schema Generation | ✅ Automatic DDL | ❌ Manual SQL |
+| Relations & Hydration | ✅ Typed hydration | 🟡 Manual joins |
+| Validation | ✅ TS + DB level | ❌ Manual checks |
+| Custom Methods | ✅ Class methods | ❌ Separate functions |
+
+**Best Practices:**
+- Use `schemafull: true` for production applications
+- Define custom methods directly in class bodies (no decorators)
+- Use `applySchema()` in setup/migration scripts
+- Handle SurrealDB native errors directly
+- Use `fetch` parameter for efficient relation hydration
+
+---
+
+## Next Steps
+
+- **Advanced Relations**: Explore more complex many-to-many patterns
+- **Permissions**: Add SurrealDB table-level permissions
+- **Migrations**: Version your schema changes
+- **Performance**: Learn about indexing and query optimization
+
+Check out the [API Reference](/docs/api/) for complete documentation!
+
+**Total tutorial time: ~20 minutes** ⏱️

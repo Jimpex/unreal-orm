@@ -26,7 +26,7 @@ describe("FieldOptions (base) - generic field option behaviors", () => {
 			readonlyField: Field.option(Field.string({ readonly: true })),
 			withPermissions: Field.option(
 				Field.string({
-					permissions: { select: "$auth.id = id" },
+					permissions: { select: "WHERE $auth.id = id" },
 				}),
 			),
 			withComment: Field.option(Field.string({ comment: "A comment" })),

@@ -1,0 +1,78 @@
+---
+title: Cookbook
+sidebar_label: Cookbook Recipes
+description: Practical Unreal-ORM snippets for common tasks like pagination, soft-delete, enums, and patch updates.
+---
+
+Need a quick pattern without reading the whole tutorial? Grab a ready-made recipe below 👇
+
+> All snippets assume `db` is an active `Surreal` connection and models are already defined.
+
+## Pagination with `start`, `limit`, and `orderBy`
+
+```ts
+// Fetch the next page of posts ordered by newest first
+const pageSize = 10;
+const posts = await Post.select(db, {
+  orderBy: [{ field: 'createdAt', order: 'desc' }],
+  start: 20, // skip first 2 pages
+  limit: pageSize,
+});
+```
+
+## Soft Delete (`isDeleted` flag)
+
+```ts
+class Post extends Table.normal({
+  name: 'post',
+  fields: {
+    title: Field.string(),
+    content: Field.string(),
+    isDeleted: Field.bool({ default: 'false' }),
+  },
+}) {
+  // Convenience helpers
+  async softDelete(db: Surreal) {
+    return this.update(db, { isDeleted: true });
+  }
+
+  static async allActive(db: Surreal) {
+    return this.select(db, { where: 'isDeleted = false' });
+  }
+}
+```
+
+## Enum Helper
+
+```ts
+// Authorised values enforced in SurrealDB
+export const Roles = ['admin', 'editor', 'viewer'] as const;
+export type Role = (typeof Roles)[number];
+
+class User extends Table.normal({
+  name: 'user',
+  fields: {
+    role: Field_custom<Role>('string').assert(`$value INSIDE ${JSON.stringify(Roles)}`),
+  },
+}) {}
+```
+
+## Patch Update with `merge`
+
+```ts
+// Partially update fields without replacing the whole record
+await Post.merge(db, 'post:123', { content: 'Updated body' });
+```
+
+## Parameterised Full-Text Search
+
+```ts
+await Post.select(db, {
+  where: 'title ~~ $q OR content ~~ $q',
+  vars: { q: '*orm*' },
+});
+```
+
+---
+
+📖 Continue exploring the [Tutorial](./unreal-orm-tutorial/) or deep-dive into the [API Reference](../api/).

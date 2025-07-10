@@ -44,6 +44,10 @@ export default defineConfig({
 					],
 				},
 				{
+					label: "Guides",
+					autogenerate: { directory: "guides" },
+				},
+				{
 					label: "Contributing",
 					items: [
 						{ label: "Contributing Guide", slug: "contributing/guide" },

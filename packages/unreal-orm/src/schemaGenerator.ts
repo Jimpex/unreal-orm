@@ -124,13 +124,13 @@ export function generateTableSchemaQl(
 					permParts.push(subDef.permissions);
 				} else {
 					if (subDef.permissions.select)
-						permParts.push(`FOR select WHERE ${subDef.permissions.select}`);
+						permParts.push(`FOR select ${subDef.permissions.select}`);
 					if (subDef.permissions.create)
-						permParts.push(`FOR create WHERE ${subDef.permissions.create}`);
+						permParts.push(`FOR create ${subDef.permissions.create}`);
 					if (subDef.permissions.update)
-						permParts.push(`FOR update WHERE ${subDef.permissions.update}`);
+						permParts.push(`FOR update ${subDef.permissions.update}`);
 					if (subDef.permissions.delete)
-						permParts.push(`FOR delete WHERE ${subDef.permissions.delete}`);
+						permParts.push(`FOR delete ${subDef.permissions.delete}`);
 				}
 				if (permParts.length > 0) {
 					fieldStatement += ` PERMISSIONS ${permParts.join(" ")}`;

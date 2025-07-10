@@ -16,6 +16,7 @@
 
 <div align="center">
   <a href="https://unreal-orm.jimpex.dev"><b>Documentation</b></a> •
+  <a href="https://unreal-orm.jimpex.dev/guides/unreal-orm-tutorial"><b>Hands-on Tutorial</b></a> •
   <a href="https://github.com/Jimpex/unreal-orm"><b>GitHub</b></a> •
   <a href="https://github.com/Jimpex/unreal-orm/discussions"><b>GitHub Discussions</b></a> •
   <a href="https://ko-fi.com/jimpex"><b>Buy Me a Coffee</b></a>
@@ -80,72 +81,50 @@ bun add unreal-orm surrealdb typescript
 ```
 *Note: `surrealdb` and `typescript` are peer dependencies.*
 
-## Quick Start
+## Quick Blog API in 30 seconds
 
-### 1. Define a Model
+```ts
+import { Surreal } from 'surrealdb';
+import { surrealdbNodeEngines } from '@surrealdb/node';
+import Table, { Field, applySchema } from 'unreal-orm';
 
-```typescript
-import { Table, Field } from 'unreal-orm';
-
-class User extends Table.normal({
-  name: 'user',
+class Post extends Table.normal({
+  name: 'post',
   fields: {
-    name: Field.string({ assert: '$value.length > 2' }),
-    email: Field.string({ value: 'string::lowercase($value)' }),
-    age: Field.option(Field.number()),
-  }
+    title: Field.string({ default: "'Untitled'", assert: '$value.length > 3' }),
+    content: Field.string({ comment: 'Markdown allowed' }),
+  },
 }) {
-  isAdult() {
-    return (this.age ?? 0) >= 18;
+  summary() {
+    return `${this.title}: ${this.content.slice(0, 30)}…`;
   }
 }
-```
 
-### 2. Create and Query Data
-
-```typescript
-import { Surreal } from 'surrealdb';
+class Comment extends Table.normal({
+  name: 'comment',
+  fields: {
+    post: Field.record(() => Post),
+    body: Field.string({ assert: '$value.length > 1' }),
+  },
+}) {}
 
 async function main() {
-  const db = new Surreal();
-  await db.connect({ ... });
-  await db.use({ ns: 'test', db: 'test' });
+  const db = new Surreal({ engines: surrealdbNodeEngines() });
+  await db.connect('mem://');
+  await db.use({ namespace: 'demo', database: 'demo' });
 
-  // Create a user
-  const user = await User.create(db, { name: 'Jane', email: 'Jane@Email.com', age: 30 });
-
-  // Query users
-  const users = await User.select(db);
-  console.log(users[0].isAdult()); // true
-
+  await applySchema(db, [Post, Comment]);
+  const post = await Post.create(db, { title: 'Hello World', content: 'My first post' });
+  await Comment.create(db, { post: post.id, body: 'Great read!' });
+  const comments = await Comment.select(db, { fetch: ['post'] });
+  console.log(comments[0].post.summary()); // hydrated post in comment
   await db.close();
 }
 main();
 ```
 
-> See below for field patterns, relationships, schema generation, and advanced usage.
+▶️ For a full step-by-step build (users, posts, comments, relations) read the [Hands-on Tutorial](https://unreal-orm.jimpex.dev/guides/unreal-orm-tutorial).
 
-## Field Patterns & Schema Generation
-
-```typescript
-const User = Table.normal({
-  name: 'user',
-  fields: {
-    name: Field.string({ assert: '$value.length > 2', comment: 'User name' }),
-    tags: Field.array(Field.string(), { max: 10 }),
-    posts: Field.array(Field.record((): any => Post)),
-    createdAt: Field.datetime({ value: 'time::now()' }),
-    customField: Field.custom<number>('duration'),
-  }
-});
-
-// Generate and apply schema
-import { applySchema, generateTableSchemaQl } from 'unreal-orm';
-// Generate
-const ddl = generateTableSchemaQl(User);
-// Or automatically generate & apply
-await applySchema(db, [User, Post]);
-```
 > See [Capabilities](https://unreal-orm.jimpex.dev/getting-started/capabilities/) for all supported field options, validation, and SurrealDB mappings.
 
 
