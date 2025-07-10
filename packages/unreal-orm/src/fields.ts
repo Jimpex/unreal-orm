@@ -149,6 +149,7 @@ export const Field = {
     };
   },
 
+
   /**
    * Defines a nested object field for a model property.
    * The schema generator will handle defining sub-fields with dot notation.

@@ -1,5 +1,6 @@
-import type { Surreal } from 'surrealdb';
-import type { AnyModelClass, FieldDefinition, FieldOptions } from './types'; // FieldOptions replaces BaseFieldOptions
+import type { Surreal } from "surrealdb";
+import type { AnyModelClass, FieldDefinition, FieldOptions } from "./types"; // FieldOptions replaces BaseFieldOptions
+import { enumerateSubfields } from "./fieldUtils";
 
 export type SchemaApplicationMethod = "IF NOT EXISTS" | "OVERWRITE" | "error";
 
@@ -20,144 +21,148 @@ export type SchemaApplicationMethod = "IF NOT EXISTS" | "OVERWRITE" | "error";
  *   // Pass `ddl` to SurrealDB for schema migration
  */
 export function generateTableSchemaQl(
-  modelClass: AnyModelClass,
-  method: SchemaApplicationMethod = "IF NOT EXISTS"
+	modelClass: AnyModelClass,
+	method: SchemaApplicationMethod = "error",
 ): string {
-  const tableName = modelClass._tableName;
-  const fields = modelClass._fields;
-  const options = modelClass._options;
+	const tableName = modelClass._tableName;
+	const fields = modelClass._fields;
+	const options = modelClass._options;
 
-  const allStatements: string[] = [];
+	const allStatements: string[] = [];
 
-  // 1. DEFINE TABLE statement
-  let defineTableStatement = 'DEFINE TABLE';
-  if (method !== "error") {
-    defineTableStatement += ` ${method}`;
-  }
-  defineTableStatement += ` ${tableName}`;
+	// 1. DEFINE TABLE statement
+	let defineTableStatement = "DEFINE TABLE";
+	if (method !== "error") {
+		defineTableStatement += ` ${method}`;
+	}
+	defineTableStatement += ` ${tableName}`;
 
-  const schemafullOpt = options.schemafull;
-  // const typeOpt = options.type; // Assuming 'type' might be an option for table type like 'NORMAL', 'ANY'
-  const hasFields = Object.keys(fields).length > 0;
-  // let typeKeyword: string | undefined = undefined;
+	const schemafullOpt = options.schemafull;
+	// const typeOpt = options.type; // Assuming 'type' might be an option for table type like 'NORMAL', 'ANY'
+	const hasFields = Object.keys(fields).length > 0;
+	// let typeKeyword: string | undefined = undefined;
 
-  // if (typeof typeOpt === 'string') {
-  //   typeKeyword = typeOpt;
-  // } else if (typeof typeOpt === 'object' && typeOpt !== null && 'kind' in typeOpt && typeof (typeOpt as { kind: unknown }).kind === 'string') {
-  //   typeKeyword = (typeOpt as { kind: string }).kind;
-  // }
+	// if (typeof typeOpt === 'string') {
+	//   typeKeyword = typeOpt;
+	// } else if (typeof typeOpt === 'object' && typeOpt !== null && 'kind' in typeOpt && typeof (typeOpt as { kind: unknown }).kind === 'string') {
+	//   typeKeyword = (typeOpt as { kind: string }).kind;
+	// }
 
-  if (schemafullOpt === true) {
-    defineTableStatement += ' SCHEMAFULL';
-  } 
-  // else if (typeKeyword === 'normal') {
-  //   defineTableStatement += ' TYPE NORMAL';
-  // } else if (typeKeyword === 'any') {
-  //   defineTableStatement += ' TYPE ANY';
-  // } else if (typeKeyword === 'schemaless') {
-  //   defineTableStatement += ' TYPE SCHEMALESS';
-  // }
-  else if (schemafullOpt === undefined /*&& typeKeyword === undefined*/ && hasFields) {
-    // Default to SCHEMAFULL if no explicit 'schemafull: true' and no recognized 'type' is set, and fields exist.
-    defineTableStatement += ' SCHEMAFULL';
-  }
+	if (schemafullOpt === true) {
+		defineTableStatement += " SCHEMAFULL";
+	} else if (schemafullOpt === false) {
+		defineTableStatement += " SCHEMALESS";
+	}
+	// else if (typeKeyword === 'normal') {
+	//   defineTableStatement += ' TYPE NORMAL';
+	// } else if (typeKeyword === 'any') {
+	//   defineTableStatement += ' TYPE ANY';
+	// } else if (typeKeyword === 'schemaless') {
+	//   defineTableStatement += ' TYPE SCHEMALESS';
+	// }
+	// else if (
+	// 	schemafullOpt === undefined /*&& typeKeyword === undefined*/ &&
+	// 	hasFields
+	// ) {
+	// 	// Default to SCHEMAFULL if no explicit 'schemafull: true' and no recognized 'type' is set, and fields exist.
+	// 	defineTableStatement += " SCHEMAFULL";
+	// }
 
-  if (options.permissions) {
-    const { permissions } = options;
-    const permissionsClauses: string[] = [];
-    if (permissions.select) permissionsClauses.push(`FOR select ${permissions.select}`);
-    if (permissions.create) permissionsClauses.push(`FOR create ${permissions.create}`);
-    if (permissions.update) permissionsClauses.push(`FOR update ${permissions.update}`);
-    if (permissions.delete) permissionsClauses.push(`FOR delete ${permissions.delete}`);
-    if (permissionsClauses.length > 0) {
-      defineTableStatement += ` PERMISSIONS ${permissionsClauses.join(' ')}`;
-    }
-  }
+	if (options.permissions) {
+		const { permissions } = options;
+		const permissionsClauses: string[] = [];
+		if (permissions.select)
+			permissionsClauses.push(`FOR select ${permissions.select}`);
+		if (permissions.create)
+			permissionsClauses.push(`FOR create ${permissions.create}`);
+		if (permissions.update)
+			permissionsClauses.push(`FOR update ${permissions.update}`);
+		if (permissions.delete)
+			permissionsClauses.push(`FOR delete ${permissions.delete}`);
+		if (permissionsClauses.length > 0) {
+			defineTableStatement += ` PERMISSIONS ${permissionsClauses.join(", ")}`;
+		}
+	}
 
-  // if (options.comment) { // Assuming 'comment' might be an option
-  //   defineTableStatement += ` COMMENT '${options.comment}'`;
-  // }
-  allStatements.push(`${defineTableStatement};`);
+	// if (options.comment) { // Assuming 'comment' might be an option
+	//   defineTableStatement += ` COMMENT '${options.comment}'`;
+	// }
+	allStatements.push(`${defineTableStatement};`);
 
-  // 2. DEFINE FIELD statements (recursive function to handle nested objects)
-  function defineFields(fieldObject: Record<string, FieldDefinition<unknown>>, prefix = '') {
-    for (const [fieldName, fieldDef] of Object.entries(fieldObject)) {
-      const fullFieldName = prefix ? `${prefix}.${fieldName}` : fieldName;
+	// 2. DEFINE FIELD statements using enumerateSubfields utility
+	for (const [fieldName, fieldDef] of Object.entries(fields)) {
+		const subfields = enumerateSubfields(fieldDef, fieldName);
+		// Filter out array root paths like 'field[*]' unless the element type is primitive (no objectSchema)
+		for (const { path, fieldDef: subDef } of subfields) {
+			// Never emit a field for 'field[*]' (array element root); only emit the root array and subfields
+			if (/\[\*\]$/.test(path)) continue;
+			let fieldStatement = `DEFINE FIELD ${path} ON TABLE ${tableName}`;
 
-      // First, define the current field (which could be an object itself)
-      let fieldStatement = `DEFINE FIELD ${fullFieldName} ON TABLE ${tableName}`;
+			if (subDef.flexible === true) {
+				fieldStatement += " FLEXIBLE";
+			}
+			fieldStatement += ` TYPE ${subDef.type}`;
 
-      // Emit FLEXIBLE before TYPE if requested (for object or custom fields)
-      if (fieldDef.flexible === true) {
-        fieldStatement += ' FLEXIBLE';
-      }
-      fieldStatement += ` TYPE ${fieldDef.type}`;
+			if (subDef.assert) {
+				fieldStatement += ` ASSERT ${subDef.assert}`;
+			}
+			if (subDef.value) {
+				fieldStatement += ` VALUE ${subDef.value}`;
+			}
 
-      if (fieldDef.assert) {
-        fieldStatement += ` ASSERT ${fieldDef.assert}`;
-      }
-      if (fieldDef.value) {
-        fieldStatement += ` VALUE ${fieldDef.value}`;
-      }
+			if (subDef.default) {
+				fieldStatement += ` DEFAULT ${subDef.default}`;
+			}
 
-      // If a string is provided for 'default', use it directly as the SurrealQL default value.
-      if (fieldDef.default) {
-        fieldStatement += ` DEFAULT ${fieldDef.default}`;
-      }
+			if (subDef.readonly) {
+				fieldStatement += " READONLY";
+			}
 
-      if (fieldDef.readonly) {
-        fieldStatement += ' READONLY';
-      }
+			if (subDef.permissions) {
+				const permParts: string[] = [];
+				if (typeof subDef.permissions === "string") {
+					permParts.push(subDef.permissions);
+				} else {
+					if (subDef.permissions.select)
+						permParts.push(`FOR select WHERE ${subDef.permissions.select}`);
+					if (subDef.permissions.create)
+						permParts.push(`FOR create WHERE ${subDef.permissions.create}`);
+					if (subDef.permissions.update)
+						permParts.push(`FOR update WHERE ${subDef.permissions.update}`);
+					if (subDef.permissions.delete)
+						permParts.push(`FOR delete WHERE ${subDef.permissions.delete}`);
+				}
+				if (permParts.length > 0) {
+					fieldStatement += ` PERMISSIONS ${permParts.join(" ")}`;
+				}
+			}
 
-      if (fieldDef.permissions) {
-        const permParts: string[] = [];
-        if (typeof fieldDef.permissions === 'string') {
-          permParts.push(fieldDef.permissions);
-        } else {
-          if (fieldDef.permissions.select) permParts.push(`FOR select ${fieldDef.permissions.select}`);
-          if (fieldDef.permissions.create) permParts.push(`FOR create ${fieldDef.permissions.create}`);
-          if (fieldDef.permissions.update) permParts.push(`FOR update ${fieldDef.permissions.update}`);
-          if (fieldDef.permissions.delete) permParts.push(`FOR delete ${fieldDef.permissions.delete}`);
-        }
-        if (permParts.length > 0) {
-          fieldStatement += ` PERMISSIONS ${permParts.join(' ')}`;
-        }
-      }
+			if (subDef.comment) {
+				fieldStatement += ` COMMENT '${subDef.comment.replace(/'/g, "''")}'`;
+			}
 
-      if (fieldDef.comment) {
-        fieldStatement += ` COMMENT '${fieldDef.comment.replace(/'/g, "''")}'`; // Ensure quotes in comments are escaped
-      }
+			allStatements.push(`${fieldStatement};`);
+		}
+	}
 
-      allStatements.push(`${fieldStatement};`);
+	// 3. DEFINE INDEX statements
+	if (options.indexes && Array.isArray(options.indexes)) {
+		for (const indexDef of options.indexes) {
+			let indexStatement = `DEFINE INDEX ${indexDef.name} ON TABLE ${tableName} FIELDS ${indexDef.fields.join(", ")}`;
+			if (indexDef.unique) {
+				indexStatement += " UNIQUE"; // No interpolation
+			}
+			if (indexDef.analyzer) {
+				indexStatement += ` ANALYZER ${indexDef.analyzer}`;
+			}
+			if (indexDef.comment) {
+				indexStatement += ` COMMENT '${indexDef.comment.replace(/'/g, "''")}'`;
+			}
+			allStatements.push(`${indexStatement};`);
+		}
+	}
 
-      // If the current field is an object and has a schema, then recurse for its children
-      if (fieldDef.type === 'object' && fieldDef.objectSchema) {
-        defineFields(fieldDef.objectSchema, fullFieldName);
-      }
-    }
-  }
-
-  // Initial call to define fields
-  defineFields(fields);
-
-  // 3. DEFINE INDEX statements
-  if (options.indexes && Array.isArray(options.indexes)) {
-    for (const indexDef of options.indexes) {
-      let indexStatement = `DEFINE INDEX ${indexDef.name} ON TABLE ${tableName} FIELDS ${indexDef.fields.join(", ")}`;
-      if (indexDef.unique) {
-        indexStatement += ' UNIQUE'; // No interpolation
-      }
-      if (indexDef.analyzer) {
-        indexStatement += ` ANALYZER ${indexDef.analyzer}`;
-      }
-      if (indexDef.comment) {
-        indexStatement += ` COMMENT '${indexDef.comment.replace(/'/g, "''")}'`;
-      }
-      allStatements.push(`${indexStatement};`);
-    }
-  }
-
-  return allStatements.join('\n');
+	return allStatements.join("\n");
 }
 
 /**
@@ -176,13 +181,15 @@ export function generateTableSchemaQl(
  *   // Pass `ddl` to SurrealDB for schema migration
  */
 export function generateFullSchemaQl(
-  modelClasses: AnyModelClass[],
-  method: SchemaApplicationMethod = "IF NOT EXISTS"
+	modelClasses: AnyModelClass[],
+	method: SchemaApplicationMethod = "error",
 ): string {
-  const schema = modelClasses.map(mc => generateTableSchemaQl(mc, method)).join('\n\n');
-  console.debug("[ORM DEBUG]:\n", schema)
+	const schema = modelClasses
+		.map((mc) => generateTableSchemaQl(mc, method))
+		.join("\n\n");
+	console.debug("[ORM DEBUG]:\n", schema);
 
-  return schema;
+	return schema;
 }
 
 /**
@@ -200,12 +207,12 @@ export function generateFullSchemaQl(
  *   await applySchema(db, [User, Post]);
  */
 export async function applySchema(
-  db: Surreal,
-  modelClasses: AnyModelClass[],
-  method: SchemaApplicationMethod = "IF NOT EXISTS"
+	db: Surreal,
+	modelClasses: AnyModelClass[],
+	method: SchemaApplicationMethod = "error",
 ): Promise<void> {
-  const schemaQl = generateFullSchemaQl(modelClasses, method);
-  if (schemaQl.trim() !== '') {
-    await db.query(schemaQl);
-  }
+	const schemaQl = generateFullSchemaQl(modelClasses, method);
+	if (schemaQl.trim() !== "") {
+		await db.query(schemaQl);
+	}
 }
