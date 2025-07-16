@@ -1,9 +1,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
-import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
+import { Field, Table, applySchema } from "../../src";
 import type { Surreal } from "surrealdb";
-import { applySchema } from "../../src";
+import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 
 let db: Surreal;
 

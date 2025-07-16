@@ -1,10 +1,8 @@
 // Tests for schema migration, applySchema
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
+import { Field, Index, Table, applySchema } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
-import { applySchema } from "../../src/schemaGenerator";
 import type { Surreal } from "surrealdb";
 
 let db: Surreal;
@@ -22,14 +20,19 @@ describe("Schema Migration", () => {
 			name: "user_mig",
 			fields: { name: Field.string(), email: Field.string() },
 			schemafull: true,
-			indexes: [{ name: "idx_user_email", fields: ["email"], unique: true }],
 		}) {}
 		class Post extends Table.normal({
 			name: "post_mig",
 			fields: { title: Field.string() },
 			schemafull: true,
 		}) {}
-		await applySchema(db, [User, Post]);
+		const UserEmailIndex = Index.define(() => User, {
+			name: "idx_user_email",
+			fields: ["email"],
+			unique: true,
+		});
+
+		await applySchema(db, [User, UserEmailIndex, Post]);
 		// Try creating a user with duplicate email
 		await User.create(db, { name: "A", email: "a@x.com" });
 		expect(User.create(db, { name: "B", email: "a@x.com" })).rejects.toThrow();

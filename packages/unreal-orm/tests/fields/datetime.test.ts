@@ -1,9 +1,7 @@
 // Tests for Field.datetime and its options
 
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
-import { applySchema, generateTableSchemaQl } from "../../src/schemaGenerator";
+import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
 
@@ -27,7 +25,7 @@ describe("Field.datetime - basic", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for datetime fields", async () => {
-		const ddl = generateTableSchemaQl(DateTimeModel);
+		const ddl = generateFullSchemaQl([DateTimeModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD created ON TABLE datetime_model TYPE datetime",
 		);
@@ -68,7 +66,7 @@ describe("Field.datetime - optional", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for optional datetime", async () => {
-		const ddl = generateTableSchemaQl(OptionalDateTimeModel);
+		const ddl = generateFullSchemaQl([OptionalDateTimeModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD expires ON TABLE optional_datetime_model TYPE option<datetime>",
 		);
@@ -105,7 +103,7 @@ describe("Field.datetime - negative cases", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for strict datetime", async () => {
-		const ddl = generateTableSchemaQl(StrictDateTimeModel);
+		const ddl = generateFullSchemaQl([StrictDateTimeModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD val ON TABLE strict_datetime_model TYPE datetime",
 		);

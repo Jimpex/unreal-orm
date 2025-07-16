@@ -1,9 +1,13 @@
 // Tests for SurrealQL DDL generation, schemafull, permissions, indexes
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
-import { applySchema, generateTableSchemaQl } from "../../src/schemaGenerator";
+import {
+	Field,
+	Index,
+	Table,
+	applySchema,
+	generateFullSchemaQl,
+} from "../../src";
 import type Surreal from "surrealdb";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 
@@ -32,12 +36,18 @@ describe("DDL Generation", () => {
 				update: "NONE",
 				delete: "NONE",
 			},
-			indexes: [
-				{ name: "idx_userddl_email", fields: ["email"], unique: true },
-				{ name: "idx_userddl_name_age", fields: ["name", "age"] },
-			],
 		}) {}
-		const ddl = generateTableSchemaQl(User);
+		const UserEmailIndex = Index.define(() => User, {
+			name: "idx_userddl_email",
+			fields: ["email"],
+			unique: true,
+		});
+		const UserNameAgeIndex = Index.define(() => User, {
+			name: "idx_userddl_name_age",
+			fields: ["name", "age"],
+		});
+
+		const ddl = generateFullSchemaQl([User, UserEmailIndex, UserNameAgeIndex]);
 		expect(ddl).toContain("DEFINE TABLE userddl SCHEMAFULL");
 		expect(ddl).toContain("DEFINE FIELD name ON TABLE userddl TYPE string");
 		expect(ddl).toContain("DEFINE FIELD age ON TABLE userddl TYPE number");
@@ -48,7 +58,7 @@ describe("DDL Generation", () => {
 		expect(ddl).toContain("UNIQUE");
 		expect(ddl).toContain("DEFINE INDEX idx_userddl_name_age");
 
-		await applySchema(db, [User]);
+		await applySchema(db, [User, UserEmailIndex, UserNameAgeIndex]);
 	});
 
 	test("generates and applies schemaflex table DDL", async () => {
@@ -57,7 +67,7 @@ describe("DDL Generation", () => {
 			fields: { foo: Field.string() },
 			schemafull: false,
 		}) {}
-		const ddl = generateTableSchemaQl(Flex);
+		const ddl = generateFullSchemaQl([Flex]);
 		expect(ddl).toContain("DEFINE TABLE flexddl SCHEMALESS");
 		expect(ddl).toContain("DEFINE FIELD foo ON TABLE flexddl TYPE string");
 		await applySchema(db, [Flex]);
@@ -83,7 +93,7 @@ describe("DDL Generation", () => {
 			},
 			schemafull: true,
 		}) {}
-		const ddl = generateTableSchemaQl(Authored);
+		const ddl = generateFullSchemaQl([Authored]);
 		expect(ddl).toContain("DEFINE TABLE authoredrel SCHEMAFULL");
 		expect(ddl).toContain(
 			"DEFINE FIELD in ON TABLE authoredrel TYPE record<userrel>",

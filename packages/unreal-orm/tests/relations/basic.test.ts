@@ -1,11 +1,9 @@
 // Tests for relation table definition, type checks, CRUD
 
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
+import { Field, Table, applySchema } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
-import { applySchema } from "../../src";
 
 let db: Surreal;
 

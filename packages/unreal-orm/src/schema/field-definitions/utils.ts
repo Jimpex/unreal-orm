@@ -1,4 +1,6 @@
-import type { FieldDefinition } from "./types";
+// Field utility functions for Unreal-ORM (migrated from fieldUtils.ts)
+
+import type { FieldDefinition } from "./definitions";
 
 /**
  * Recursively enumerate all subfields of a FieldDefinition, including nested arrays and objects.
@@ -12,8 +14,7 @@ export function enumerateSubfields(
 	fieldDef: FieldDefinition<unknown>,
 	basePath = "",
 ): Array<{ path: string; fieldDef: FieldDefinition<unknown> }> {
-	const results: Array<{ path: string; fieldDef: FieldDefinition<unknown> }> =
-		[];
+	const results: Array<{ path: string; fieldDef: FieldDefinition<unknown> }> = [];
 	const path = basePath;
 	results.push({ path, fieldDef });
 

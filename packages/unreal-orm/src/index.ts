@@ -1,32 +1,24 @@
-// Core ORM Functionality
-export * from "./define";
-export { Field } from "./fields";
-export { Table } from "./define";
-// export { BaseTable } from './baseTable';
-export { applySchema, generateFullSchemaQl } from "./schemaGenerator";
+// Public API for unreal-orm
 
-// Core ORM Types for usage
+// Main methods and classes
+export { default as Table } from "./define/table";
+export { Field } from "./schema/field-definitions/builders";
+export { applySchema, generateFullSchemaQl } from "./schema/generator";
+export { Index } from "./define/index";
+
+// Type definitions
 export type {
-	// Field Definition
 	FieldDefinition,
 	FieldOptions,
-	// Table Definition
-	TableDefineOptions,
-	TablePermissionsOptions,
-	IndexDefinition,
-	ChangefeedConfig,
-	// Querying
+} from "./schema/field-definitions/definitions";
+export type { IndexDefinition } from "./define/index/types";
+export type {
+	OrderByClause,
 	SelectQueryOptions,
 	CountQueryOptions,
-	OrderByClause,
-	// Model Types
+} from "./define/table/types/query";
+export type {
 	ModelStatic,
 	ModelInstance,
-	AnyModelClass,
-	// Type Inference Helpers
-	InferTableDataFromFields,
 	InferShapeFromFields,
-	InferFieldType,
-	CreateData,
-	UpdateData,
-} from "./types";
+} from "./define/table/types/model";

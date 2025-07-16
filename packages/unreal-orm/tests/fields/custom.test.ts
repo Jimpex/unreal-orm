@@ -1,9 +1,7 @@
 // Tests for Field.custom (custom SurrealQL types)
 
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
-import { applySchema, generateTableSchemaQl } from "../../src/schemaGenerator";
+import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import { GeometryPoint, type Surreal } from "surrealdb";
 
@@ -28,7 +26,7 @@ describe("Field.custom - basic", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for custom field", async () => {
-		const ddl = generateTableSchemaQl(CustomModel);
+		const ddl = generateFullSchemaQl([CustomModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD point ON TABLE custom_model TYPE point",
 		);
@@ -53,7 +51,7 @@ describe("Field.custom - optional", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for optional custom field", async () => {
-		const ddl = generateTableSchemaQl(OptionalCustomModel);
+		const ddl = generateFullSchemaQl([OptionalCustomModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD maybe ON TABLE optional_custom_model TYPE option<point>",
 		);
@@ -76,7 +74,7 @@ describe("Field.custom - negative cases", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for strict custom field", async () => {
-		const ddl = generateTableSchemaQl(StrictCustomModel);
+		const ddl = generateFullSchemaQl([StrictCustomModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD val ON TABLE strict_custom_model TYPE point",
 		);

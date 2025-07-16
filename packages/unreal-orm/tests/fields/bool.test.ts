@@ -1,9 +1,7 @@
 // Tests for Field.bool and its options
 
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
-import { applySchema, generateTableSchemaQl } from "../../src/schemaGenerator";
+import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
 
@@ -27,7 +25,7 @@ describe("Field.bool - basic", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for boolean fields", async () => {
-		const ddl = generateTableSchemaQl(BoolModel);
+		const ddl = generateFullSchemaQl([BoolModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD isActive ON TABLE bool_model TYPE bool DEFAULT true",
 		);
@@ -66,7 +64,7 @@ describe("Field.bool - optional", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for optional boolean", async () => {
-		const ddl = generateTableSchemaQl(OptionalBoolModel);
+		const ddl = generateFullSchemaQl([OptionalBoolModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD flag ON TABLE optional_bool_model TYPE option<bool>",
 		);
@@ -99,7 +97,7 @@ describe("Field.bool - negative cases", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for strict boolean", async () => {
-		const ddl = generateTableSchemaQl(StrictBoolModel);
+		const ddl = generateFullSchemaQl([StrictBoolModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD flag ON TABLE strict_bool_model TYPE bool",
 		);

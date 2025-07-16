@@ -1,9 +1,7 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
+import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
-import { applySchema, generateTableSchemaQl } from "../../src/schemaGenerator";
 
 let db: Surreal;
 
@@ -35,7 +33,7 @@ describe("FieldOptions (base) - generic field option behaviors", () => {
 	}) {}
 
 	test("generate and apply SurrealQL for fields", async () => {
-		const ddl = generateTableSchemaQl(BaseTable);
+		const ddl = generateFullSchemaQl([BaseTable]);
 		expect(ddl).toContain(
 			"DEFINE FIELD asserted ON TABLE fieldopt_user TYPE string",
 		);
@@ -99,7 +97,7 @@ describe("FieldOptions (base) - generic field option behaviors", () => {
 	});
 
 	test("comment: DDL includes comment", () => {
-		const ddl = generateTableSchemaQl(BaseTable);
+		const ddl = generateFullSchemaQl([BaseTable]);
 		expect(ddl).toContain("COMMENT 'A comment'");
 	});
 });

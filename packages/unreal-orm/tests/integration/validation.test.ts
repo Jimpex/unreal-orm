@@ -1,9 +1,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
+import { Field, Index, Table, applySchema } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
-import { applySchema } from "../../src";
 
 let db: Surreal;
 
@@ -70,9 +68,14 @@ describe("Validation & Error Handling", () => {
 				email: Field.string(),
 			},
 			schemafull: true,
-			indexes: [{ unique: true, fields: ["email"], name: "unique_email" }],
 		}) {}
-		await applySchema(db, [UniqueEmailUser]);
+		const UniqueEmailUserIndex = Index.define(() => UniqueEmailUser, {
+			name: "unique_email_idx",
+			fields: ["email"],
+			unique: true,
+		});
+
+		await applySchema(db, [UniqueEmailUser, UniqueEmailUserIndex]);
 		await UniqueEmailUser.create(db, { email: "unique@x.com" });
 		expect(
 			UniqueEmailUser.create(db, { email: "unique@x.com" }),

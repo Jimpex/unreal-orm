@@ -1,9 +1,7 @@
 // Tests for Field.object and flexible/custom fields
 
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
-import { applySchema, generateTableSchemaQl } from "../../src/schemaGenerator";
+import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
 
@@ -30,7 +28,7 @@ describe("Field.object - basic", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for object field", async () => {
-		const ddl = generateTableSchemaQl(ProfileModel);
+		const ddl = generateFullSchemaQl([ProfileModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD profile ON TABLE profile_model TYPE object",
 		);
@@ -65,7 +63,7 @@ describe("Field.object - optional", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for optional object", async () => {
-		const ddl = generateTableSchemaQl(OptionalObjModel);
+		const ddl = generateFullSchemaQl([OptionalObjModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD meta ON TABLE optional_obj_model TYPE option<object>",
 		);
@@ -107,7 +105,7 @@ describe("Field.object - nested array and record", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for nested object field", async () => {
-		const ddl = generateTableSchemaQl(ComplexModel);
+		const ddl = generateFullSchemaQl([ComplexModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD data ON TABLE complex_obj_model TYPE object",
 		);
@@ -139,7 +137,7 @@ describe("Field.object - negative cases", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for strict object", async () => {
-		const ddl = generateTableSchemaQl(StrictObjModel);
+		const ddl = generateFullSchemaQl([StrictObjModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD meta ON TABLE strict_obj_model TYPE object",
 		);

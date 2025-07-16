@@ -1,9 +1,7 @@
 // Tests for Field.number and its options
 
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
-import { applySchema, generateTableSchemaQl } from "../../src/schemaGenerator";
+import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
 
@@ -27,7 +25,7 @@ describe("Field.number - basic", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for number fields", async () => {
-		const ddl = generateTableSchemaQl(NumberModel);
+		const ddl = generateFullSchemaQl([NumberModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD score ON TABLE number_model TYPE number DEFAULT 10",
 		);
@@ -60,7 +58,7 @@ describe("Field.number - optional", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for optional number", async () => {
-		const ddl = generateTableSchemaQl(OptionalNumberModel);
+		const ddl = generateFullSchemaQl([OptionalNumberModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD value ON TABLE optional_number_model TYPE option<number>",
 		);
@@ -91,7 +89,7 @@ describe("Field.number - negative cases", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for strict number", async () => {
-		const ddl = generateTableSchemaQl(StrictNumberModel);
+		const ddl = generateFullSchemaQl([StrictNumberModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD val ON TABLE strict_number_model TYPE number",
 		);

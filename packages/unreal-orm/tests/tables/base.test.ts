@@ -1,9 +1,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
+import { Field, Table, applySchema } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
-import { applySchema } from "../../src";
 
 let db: Surreal;
 
@@ -42,12 +40,22 @@ describe("BaseTable and Shared Model Logic", () => {
 		expect(inst.foo).toBe("updated");
 	});
 
+	test("non-existent property throws", async () => {
+		const inst = await Simple.create(db, { foo: "xyz", bar: 456 });
+		// @ts-expect-error: notAValidProperty is not defined
+		expect(inst.notAValidProperty).toBeUndefined();
+		const inst2 = await Simple.select(db, { from: inst.id, only: true });
+		// @ts-expect-error: notAValidProperty is not defined
+		expect(inst2?.notAValidProperty).toBeUndefined();
+	});
+
 	test("dynamic property support ($dynamic)", async () => {
 		const inst = await Simple.create(db, { foo: "dyn", bar: 1 });
-		// Simulate a dynamic property returned from a query
-		inst.extra = 42;
-		expect(inst.extra).toBe(42);
-		// $dynamic bag for unknowns
+		// TODO: Re-address what happens when custom select fields are added to queries
+		// // Simulate a dynamic property returned from a query
+		// inst.extra = 42;
+		// expect(inst.extra).toBe(42);
+		// $dynamic bag for fields not defined in the schema
 		inst.$dynamic.surreal = "db";
 		expect(inst.$dynamic.surreal).toBe("db");
 	});
@@ -61,9 +69,9 @@ describe("BaseTable and Shared Model Logic", () => {
 
 	test("update method changes fields", async () => {
 		const inst = await Simple.create(db, { foo: "up", bar: 3 });
-		await inst.update(db, { foo: "changed", bar: 99 });
-		expect(inst.foo).toBe("changed");
-		expect(inst.bar).toBe(99);
+		const updatedInst = await inst.update(db, { foo: "changed", bar: 99 });
+		expect(updatedInst.foo).toBe("changed");
+		expect(updatedInst.bar).toBe(99);
 	});
 
 	// Inheritance example

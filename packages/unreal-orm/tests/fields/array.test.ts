@@ -1,7 +1,5 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
-import { applySchema, generateTableSchemaQl } from "../../src/schemaGenerator";
+import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
 
@@ -24,7 +22,7 @@ describe("Field.array - primitive arrays", () => {
 	}) {}
 
 	test("should generate and apply correct SurrealQL for array field with max", async () => {
-		const ddl = generateTableSchemaQl(TagsModel);
+		const ddl = generateFullSchemaQl([TagsModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD tags ON TABLE tags_model TYPE array<string, 5>",
 		);
@@ -36,8 +34,11 @@ describe("Field.array - primitive arrays", () => {
 		const data = { tags: ["a", "b", "c"] };
 		const record = await TagsModel.create(db, data);
 		expect(record.tags).toEqual(["a", "b", "c"]);
+
 		const fetched = await TagsModel.select(db, { from: record.id, only: true });
 		expect(fetched?.tags).toEqual(["a", "b", "c"]);
+		const updated = await fetched?.update(db, { tags: ["tag3", "tag4"] });
+		expect(updated?.tags).toEqual(["tag3", "tag4"]);
 	});
 
 	test("should fail if array exceeds max length", async () => {
@@ -59,7 +60,7 @@ describe("Field.array - object arrays", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for array of objects", async () => {
-		const ddl = generateTableSchemaQl(ObjectArrayModel);
+		const ddl = generateFullSchemaQl([ObjectArrayModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD items ON TABLE object_array_model TYPE array<object>",
 		);
@@ -100,7 +101,7 @@ describe("Field.array - record (relation) arrays", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for array of records", async () => {
-		const ddl = generateTableSchemaQl(Post);
+		const ddl = generateFullSchemaQl([Post]);
 		expect(ddl).toContain(
 			"DEFINE FIELD authors ON TABLE post_array TYPE array<record<user_array>>",
 		);
@@ -142,7 +143,7 @@ describe("Field.array - optional arrays", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for optional array", async () => {
-		const ddl = generateTableSchemaQl(OptionalArrayModel);
+		const ddl = generateFullSchemaQl([OptionalArrayModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD items ON TABLE optional_array_model TYPE option<array<number>>",
 		);

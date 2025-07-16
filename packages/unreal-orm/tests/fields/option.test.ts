@@ -1,9 +1,7 @@
 // Tests for Field.option (optional fields)
 
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
-import { applySchema, generateTableSchemaQl } from "../../src/schemaGenerator";
+import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
 
@@ -30,7 +28,7 @@ describe("Field.option - all base types", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for all option fields", async () => {
-		const ddl = generateTableSchemaQl(OptionModel);
+		const ddl = generateFullSchemaQl([OptionModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD optString ON TABLE option_model TYPE option<string>",
 		);
@@ -76,7 +74,7 @@ describe("Field.option - negative cases", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for strict option", async () => {
-		const ddl = generateTableSchemaQl(StrictOptionModel);
+		const ddl = generateFullSchemaQl([StrictOptionModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD val ON TABLE strict_option_model TYPE option<number>",
 		);

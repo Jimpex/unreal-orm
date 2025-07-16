@@ -1,9 +1,7 @@
 // Tests for Field.string and its options
 
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
-import { applySchema, generateTableSchemaQl } from "../../src/schemaGenerator";
+import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
 
@@ -27,7 +25,7 @@ describe("Field.string - basic", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for string fields", async () => {
-		const ddl = generateTableSchemaQl(StringModel);
+		const ddl = generateFullSchemaQl([StringModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD name ON TABLE string_model TYPE string DEFAULT 'anon'",
 		);
@@ -55,7 +53,7 @@ describe("Field.string - optional", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for optional string", async () => {
-		const ddl = generateTableSchemaQl(OptionalStringModel);
+		const ddl = generateFullSchemaQl([OptionalStringModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD tag ON TABLE optional_string_model TYPE option<string>",
 		);
@@ -86,7 +84,7 @@ describe("Field.string - negative cases", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL schema", async () => {
-		const ddl = generateTableSchemaQl(StrictStringModel);
+		const ddl = generateFullSchemaQl([StrictStringModel]);
 		expect(ddl).toContain(
 			"DEFINE FIELD val ON TABLE strict_string_model TYPE string",
 		);

@@ -1,9 +1,7 @@
 // Tests for Field.record (record links/relations)
 
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
-import { applySchema, generateTableSchemaQl } from "../../src/schemaGenerator";
+import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
 
@@ -32,7 +30,7 @@ describe("Field.record - basic", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for record field", async () => {
-		const ddl = generateTableSchemaQl(Post);
+		const ddl = generateFullSchemaQl([Post]);
 		expect(ddl).toContain(
 			"DEFINE FIELD author ON TABLE post TYPE record<user>",
 		);
@@ -62,7 +60,7 @@ describe("Field.record - optional", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for optional record field", async () => {
-		const ddl = generateTableSchemaQl(Post);
+		const ddl = generateFullSchemaQl([Post]);
 		expect(ddl).toContain(
 			"DEFINE FIELD author ON TABLE post_opt TYPE option<record<user_opt>>",
 		);
@@ -95,7 +93,7 @@ describe("Field.record - negative cases", () => {
 	}) {}
 
 	test("should generate and apply SurrealQL for record field", async () => {
-		const ddl = generateTableSchemaQl(Post);
+		const ddl = generateFullSchemaQl([Post]);
 		expect(ddl).toContain(
 			"DEFINE FIELD author ON TABLE post_neg TYPE record<user_neg>",
 		);

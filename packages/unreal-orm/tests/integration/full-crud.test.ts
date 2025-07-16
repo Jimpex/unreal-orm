@@ -1,9 +1,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
-import { Field } from "../../src/fields";
-import Table from "../../src/define";
+import { Field, Table, applySchema } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
-import { applySchema } from "../../src";
 
 let db: Surreal;
 
@@ -107,12 +105,12 @@ describe("Full CRUD & Relations Integration", () => {
 	});
 
 	test("update Post", async () => {
-		await post.update(db, {
+		const updatedPost = await post.update(db, {
 			title: "Updated Title",
 			author: post.author,
 			content: post.content,
 		});
-		expect(post.title).toBe("Updated Title");
+		expect(updatedPost.title).toBe("Updated Title");
 	});
 
 	test("delete Comment", async () => {
