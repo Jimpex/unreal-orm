@@ -75,7 +75,6 @@ describe("Field.array - object arrays", () => {
 			],
 		};
 		const record = await ObjectArrayModel.create(db, data);
-		console.log(record);
 		expect(record.items).toEqual(data.items);
 		const fetched = await ObjectArrayModel.select(db, {
 			from: record.id,

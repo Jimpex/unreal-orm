@@ -72,15 +72,17 @@ export function getSelectMethod<
 		if (opts.groupBy && opts.groupBy.length > 0)
 			queryParts.push(`GROUP BY ${opts.groupBy.join(", ")}`);
 		const finalQuery = queryParts.join(" ");
-		console.log(
-			`[ORM DEBUG] Executing query: "${finalQuery}" with bindings:`,
-			JSON.parse(JSON.stringify(bindings)),
-		);
+		// TODO: Debug logging
+		// console.debug(
+		// 	`[ORM DEBUG] Executing query: "${finalQuery}" with bindings:`,
+		// 	JSON.parse(JSON.stringify(bindings)),
+		// );
 		const queryResult = await db.query<[ActualTableData[]]>(
 			finalQuery,
 			bindings,
 		);
-		console.debug("[ORM DEBUG] Query result:", queryResult);
+		// TODO: Debug logging
+		// console.debug("[ORM DEBUG] Query result:", queryResult);
 		const recordArray: ActualTableData[] = queryResult?.[0] || [];
 		if (opts.select || opts.groupBy) {
 			return opts.only ? recordArray[0] : recordArray;

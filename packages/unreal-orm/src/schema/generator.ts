@@ -38,7 +38,8 @@ export function generateFullSchemaQl(
 	const indexSchemas = indexes.map(generateIndexDdl).join("\n");
 
 	const schema = [tableSchemas, indexSchemas].filter(Boolean).join("\n\n");
-	console.debug("[ORM DEBUG]:\n", schema);
+	// TODO: Debug logging
+	// console.debug("[ORM DEBUG]:\n", schema);
 
 	return schema;
 }

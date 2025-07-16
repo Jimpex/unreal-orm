@@ -82,7 +82,6 @@ describe("Field.object - optional", () => {
 
 	test("should allow setting optional object", async () => {
 		const record = await OptionalObjModel.create(db, { meta: { foo: "bar" } });
-		console.log(record);
 		expect(record.meta?.foo).toBe("bar");
 	});
 });
