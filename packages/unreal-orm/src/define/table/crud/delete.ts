@@ -25,17 +25,13 @@ export function getDeleteMethod<
 >() {
 	type TableData = InferShapeFromFields<TFields>;
 
-	return async function (
-		this: ModelInstance<TableData>,
-		db: Surreal,
-	): Promise<void> {
-		if (!db) {
-			throw new Error(
-				"SurrealDB instance must be provided to delete a record.",
-			);
-		}
-
-		await db.delete(this.id);
+	return async function (this: ModelInstance<TableData>, db: Surreal): Promise<void> {
+		const ModelClass = this.constructor as ModelStatic<
+			ModelInstance<TableData>,
+			TFields,
+			TableDefineOptions<TFields>
+		>;
+		await ModelClass.delete(db, this.id);
 	};
 }
 

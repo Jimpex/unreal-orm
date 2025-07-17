@@ -114,6 +114,7 @@ export declare class BaseTable<TData extends Record<string, unknown>> {
 	$dynamic: any;
 	constructor(data: TData);
 	update(db: Surreal, data: Partial<TData>): Promise<this>;
+	merge(db: Surreal, data: Partial<TData>): Promise<this>;
 	delete(db: Surreal): Promise<void>;
 }
 
@@ -207,6 +208,26 @@ export type ModelStatic<
 		this: ModelStatic<TInstance, TFields, TOptions>,
 		db: Surreal,
 	): Promise<TInstance[]>;
+
+	update<T extends ModelStatic<TInstance, TFields, TOptions>>(
+		this: T,
+		db: Surreal,
+		id: RecordId,
+		data: Partial<InferShapeFromFields<TFields>>,
+	): Promise<InstanceType<T>>;
+
+	delete<T extends ModelStatic<TInstance, TFields, TOptions>>(
+		this: T,
+		db: Surreal,
+		id: RecordId,
+	): Promise<void>;
+
+	merge<T extends ModelStatic<TInstance, TFields, TOptions>>(
+		this: T,
+		db: Surreal,
+		id: RecordId,
+		data: Partial<InferShapeFromFields<TFields>>,
+	): Promise<InstanceType<T>>;
 };
 
 // --- Placeholders for Any Model ---

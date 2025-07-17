@@ -9,9 +9,11 @@ import type { FieldDefinition } from "../../field/types";
 
 /**
  * A factory function that generates the instance `update` method for a model.
- * This method performs a full record replacement (`UPDATE` in SurrealQL).
- * All required fields must be provided, or the database will throw an error.
- * For partial updates, a `.merge()` method will be implemented separately.
+ * This method performs a full record replacement (`UPDATE` in SurrealQL), replacing the entire
+ * document with the provided data. All required fields must be included in the `data` object,
+ * otherwise SurrealDB will throw an error.
+ * 
+ * For partial updates, use the `.merge()` method.
  *
  * @example
  * ```ts
@@ -34,32 +36,22 @@ export function getUpdateMethod<
 		db: Surreal,
 		data: Partial<CreateInputData>,
 	): Promise<ModelInstance<TableData>> {
-		if (!db) {
-			throw new Error(
-				"SurrealDB instance must be provided to update a record.",
-			);
-		}
-
-		const updatedRecord = await db.update<TableData>(
-			this.id,
-			data as TableData,
-		);
-		if (!updatedRecord) {
-			throw new Error(`Failed to update record ${this.id}.`);
-		}
-		return new (
-			this.constructor as new (
-				data: TableData,
-			) => ModelInstance<TableData>
-		)(updatedRecord as TableData);
+		const ModelClass = this.constructor as ModelStatic<
+			ModelInstance<TableData>,
+			TFields,
+			TableDefineOptions<TFields>
+		>;
+		return ModelClass.update(db, this.id, data);
 	};
 }
 
 /**
  * A factory function that generates the static `update` method for a model.
- * This method performs a full record replacement (`UPDATE` in SurrealQL) for a given record ID.
- * All required fields must be provided, or the database will throw an error.
- * For partial updates, a `.merge()` method will be implemented separately.
+ * This method performs a full record replacement (`UPDATE` in SurrealQL) for a given record ID,
+ * replacing the entire document with the provided data. All required fields must be included in the `data` object,
+ * otherwise SurrealDB will throw an error.
+ * 
+ * For partial updates, use the `.merge()` method.
  *
  * @example
  * ```ts

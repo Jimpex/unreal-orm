@@ -11,6 +11,7 @@ import { getCreateMethod } from "./crud/create";
 import { getDeleteMethod, getStaticDeleteMethod } from "./crud/delete";
 import { getSelectMethod } from "./crud/select";
 import { getUpdateMethod, getStaticUpdateMethod } from "./crud/update";
+import { getMergeMethod, getStaticMergeMethod } from "./crud/merge";
 
 function defineTable<TFields extends Record<string, FieldDefinition<unknown>>>(
 	options: TableDefineOptions<TFields>,
@@ -20,11 +21,13 @@ function defineTable<TFields extends Record<string, FieldDefinition<unknown>>>(
 		select: getSelectMethod<TFields>(),
 		update: getStaticUpdateMethod<TFields>(),
 		delete: getStaticDeleteMethod<TFields>(),
+		merge: getStaticMergeMethod<TFields>(),
 	};
 
 	const instanceMethods = {
 		update: getUpdateMethod<TFields>(),
 		delete: getDeleteMethod<TFields>(),
+		merge: getMergeMethod<TFields>(),
 	};
 
 	return createBaseModel(options, staticMethods, instanceMethods);

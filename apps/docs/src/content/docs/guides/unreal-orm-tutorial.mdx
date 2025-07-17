@@ -131,84 +131,101 @@ Use this in pipelines to compare the generated DDL against committed files and f
 
 ---
 
-## CRUD Operations & Indexes
+## Core Operations, Methods, & Indexes
 
-Let's add full CRUD functionality, methods, and a **unique index** to our `User` model.
+Now let's explore the core features of Unreal-ORM: performing CRUD operations, adding custom business logic to models, and defining database indexes.
+
+### 1. Core Operations (CRUD)
+
+Unreal-ORM provides a complete, type-safe API for creating, reading, updating, and deleting records.
 
 ```ts
-// src/index.ts (continued)
-import { Surreal } from 'surrealdb';
-import Table, { Field, Index, applySchema } from 'unreal-orm';
+// --- 1. Create ---
+const user = await User.create(db, {
+  name: 'Alice',
+  email: 'alice@example.com',
+  bio: 'Developer',
+});
 
+// --- 2. Read ---
+// Find a single record by its ID
+const foundUser = await User.select(db, { from: user.id, only: true });
+
+// --- 3. Update & Merge ---
+// For partial updates (most common), use .merge()
+const mergedUser = await foundUser.merge(db, {
+  bio: 'Senior Developer',
+});
+
+// For full document replacement, use .update()
+// Note: You must provide ALL required fields.
+const updatedUser = await mergedUser.update(db, {
+  name: 'Alice Smith',
+  email: 'alice.smith@example.com',
+  bio: 'Lead Developer',
+});
+
+// --- 4. Delete ---
+// You can delete a record using the instance method
+await updatedUser.delete(db);
+
+// Or delete by ID using the static method
+// await User.delete(db, updatedUser.id);
+```
+
+### 2. Custom Methods
+
+You can add custom business logic directly to your model classes. Instance methods have access to record data via `this`, while static methods are useful for creating custom queries.
+
+```ts
 class User extends Table.normal({
-  name: 'user',
-  fields: {
-    name: Field.string(),
-    email: Field.string(),
-    bio: Field.option(Field.string()),
-  },
-  schemafull: true,
+  /* ...fields... */
 }) {
-  // Custom instance method
+  // Instance Method
   getDisplayName() {
     return `${this.name} <${this.email}>`;
   }
 
-  // Custom static method
+  // Static Method
   static async findByEmail(db: Surreal, email: string) {
     const users = await this.select(db, {
       where: 'email = $email',
       vars: { email },
     });
-    return users[0];
+    return users[0]; // Return the first match or undefined
   }
 }
 
-// Define a unique index on the email field separately
+// --- Using Custom Methods ---
+const bob = await User.create(db, { name: 'Bob', email: 'bob@example.com' });
+
+// Call the static finder
+const foundBob = await User.findByEmail(db, 'bob@example.com');
+
+// Call the instance method
+console.log(foundBob?.getDisplayName()); // Outputs: "Bob <bob@example.com>"
+```
+
+### 3. Defining Indexes
+
+Indexes are crucial for query performance and enforcing data integrity. Define them with `Index.define()` and pass them to `applySchema` alongside your models.
+
+```ts
+// Define a unique index on the email field
 const UserEmailIndex = Index.define(() => User, {
   name: 'user_email_unique',
-  fields: ['email'], // Index the 'email' field
+  fields: ['email'],
   unique: true, // Enforce uniqueness
 });
 
-async function testCRUD() {
-  // Apply schema for models and indexes
-  await applySchema(db, [User, UserEmailIndex]);
+// Apply schema for models AND indexes
+await applySchema(db, [User, Post, UserEmailIndex]);
 
-  // Create
-  const alice = await User.create(db, {
-    name: 'Alice',
-    email: 'alice@example.com',
-    bio: 'Developer'
-  });
-  
-  // Read  — *Find by ID*
-  const found = await User.select(db, {
-    from: alice.id,
-    only: true,
-  });
-  
-  // Update (Full record replacement)
-  // Note: .update() replaces the entire record. ALL required fields must be provided.
-  await found?.update(db, {
-    name: 'Alice Smith', // name is required
-    email: 'alice.smith@example.com', // email is required
-    bio: 'Senior Developer'
-  });
-
-  // Merge (Partial update)
-  // Note: .merge() will be the way to update only specific fields.
-  await found?.merge(db, { bio: 'Lead Developer' });
-  
-  // Delete
-  await found?.delete(db);
-  
-  // Custom query
-  const bob = await User.create(db, { name: 'Bob', email: 'bob@example.com' });
-  const foundBob = await User.findByEmail(db, 'bob@example.com');
-  console.log('Found Bob:', foundBob?.getDisplayName());
-}
+// Now, SurrealDB will throw an error if you try to create
+// two users with the same email address.
 ```
+
+
 
 ---
 

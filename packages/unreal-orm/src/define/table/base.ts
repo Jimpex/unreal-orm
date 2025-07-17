@@ -10,6 +10,7 @@ import type { getCreateMethod } from "./crud/create";
 import type { getSelectMethod } from "./crud/select";
 import type { getUpdateMethod, getStaticUpdateMethod } from "./crud/update";
 import type { getDeleteMethod, getStaticDeleteMethod } from "./crud/delete";
+import type { getMergeMethod, getStaticMergeMethod } from "./crud/merge";
 import { hydrate } from "./hydration";
 
 /**
@@ -34,10 +35,12 @@ export function createBaseModel<
 		select: ReturnType<typeof getSelectMethod<TFields>>;
 		update: ReturnType<typeof getStaticUpdateMethod<TFields>>;
 		delete: ReturnType<typeof getStaticDeleteMethod<TFields>>;
+		merge: ReturnType<typeof getStaticMergeMethod<TFields>>;
 	},
 	instanceMethods: {
 		update: ReturnType<typeof getUpdateMethod<TFields>>;
 		delete: ReturnType<typeof getDeleteMethod<TFields>>;
+		merge: ReturnType<typeof getMergeMethod<TFields>>;
 	},
 ) {
 	type TableData = InferShapeFromFields<TFields>;
@@ -71,6 +74,7 @@ export function createBaseModel<
 		static select = staticMethods.select;
 		static update = staticMethods.update;
 		static delete = staticMethods.delete;
+		static merge = staticMethods.merge;
 
 		/**
 		 * Creates an instance of the model.
@@ -98,6 +102,7 @@ export function createBaseModel<
 
 		update = instanceMethods.update;
 		delete = instanceMethods.delete;
+		merge = instanceMethods.merge;
 	}
 
 	return DynamicModelBase as unknown as ModelStatic<
