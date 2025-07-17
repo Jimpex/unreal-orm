@@ -1,6 +1,6 @@
 // Field utility functions for Unreal-ORM (migrated from fieldUtils.ts)
 
-import type { FieldDefinition } from "./definitions";
+import type { FieldDefinition } from "./types";
 
 /**
  * Recursively enumerates all subfields of a `FieldDefinition`, including nested arrays and objects.

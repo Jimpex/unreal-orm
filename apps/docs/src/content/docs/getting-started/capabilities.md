@@ -16,7 +16,8 @@ This page summarizes which SurrealDB schema features are supported by unreal-orm
 | **Parameterized queries (`vars`)** | Prevent injection; supported in `select`, `count`, `query`, etc. |
 | **Type-safe `fetch` projection** | Automatic hydration of related records (`Field.record`) with full TypeScript types. |
 | **Circular dependency thunk** | Use `Field.record(() => OtherTable)` to avoid import cycles while keeping types. |
-| **Custom Surreal types** | Define `Field.custom<T>('duration')`, vector, decimal, or any database type you need. |
+| **Advanced data types** | Full, type-safe support for `bytes`, `duration`, `uuid`, `decimal`, and specific `geometry` types. |
+| **Custom Surreal types** | Define `Field.custom<'left' | 'right'>('"left" | "right"')` or any other database type for ultimate flexibility. |
 
 ---
 
@@ -112,7 +113,13 @@ class User extends Table.normal({
     tags: Field.array(Field.string(), { max: 10 }),
     posts: Field.array(Field.record(() => Post)),
     nickname: Field.option(Field.string()),
-    customField: Field.custom('duration'),
+    // Advanced Types
+    balance: Field.decimal(),
+    apiKey: Field.uuid(),
+    lastLogin: Field.duration(),
+    avatar: Field.bytes(),
+    location: Field.geometry('point'),
+    side: Field.custom<'left' | 'right'>('"left" | "right"'),
   },
 }) {}
 

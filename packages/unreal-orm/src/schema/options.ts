@@ -1,6 +1,6 @@
 // User-facing schema option types for Unreal-ORM
 
-import type { FieldDefinition } from "./field-definitions/definitions.ts";
+import type { FieldDefinition } from "../define/field/types.ts";
 
 /**
  * Defines a SurrealDB permissions clause for a table or field.

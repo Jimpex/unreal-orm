@@ -1,7 +1,4 @@
-import type {
-	ModelStatic,
-	TableDefineOptions,
-} from "../../define/table/types/model";
+import type { ModelStatic, TableDefineOptions } from "../table/types/model";
 
 /**
  * Defines a SurrealDB permissions clause for a specific field.

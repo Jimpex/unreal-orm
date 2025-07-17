@@ -16,7 +16,7 @@ export { default as Table } from "./define/table";
  * A collection of static methods for defining field types (e.g., `Field.string()`, `Field.number()`).
  * @see {@link ./schema/field-definitions/builders.ts}
  */
-export { Field } from "./schema/field-definitions/builders";
+export { Field } from "./define/field";
 
 /**
  * Functions for generating and applying the full database schema from all defined tables and indexes.
@@ -40,7 +40,7 @@ export { Index } from "./define/index";
 export type {
 	FieldDefinition,
 	FieldOptions,
-} from "./schema/field-definitions/definitions";
+} from "./define/field/types";
 
 /**
  * The type definition for a database index.

@@ -6,7 +6,7 @@ import type {
 	ModelInstance,
 	TableDefineOptions,
 } from "../types/model";
-import type { FieldDefinition } from "../../../schema/field-definitions/definitions";
+import type { FieldDefinition } from "../../field/types";
 
 /**
  * A factory function that generates the static `create` method for a model class.

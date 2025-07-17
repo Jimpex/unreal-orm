@@ -1,5 +1,5 @@
 import { RecordId as SurrealRecordId } from "surrealdb";
-import type { FieldDefinition } from "../../schema/field-definitions/definitions";
+import type { FieldDefinition } from "../field/types";
 import type {
 	InferShapeFromFields,
 	ModelInstance,

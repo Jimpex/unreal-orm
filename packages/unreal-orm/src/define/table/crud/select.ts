@@ -7,7 +7,7 @@ import type {
 	TableDefineOptions,
 } from "../types/model";
 import type { SelectQueryOptions, OrderByClause } from "../types/query";
-import type { FieldDefinition } from "../../../schema/field-definitions/definitions";
+import type { FieldDefinition } from "../../field/types";
 
 /**
  * A factory function that generates the static `select` method for a model class.

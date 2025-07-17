@@ -1,6 +1,6 @@
 import type { AnyModelClass } from "../../define/table/types/model";
-import type { FieldDefinition } from "../field-definitions/definitions";
-import { enumerateSubfields } from "../field-definitions/utils";
+import type { FieldDefinition } from "../../define/field/types";
+import { enumerateSubfields } from "../../define/field/utils";
 
 /**
  * Generates an array of SurrealQL `DEFINE FIELD` statements for a given model class.

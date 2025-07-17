@@ -1,5 +1,5 @@
 import type { RecordId, Surreal } from "surrealdb";
-import type { FieldDefinition } from "../../../schema/field-definitions/definitions";
+import type { FieldDefinition } from "../../field/types";
 import type { SelectQueryOptions } from "./query";
 
 /**
