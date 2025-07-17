@@ -1,0 +1,59 @@
+---
+title: v0.5.0
+description: Changelog for Unreal ORM v0.5.0
+lastUpdated: 2025-07-17
+sidebar_label: 0.5.0
+sidebar_position: 1
+tags:
+  - release
+  - changelog
+toc: true
+feedback: true
+---
+import { Aside } from '@astrojs/starlight/components';
+
+
+This release introduces powerful new features, significant architectural improvements, and a more streamlined developer experience. Key highlights include a new `merge` method for partial updates, support for a wide array of advanced data types, and a decoupled API for defining indexes.
+
+<Aside type="tip" title="Contributor Focus">
+  The codebase has been significantly refactored for clarity and maintainability, making it easier than ever for the community to contribute. Alongside this, our test suite has grown to **141 tests**, ensuring a stable and reliable foundation for future development.
+</Aside>
+
+## ✨ Features
+
+- **Partial Updates with `merge`**: Introduced `instance.merge(db, data)` and `Model.merge(db, data)` for performing partial record updates, aligning with SurrealDB's `MERGE` statement. This is now the recommended way to update specific fields without fetching and sending the entire record.
+- **Expanded Data Type Support**: Added comprehensive, type-safe support for most of SurrealDB's advanced data types, including:
+  - `Field.any()`
+  - `Field.decimal()`
+  - `Field.float()`
+  - `Field.int()`
+  - `Field.bytes()`
+  - `Field.duration()`
+  - `Field.uuid()`
+  - `Field.geometry()` (with type-safe definitions for specific geometry types)
+- **Flexible Fields**: Added a `flexible: true` option to `Field.object()` and `Field.custom()` to support SurrealDB's `FLEXIBLE` keyword, allowing for dynamic, schema-less fields within structured models.
+- **Decoupled Index Definitions**: Indexes are now defined separately from tables using a new `Index.define()` API. This improves separation of concerns and simplifies the table definition API.
+
+## 🚀 Improvements & Refactors
+
+- **Unified Schema API**: The `applySchema` and `generateFullSchemaQl` functions now accept a single array of definable items (e.g., `[User, UserEmailIndex]`), simplifying the schema management process.
+- **Clearer Table Definition**: `Table.define` has been replaced with `Table.normal()` and `Table.relation()` to make the distinction between standard and edge tables explicit and type-safe.
+- **Instance-level `delete`**: Added an `instance.delete(db)` method for more intuitive record deletion.
+
+## 🛠️ Fixes
+
+- **Schema Generation**: Fixed an issue where the schema generator would emit redundant `WHERE` clauses for raw permission strings.
+- **Query Engine**: Correctly implemented support for `vars` bindings in queries and enforced that `orderBy` clauses use a valid `order` direction.
+- **Field Definitions**: Prevented the schema generator from emitting duplicate `field[*]` definitions for array fields.
+- **Package Compatibility**: Set the `module` field in `package.json` to `dist/index.js` to ensure correct module resolution in various environments.
+
+## 📚 Documentation
+
+- **JSDoc Coverage**: Added comprehensive JSDoc comments with examples to all core functions, types, and classes, providing rich IntelliSense in supported editors.
+- **New Guides & Cookbook**: Added a detailed tutorial, a cookbook with practical recipes (e.g., pagination, soft-delete), and updated the README with a quick-start guide.
+- **Starlight Migration**: All documentation has been migrated to a modern, searchable Starlight-powered site.
+
+## 💥 Breaking Changes
+
+- The `indexes` property has been removed from `Table.define` options. Indexes must now be created separately using the new `Index.define()` function.
+- `Table.define` is deprecated. Use `Table.normal()` for standard tables and `Table.relation()` for edge tables instead.
