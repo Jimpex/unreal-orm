@@ -8,6 +8,24 @@ import type {
 } from "../types/model";
 import type { FieldDefinition } from "../../../schema/field-definitions/definitions";
 
+/**
+ * A factory function that generates the static `create` method for a model class.
+ * This is an internal helper used by the `createBaseModel` function to equip models
+ * with their core CRUD functionality.
+ *
+ * The generated method takes a Surreal instance and the record data, creates the
+ * record in the database, and returns a new, hydrated model instance.
+ *
+ * @example
+ * ```ts
+ * // This is not called directly, but is used by the ORM to generate:
+ * const user = await User.create(db, { name: 'John Doe', email: 'john.doe@example.com' });
+ * console.log(user.id); // RecordId('user:...')
+ * ```
+ *
+ * @returns The static `create` method implementation.
+ * @internal
+ */
 export function getCreateMethod<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 >() {

@@ -9,6 +9,45 @@ import type {
 import type { SelectQueryOptions, OrderByClause } from "../types/query";
 import type { FieldDefinition } from "../../../schema/field-definitions/definitions";
 
+/**
+ * A factory function that generates the static `select` method for a model class.
+ * This versatile method handles querying for records with options for filtering, sorting, pagination, and more.
+ * It can return either hydrated model instances or raw query results, depending on the options provided.
+ *
+ * @example
+ * ```ts
+ * // Basic select all
+ * const users = await User.select(db);
+ *
+ * // Find by ID (returns a single instance or undefined)
+ * const user = await User.select(db, { from: 'user:1', only: true });
+ *
+ * // Simple filtering
+ * const activeUsers = await User.select(db, { where: 'isActive = true' });
+ *
+ * // Parameterized filtering
+ * const youngUsers = await User.select(db, {
+ *   where: 'age < $maxAge',
+ *   vars: { maxAge: 30 }
+ * });
+ *
+ * // Sorting and pagination
+ * const sortedUsers = await User.select(db, {
+ *   orderBy: [{ field: 'name', order: 'ASC' }],
+ *   limit: 10,
+ *   start: 20
+ * });
+ *
+ * // Fetching related records
+ * const usersWithPosts = await User.select(db, { fetch: ['posts'] });
+ *
+ * // Custom projection (returns raw data, not model instances)
+ * const userNames = await User.select(db, { select: ['name'] });
+ * ```
+ *
+ * @returns The static `select` method implementation.
+ * @internal
+ */
 export function getSelectMethod<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 >() {

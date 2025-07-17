@@ -25,14 +25,14 @@ This page summarizes which SurrealDB schema features are supported by unreal-orm
 
 | Feature                                      | SurrealDB Syntax Example                                  | `unreal-orm` Support | Notes                                                                                                                               |
 | -------------------------------------------- | --------------------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Basic Table Definition                       | `DEFINE TABLE user;`                                      | ✅ **Supported**     | `Table.define({ name: 'user', ... })`                                                                                             |
-| `IF NOT EXISTS`                              | `DEFINE TABLE user IF NOT EXISTS;`                        | ✅ **Supported**     | `Table.define({ ..., method: 'IF NOT EXISTS' })`                                                                                  |
-| `OVERWRITE`                                  | `DEFINE TABLE user OVERWRITE;`                            | ✅ **Supported**     | `Table.define({ ..., method: 'OVERWRITE' })`                                                                                      |
-| `SCHEMAFULL`                                 | `DEFINE TABLE user SCHEMAFULL;`                           | ✅ **Supported**     | `Table.define({ ..., schemafull: true })` or implicit if fields defined & no other type.                                          |
-| `SCHEMALESS`                                 | `DEFINE TABLE user SCHEMALESS;`                           | ✅ **Supported**     | `Table.define({ ..., type: 'schemaless' })`                                                                                       |
-| `TYPE NORMAL`                                | `DEFINE TABLE user TYPE NORMAL;`                          | ✅ **Supported**     | `Table.define({ ..., type: 'normal' })`                                                                                           |
-| `TYPE ANY`                                   | `DEFINE TABLE user TYPE ANY;`                             | ✅ **Supported**     | `Table.define({ ..., type: 'any' })`                                                                                              |
-| `TYPE RELATION IN ... OUT ...`               | `DEFINE TABLE likes TYPE RELATION IN user OUT post;`      | ⚠️ **Partially**    | No direct `type: 'relation'` option. Define `in`/`out` fields as `Field.record()`. `ENFORCED` not supported.                       |
+| Basic Table Definition                       | `DEFINE TABLE user;`                                      | ✅ **Supported**     | `class User extends Table.normal({ name: 'user', ... })`                                                                          |
+| `IF NOT EXISTS`                              | `DEFINE TABLE user IF NOT EXISTS;`                        | ✅ **Supported**     | `Table.normal({ ..., method: 'IF NOT EXISTS' })`                                                                                  |
+| `OVERWRITE`                                  | `DEFINE TABLE user OVERWRITE;`                            | ✅ **Supported**     | `Table.normal({ ..., method: 'OVERWRITE' })`                                                                                      |
+| `SCHEMAFULL`                                 | `DEFINE TABLE user SCHEMAFULL;`                           | ✅ **Supported**     | `Table.normal({ ..., schemafull: true })` is the standard.                                          |
+| `SCHEMALESS`                                 | `DEFINE TABLE user SCHEMALESS;`                           | ✅ **Supported**     | `Table.normal({ ..., schemafull: false })`                                                                                       |
+| `TYPE NORMAL`                                | `DEFINE TABLE user TYPE NORMAL;`                          | ✅ **Supported**     | This is the default for `Table.normal`.                                                                                           |
+| `TYPE ANY`                                   | `DEFINE TABLE user TYPE ANY;`                             | ✅ **Supported**     | Not directly supported, use `schemafull: false`.                                                                                              |
+| `TYPE RELATION IN ... OUT ...`               | `DEFINE TABLE likes TYPE RELATION IN user OUT post;`      | ✅ **Supported**     | Use `Table.relation({ fields: { in: Field.record(...), out: Field.record(...) } })`. `ENFORCED` not supported.                       |
 | `ENFORCED` (for `TYPE RELATION`)             | `DEFINE TABLE likes TYPE RELATION ... ENFORCED;`          | ❌ **Not Supported** | Tied to full `TYPE RELATION` syntax.                                                                                              |
 | Table View (`AS SELECT ...`)                 | `DEFINE TABLE user_view AS SELECT ... FROM user;`         | ❌ **Not Supported** |                                                                                                                                     |
 | `CHANGEFEED @duration [INCLUDE ORIGINAL]`    | `DEFINE TABLE user CHANGEFEED 1h;`                        | ❌ **Not Supported** |                                                                                                                                     |
@@ -68,10 +68,10 @@ This page summarizes which SurrealDB schema features are supported by unreal-orm
 | Basic Index Definition                       | `DEFINE INDEX user_email ON user COLUMNS email;`             | ✅ **Supported**     | `Table.define({ indexes: { user_email: { fields: ['email'] } } })`                                                               |
 | `IF NOT EXISTS` (Index-level)                | `DEFINE INDEX user_email ON user IF NOT EXISTS ...;`         | ❌ **Not Supported** | ORM regenerates the whole schema.                                                                                                  |
 | `OVERWRITE` (Index-level)                    | `DEFINE INDEX user_email ON user OVERWRITE ...;`             | ❌ **Not Supported** | ORM regenerates the whole schema.                                                                                                  |
-| `UNIQUE` Index                               | `DEFINE INDEX user_email ON user COLUMNS email UNIQUE;`      | ✅ **Supported**     | `Table.define({ indexes: { user_email: { fields: ['email'], unique: true } } })`                                                  |
-| `SEARCH ANALYZER` (Full-Text Search)         | `DEFINE INDEX ... SEARCH ANALYZER ... BM25 HIGHLIGHTS;`      | ⚠️ **Partially**    | Basic index definition is supported. Specific FTS keywords (`SEARCH ANALYZER`, `BM25`) require manual setup or are not exposed. |
+| `UNIQUE` Index                               | `DEFINE INDEX user_email ON user COLUMNS email UNIQUE;`      | ✅ **Supported**     | `Index.define(() => User, { fields: ['email'], unique: true })`                                                                    |
+| `SEARCH ANALYZER` (Full-Text Search)         | `DEFINE INDEX ... SEARCH ANALYZER ... BM25 HIGHLIGHTS;`      | ✅ **Supported**     | Use the `analyzer` option in `Index.define`. Other keywords like `BM25` are not exposed.                                          |
 | Vector Index (`MTREE`, `HNSW`)               | `DEFINE INDEX ... MTREE DIMENSION ...;`                       | ❌ **Not Supported** |                                                                                                                                  |
-| `COMMENT @string`                            | `DEFINE INDEX user_email ON user ... COMMENT '...';`          | ✅ **Supported**     | `Table.define({ indexes: { user_email: { ..., comment: '...' } } })`                                                             |
+| `COMMENT @string`                            | `DEFINE INDEX user_email ON user ... COMMENT '...';`          | ✅ **Supported**     | Use the `comment` option in `Index.define`.                                                                                       |
 | `CONCURRENTLY`                               | `DEFINE INDEX user_email ON user ... CONCURRENTLY;`          | ❌ **Not Supported** |                                                                                                                                  |
 
 ## Other `DEFINE` Statements
@@ -97,24 +97,29 @@ This page summarizes which SurrealDB schema features are supported by unreal-orm
 ```ts
 import { Table, Field } from 'unreal-orm';
 
-const User = Table.define({
+class User extends Table.normal({
   name: 'user',
+  schemafull: true,
   fields: {
-    name: Field.string({ assert: '$value.length > 2', comment: 'User name' }),
-    age: Field.number({ assert: '$value >= 0', default: '0' }),
-    isActive: Field.bool({ default: 'true' }),
-    createdAt: Field.datetime({ default: 'time::now()' }),
+    name: Field.string({ assert: '$value.length > 2' }),
+    age: Field.number({ assert: '$value >= 0', default: 0 }),
+    isActive: Field.bool({ default: true }),
+    createdAt: Field.datetime({ default: () => new Date() }),
     profile: Field.object({
       bio: Field.string(),
       website: Field.option(Field.string()),
     }),
     tags: Field.array(Field.string(), { max: 10 }),
-    posts: Field.array(Field.record((): any => Post), { max: 100 }),
-    author: Field.record((): any => User),
+    posts: Field.array(Field.record(() => Post)),
     nickname: Field.option(Field.string()),
-    customField: Field.custom<number>('duration'),
+    customField: Field.custom('duration'),
   },
-  indexes: [
-    { name: 'user_name_idx', fields: ['name'], unique: true },
-  ],
-``}]},{
+}) {}
+
+// Define indexes separately
+const UserNameIndex = Index.define(() => User, {
+  name: 'user_name_idx',
+  fields: ['name'],
+  unique: true,
+});
+```

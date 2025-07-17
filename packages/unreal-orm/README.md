@@ -86,40 +86,69 @@ bun add unreal-orm surrealdb typescript
 ```ts
 import { Surreal } from 'surrealdb';
 import { surrealdbNodeEngines } from '@surrealdb/node';
-import Table, { Field, applySchema } from 'unreal-orm';
+import Table, { Field, Index, applySchema } from 'unreal-orm';
 
-class Post extends Table.normal({
-  name: 'post',
+// Define a User model
+class User extends Table.normal({
+  name: 'user',
   fields: {
-    title: Field.string({ default: "'Untitled'", assert: '$value.length > 3' }),
-    content: Field.string({ comment: 'Markdown allowed' }),
+    name: Field.string(),
+    email: Field.string({ assert: '$value CONTAINS "@"' }),
   },
 }) {
-  summary() {
-    return `${this.title}: ${this.content.slice(0, 30)}…`;
+  // Add custom methods directly to the class
+  getDisplayName() {
+    return `${this.name} <${this.email}>`;
   }
 }
 
-class Comment extends Table.normal({
-  name: 'comment',
+// Define a Post model with a relation to User
+class Post extends Table.normal({
+  name: 'post',
   fields: {
-    post: Field.record(() => Post),
-    body: Field.string({ assert: '$value.length > 1' }),
+    title: Field.string({ default: "'Untitled'" }),
+    content: Field.string(),
+    author: Field.record(() => User), // Link to the User table
   },
 }) {}
+
+// Define a unique index on the user's email
+const UserEmailIndex = Index.define(() => User, {
+  name: 'user_email_idx',
+  fields: ['email'],
+  unique: true,
+});
 
 async function main() {
   const db = new Surreal({ engines: surrealdbNodeEngines() });
   await db.connect('mem://');
   await db.use({ namespace: 'demo', database: 'demo' });
 
-  await applySchema(db, [Post, Comment]);
-  const post = await Post.create(db, { title: 'Hello World', content: 'My first post' });
-  await Comment.create(db, { post: post.id, body: 'Great read!' });
-  const comments = await Comment.select(db, { fetch: ['post'] });
-  console.log(comments[0].post.summary()); // hydrated post in comment
+  // Generate and apply schema for all models and indexes
+  await applySchema(db, [User, Post, UserEmailIndex]);
+
+  // Create a user and a post
+  const alice = await User.create(db, { name: 'Alice', email: 'alice@example.com' });
+  const post = await Post.create(db, {
+    title: 'Getting Started',
+    content: 'This is how you use Unreal-ORM!',
+    author: alice.id, // Link the post to Alice
+  });
+
+  // Fetch the post and its author in one query
+  const fetchedPost = await Post.select(db, {
+    from: post.id,
+    only: true,
+    fetch: ['author'], // Hydrate the 'author' field
+  });
+
+  // Use the hydrated, type-safe data
+  console.log(`Post: "${fetchedPost?.title}"`);
+  console.log(`Author: ${fetchedPost?.author.getDisplayName()}`);
+
   await db.close();
 }
+
 main();
 ```
 

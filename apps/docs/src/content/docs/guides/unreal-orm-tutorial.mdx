@@ -101,7 +101,7 @@ Run this and you should see your first user created with type safety!
 
 Unreal-ORM automatically generates **SurrealQL DDL** statements for your models:
 
-> **Note on Required Fields:** In SurrealDB, fields are **required by default**. To make a field optional, you must wrap it in `Field.option()`.
+> **Note on Required Fields:** In Unreal-ORM, fields are **required by default**. This means SurrealDB will reject any write operation where a required field is missing. To make a field optional, you must wrap it in `Field.option()`.
 
 ```sql
 -- The ORM generates and applies:
@@ -131,11 +131,15 @@ Use this in pipelines to compare the generated DDL against committed files and f
 
 ---
 
-## CRUD Operations
+## CRUD Operations & Indexes
 
-Let's add full CRUD functionality and test it:
+Let's add full CRUD functionality, methods, and a **unique index** to our `User` model.
 
 ```ts
+// src/index.ts (continued)
+import { Surreal } from 'surrealdb';
+import Table, { Field, Index, applySchema } from 'unreal-orm';
+
 class User extends Table.normal({
   name: 'user',
   fields: {
@@ -144,26 +148,33 @@ class User extends Table.normal({
     bio: Field.option(Field.string()),
   },
   schemafull: true,
-  indexes: [
-    { unique: true, fields: ['email'] }
-  ]
 }) {
   // Custom instance method
   getDisplayName() {
     return `${this.name} <${this.email}>`;
   }
-  
+
   // Custom static method
   static async findByEmail(db: Surreal, email: string) {
     const users = await this.select(db, {
       where: 'email = $email',
-      vars: { email }
+      vars: { email },
     });
     return users[0];
   }
 }
 
+// Define a unique index on the email field separately
+const UserEmailIndex = Index.define(() => User, {
+  name: 'user_email_unique',
+  fields: ['email'], // Index the 'email' field
+  unique: true, // Enforce uniqueness
+});
+
 async function testCRUD() {
+  // Apply schema for models and indexes
+  await applySchema(db, [User, UserEmailIndex]);
+
   // Create
   const alice = await User.create(db, {
     name: 'Alice',
@@ -173,37 +184,39 @@ async function testCRUD() {
   
   // Read  — *Find by ID*
   const found = await User.select(db, {
-    from: alice.id, // equivalent to "SELECT * FROM aliceId"
-    only: true
+    from: alice.id,
+    only: true,
   });
-  const found = await User.select(db, { from: alice.id, only: true });
-  console.log('Found user:', found?.getDisplayName());
   
-  // Update (replaces entire record in schemafull mode)
-  await alice.update(db, {
-    name: 'Alice Smith',
-    email: alice.email,
+  // Update (Full record replacement)
+  // Note: .update() replaces the entire record. ALL required fields must be provided.
+  await found?.update(db, {
+    name: 'Alice Smith', // name is required
+    email: 'alice.smith@example.com', // email is required
     bio: 'Senior Developer'
   });
-  
-  // Custom query
-  const byEmail = await User.findByEmail(db, 'alice@example.com');
-  console.log('By email:', byEmail?.name);
+
+  // Merge (Partial update)
+  // Note: .merge() will be the way to update only specific fields.
+  await found?.merge(db, { bio: 'Lead Developer' });
   
   // Delete
-  await alice.delete(db);
+  await found?.delete(db);
+  
+  // Custom query
+  const bob = await User.create(db, { name: 'Bob', email: 'bob@example.com' });
+  const foundBob = await User.findByEmail(db, 'bob@example.com');
+  console.log('Found Bob:', foundBob?.getDisplayName());
 }
 ```
 
-> **Note:** `update` replaces the whole record. Support for SurrealDB's `merge` (partial update) is comming soon.
-
 ---
 
-## Adding Relations
+## Relations & Hydration
 
-Now let's add a `Post` model with a relation to `User`:
+Define relationships between models using `Field.record()` and fetch related data with the `fetch` option.
 
-> **Tip – avoiding circular imports**
+> **Circular Dependencies?**
 > Use a thunk `() : any => OtherModel` inside `Field.record()` when two models reference each other.  
 > The `: any` type annotation suppresses TypeScript's self-referencing complaint and disappears at runtime.
 
@@ -221,52 +234,45 @@ class Post extends Table.normal({
 }) {}
 
 async function testRelations() {
-  await applySchema(db, [User, Post]);
-  
-  // Create user and post
-  const author = await User.create(db, {
-    name: 'Bob',
-    email: 'bob@example.com'
-  });
-  
+  const author = await User.create(db, { name: 'Charlie', email: 'charlie@example.com' });
   const post = await Post.create(db, {
-    title: 'My First Post',
-    content: 'Hello, world!',
+    title: 'Hydration is Awesome',
+    content: '...',
     author: author.id,
-    tags: ['tutorial', 'surrealdb'],
-    published: true
   });
   
-  // Query with hydration
-  const hydratedPost = await Post.select(db, {
+  // Fetch the post and its author
+  const result = await Post.select(db, {
     from: post.id,
     only: true,
-    fetch: ['author']
+    fetch: ['author'],
   });
   
-  console.log('Post by:', hydratedPost?.author.name);
+  // result.author is now a fully-typed User instance!
+  console.log(`Post by ${result?.author.getDisplayName()}`);
 }
 ```
 
 ---
 
-## Field Options & Custom Fields
+## Advanced Topics
 
-Below are two quick ways to go beyond simple `Field.string()`:
+### 1. Field Options
 
-### 1. Core `FieldOptions` (assert, default, comment)
+Customize fields with `default`, `assert` (validation), `comment`, etc.:
 
 ```ts
 class Post extends Table.normal({
   name: 'post',
   fields: {
     title: Field.string({
-      assert: '$value.length > 5', // ✅ validation in DB
+      assert: '$value.length > 5',
       comment: 'Post title (min 6 chars)',
       default: "'Untitled'",
     }),
     content: Field.string(),
   },
+  schemafull: true,
 }) {}
 ```
 
@@ -281,15 +287,18 @@ class Task extends Table.normal({
     title: Field.string(),
     est: Duration, // stored as SurrealDB duration type, typed as number in TS
   },
+  schemafull: true,
 }) {}
 
 // Projection with type-safety
-await Task.select(db, { select: ['title', 'est'] }) // → ({ title: string; est: number }[])
+const tasks = await Task.select(db, {
+  fields: ['title'], // only 'title' will be in the result type
+});
 ```
 
----
+### 3. Parameterized Queries (`vars`)
 
-## Parameterized Queries (`vars`)
+Always use `vars` to pass dynamic values into your queries.
 
 Whenever you build a custom `where` clause, always inject **parameters** instead of string-interpolating values.  This avoids SurrealQL injection bugs.
 
@@ -393,7 +402,7 @@ Here's the full working blog API:
 ```ts
 // src/blog-api.ts
 import { Surreal } from 'surrealdb';
-import Table, { Field, applySchema } from 'unreal-orm';
+import Table, { Field, Index, applySchema } from 'unreal-orm';
 
 // Models
 class User extends Table.normal({
@@ -404,7 +413,6 @@ class User extends Table.normal({
     bio: Field.option(Field.string()),
   },
   schemafull: true,
-  indexes: [{ unique: true, fields: ['email'] }]
 }) {
   getDisplayName() {
     return `${this.name} <${this.email}>`;
@@ -422,13 +430,20 @@ class Post extends Table.normal({
   schemafull: true,
 }) {}
 
+// Define a unique index
+const UserEmailIndex = Index.define(() => User, {
+  name: 'user_email_unique',
+  fields: ['email'],
+  unique: true,
+});
+
 async function main() {
   const db = new Surreal();
   await db.connect('memory://');
   await db.use({ namespace: 'blog', database: 'tutorial' });
   
-  // Apply schema
-  await applySchema(db, [User, Post]);
+  // Apply schema for models and indexes
+  await applySchema(db, [User, Post, UserEmailIndex]);
   
   // Create and test
   const author = await User.create(db, {

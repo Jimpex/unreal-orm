@@ -2,6 +2,20 @@ import type { AnyModelClass } from "../../define/table/types/model";
 import type { FieldDefinition } from "../field-definitions/definitions";
 import { enumerateSubfields } from "../field-definitions/utils";
 
+/**
+ * Generates an array of SurrealQL `DEFINE FIELD` statements for a given model class.
+ *
+ * This function iterates over all fields defined in the model, including nested fields
+ * within objects and arrays, and constructs the appropriate DDL statement for each.
+ * It handles all supported field options, such as type constraints, default values,
+ * assertions, permissions, and comments.
+ *
+ * @internal This is a low-level utility for building parts of the full schema.
+ * It is used by the main `generateTableSchemaQl` function and is not intended for direct use.
+ *
+ * @param modelClass The model class to generate field DDL for.
+ * @returns An array of strings, where each string is a complete `DEFINE FIELD ...;` statement.
+ */
 export function generateFieldsDdl(modelClass: AnyModelClass): string[] {
 	const tableName = modelClass._tableName;
 	const fields = modelClass._fields;

@@ -6,6 +6,21 @@ import type {
 	TableDefineOptions,
 } from "./types/model";
 
+/**
+ * Hydrates a model instance with raw data from the database.
+ * This function iterates over the raw data and, for each field, uses the `hydrateValue` helper
+ * to convert plain objects into full model instances, including recursively hydrating related records
+ * (e.g., a `user` object with a `posts` array).
+ *
+ * For schemaless tables, any fields in the data that are not defined in the schema
+ * are added to the instance's `$dynamic` property.
+ *
+ * @param instance The model instance to hydrate.
+ * @param data The raw data from the database.
+ * @param fields The field definitions for the model.
+ * @param options The table definition options.
+ * @internal
+ */
 export function hydrate<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 >(
@@ -14,6 +29,17 @@ export function hydrate<
 	fields: TFields,
 	options: TableDefineOptions<TFields>,
 ) {
+	/**
+	 * Recursively hydrates a single value based on its field definition.
+	 * - If the field is a `record` link and the value is a fetched object, it instantiates the related model.
+	 * - If the field is an `array` of records and the value is an array of fetched objects, it maps over them and instantiates each one.
+	 * - If the field is a nested `object`, it recursively hydrates the object's properties.
+	 * - Otherwise, it returns the value as-is.
+	 *
+	 * @param value The value to hydrate.
+	 * @param fieldDef The definition of the field.
+	 * @returns The hydrated value.
+	 */
 	function hydrateValue(
 		value: unknown,
 		fieldDef: FieldDefinition<unknown> | undefined,

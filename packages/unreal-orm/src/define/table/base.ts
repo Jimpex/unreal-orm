@@ -12,6 +12,19 @@ import type { getUpdateMethod, getStaticUpdateMethod } from "./crud/update";
 import type { getDeleteMethod, getStaticDeleteMethod } from "./crud/delete";
 import { hydrate } from "./hydration";
 
+/**
+ * Creates the base class for a model, combining the schema definition with generated
+ * static and instance CRUD methods. This function is the core of the `Table.define` factory.
+ *
+ * It dynamically constructs a class with the specified schema and methods, which can then be extended
+ * by a user-defined class to create the final model.
+ *
+ * @param options The table definition options.
+ * @param staticMethods An object containing the static CRUD methods (create, select, etc.).
+ * @param instanceMethods An object containing the instance CRUD methods (update, delete).
+ * @returns A dynamic base class that can be extended by the user to create a final model.
+ * @internal
+ */
 export function createBaseModel<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 >(
@@ -29,15 +42,27 @@ export function createBaseModel<
 ) {
 	type TableData = InferShapeFromFields<TFields>;
 
+	/**
+	 * The internal base class for all models created by the ORM.
+	 * It holds the schema definition and the core CRUD functionality.
+	 * Users extend this class implicitly when using `Table.define`.
+	 * @internal
+	 */
 	class DynamicModelBase {
+		/** The unique record ID, assigned by the database. */
 		id!: RecordId;
 
+		/** @internal The name of the database table. */
 		static readonly _tableName = options.name;
+		/** @internal The field definitions for the table. */
 		static readonly _fields = options.fields;
+		/** @internal The original table definition options. */
 		static readonly _options = options;
 
+		/** @internal A property to hold any fields not explicitly defined in a flexible schema. */
 		$dynamic: Record<string, unknown> = {};
 
+		/** Returns the name of the database table. */
 		static getTableName(): string {
 			return options.name;
 		}
@@ -47,6 +72,14 @@ export function createBaseModel<
 		static update = staticMethods.update;
 		static delete = staticMethods.delete;
 
+		/**
+		 * Creates an instance of the model.
+		 * This constructor takes the raw data from the database, assigns the `id`,
+		 * and then calls the `hydrate` function to process and assign the rest of the data,
+		 * including instantiating nested models for relations.
+		 *
+		 * @param data The raw data from the database, including the `id`.
+		 */
 		constructor(data: TableData & Record<string, unknown>) {
 			if (data.id === undefined) {
 				throw new Error(

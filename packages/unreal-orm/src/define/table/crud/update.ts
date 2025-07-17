@@ -7,6 +7,22 @@ import type {
 } from "../types/model";
 import type { FieldDefinition } from "../../../schema/field-definitions/definitions";
 
+/**
+ * A factory function that generates the instance `update` method for a model.
+ * This method performs a full record replacement (`UPDATE` in SurrealQL).
+ * All required fields must be provided, or the database will throw an error.
+ * For partial updates, a `.merge()` method will be implemented separately.
+ *
+ * @example
+ * ```ts
+ * const user = await User.select(db, 'user:123');
+ * // Note: 'name' is a required field, so it must be included.
+ * const updatedUser = await user.update(db, { name: 'Jane Doe', age: 31 });
+ * ```
+ *
+ * @returns The instance `update` method implementation.
+ * @internal
+ */
 export function getUpdateMethod<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 >() {
@@ -39,6 +55,21 @@ export function getUpdateMethod<
 	};
 }
 
+/**
+ * A factory function that generates the static `update` method for a model.
+ * This method performs a full record replacement (`UPDATE` in SurrealQL) for a given record ID.
+ * All required fields must be provided, or the database will throw an error.
+ * For partial updates, a `.merge()` method will be implemented separately.
+ *
+ * @example
+ * ```ts
+ * // Note: 'name' is a required field, so it must be included.
+ * const updatedUser = await User.update(db, 'user:123', { name: 'Jane Doe', age: 31 });
+ * ```
+ *
+ * @returns The static `update` method implementation.
+ * @internal
+ */
 export function getStaticUpdateMethod<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 >() {

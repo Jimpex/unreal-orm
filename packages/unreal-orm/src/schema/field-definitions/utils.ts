@@ -3,18 +3,21 @@
 import type { FieldDefinition } from "./definitions";
 
 /**
- * Recursively enumerate all subfields of a FieldDefinition, including nested arrays and objects.
- * Returns an array of { path, fieldDef } for each subfield, including the root.
- * Used by the schema generator to emit SurrealQL for deeply nested structures.
+ * Recursively enumerates all subfields of a `FieldDefinition`, including nested arrays and objects.
+ * It returns a flattened array of all fields and their corresponding paths (e.g., `meta.views` or `items[*].name`).
+ * This is a crucial utility for the schema generator to correctly define deeply nested structures in SurrealDB.
  *
- * @param fieldDef The root FieldDefinition
- * @param basePath The base path (e.g., 'items', or 'items[*]')
+ * @internal This is a low-level utility for schema generation and is not intended for direct use.
+ * @param fieldDef The root `FieldDefinition` to start the enumeration from.
+ * @param basePath The initial path for the root field.
+ * @returns An array of objects, each containing the `path` string and the `fieldDef` for a field.
  */
 export function enumerateSubfields(
 	fieldDef: FieldDefinition<unknown>,
 	basePath = "",
 ): Array<{ path: string; fieldDef: FieldDefinition<unknown> }> {
-	const results: Array<{ path: string; fieldDef: FieldDefinition<unknown> }> = [];
+	const results: Array<{ path: string; fieldDef: FieldDefinition<unknown> }> =
+		[];
 	const path = basePath;
 	results.push({ path, fieldDef });
 

@@ -7,6 +7,19 @@ import type {
 } from "../types/model";
 import type { FieldDefinition } from "../../../schema/field-definitions/definitions";
 
+/**
+ * A factory function that generates the instance `delete` method for a model.
+ * This method is responsible for deleting the current record from the database.
+ *
+ * @example
+ * ```ts
+ * const user = await User.select(db, 'user:123');
+ * await user.delete(db);
+ * ```
+ *
+ * @returns The instance `delete` method implementation.
+ * @internal
+ */
 export function getDeleteMethod<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 >() {
@@ -26,6 +39,18 @@ export function getDeleteMethod<
 	};
 }
 
+/**
+ * A factory function that generates the static `delete` method for a model.
+ * This method is responsible for deleting a record from the database by its ID.
+ *
+ * @example
+ * ```ts
+ * await User.delete(db, 'user:123');
+ * ```
+ *
+ * @returns The static `delete` method implementation.
+ * @internal
+ */
 export function getStaticDeleteMethod<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 >() {

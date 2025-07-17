@@ -2,23 +2,58 @@ import type { RecordId, Surreal } from "surrealdb";
 import type { FieldDefinition } from "../../../schema/field-definitions/definitions";
 import type { SelectQueryOptions } from "./query";
 
+/**
+ * Defines the core options for creating a table schema.
+ * @template TFields An object defining the fields of the table.
+ * @example
+ * ```ts
+ * const userOptions: TableDefineOptions<{
+ *   name: FieldDefinition<string>,
+ *   email: FieldDefinition<string>
+ * }> = {
+ *   name: 'user',
+ *   fields: {
+ *     name: Field.string(),
+ *     email: Field.string()
+ *   },
+ *   schemafull: true
+ * };
+ * ```
+ */
 export type TableDefineOptions<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 > = {
+	/** The name of the database table. */
 	name: string;
+	/** An object containing the field definitions for the table. */
 	fields: TFields;
+	/** The type of table, either a standard 'normal' table or a 'relation' (edge) table. */
 	type?: "normal" | "relation";
+	/** If true, the table will be created with `SCHEMAFULL`, enforcing the defined schema. */
 	schemafull?: boolean;
 };
 
 // --- Type Inference Helpers ---
 
+/**
+ * A utility type that infers the shape of a model's data from its field definitions.
+ * It recursively determines the TypeScript type for each field, converting `FieldDefinition` objects
+ * into their corresponding TS types (e.g., `Field.string()` becomes `string`).
+ * @template TFields An object defining the fields of the table.
+ * @internal
+ */
 export type InferShapeFromFields<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 > = {
 	-readonly [K in keyof TFields]: InferFieldType<TFields[K]>;
 };
 
+/**
+ * A utility type that infers the TypeScript type of a single field from its definition.
+ * This is the core of the type inference system, handling nested arrays, objects, records, and optional fields.
+ * @template T The field definition.
+ * @internal
+ */
 export type InferFieldType<T extends FieldDefinition<unknown>> =
 	// Array fields
 	T extends { arrayElementType: infer E }
@@ -45,13 +80,27 @@ export type InferFieldType<T extends FieldDefinition<unknown>> =
 						? U
 						: never;
 
+/**
+ * Infers the shape of the data required to create a new record.
+ * It is essentially a partial version of the model's full data shape, as not all fields
+ * are required upon creation (e.g., fields with defaults).
+ * @template TFields An object defining the fields of the table.
+ */
 export type CreateData<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 > = Partial<InferShapeFromFields<TFields>>;
 
 // --- Model Class and Instance Types ---
 
+/**
+ * A declaration for the base class that all model instances extend.
+ * This provides the core instance properties and methods like `id`, `update`, and `delete`.
+ * It is not intended to be instantiated directly but is used to build the final `ModelInstance` type.
+ * @template TData The inferred shape of the model's data.
+ * @internal
+ */
 export declare class BaseTable<TData extends Record<string, unknown>> {
+	/** The unique record ID, assigned by the database. */
 	id: RecordId;
 
 	/**
@@ -68,17 +117,34 @@ export declare class BaseTable<TData extends Record<string, unknown>> {
 	delete(db: Surreal): Promise<void>;
 }
 
+/**
+ * Represents an instance of a model, combining the base table functionality with the specific data shape.
+ * This is the type you get back when you call `new User({ ... })` or `User.select(...)`.
+ * @template TData The inferred shape of the model's data.
+ */
 export type ModelInstance<TData extends Record<string, unknown>> =
 	BaseTable<TData> & TData;
 
+/**
+ * Represents the static side of a model class (the class itself).
+ * This includes the constructor, static properties like `_tableName` and `_fields`,
+ * and static methods like `create` and the overloaded `select`.
+ * @template TInstance The type of a model instance.
+ * @template TFields The field definitions for the model.
+ * @template TOptions The table definition options.
+ */
 export type ModelStatic<
 	TInstance extends ModelInstance<InferShapeFromFields<TFields>>,
 	TFields extends Record<string, FieldDefinition<unknown>>,
 	TOptions extends TableDefineOptions<TFields>,
 > = {
-	new (data: InferShapeFromFields<TFields>): TInstance; // Constructor signature
+	/** The constructor signature for the model class. */
+	new (data: InferShapeFromFields<TFields>): TInstance;
+	/** @internal The name of the database table. */
 	_tableName: string;
+	/** @internal The field definitions for the table. */
 	_fields: TFields;
+	/** @internal The original table definition options. */
 	_options: TOptions;
 
 	// Standard static CRUD methods
@@ -145,9 +211,11 @@ export type ModelStatic<
 
 // --- Placeholders for Any Model ---
 
+/** A placeholder type representing any model instance, used to break circular dependencies. */
 // biome-ignore lint/suspicious/noExplicitAny: Placeholder type for circular dependencies requires 'any'.
 export type AnyModelInstance = ModelInstance<any>;
 
+/** A placeholder type representing any model class, used to break circular dependencies. */
 export type AnyModelClass =
 	// biome-ignore lint/suspicious/noExplicitAny: Placeholder type for circular dependencies requires 'any'.
 	ModelStatic<any, any, any>;
