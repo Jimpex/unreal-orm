@@ -39,7 +39,7 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 ```typescript
 // Define your schema
-const User = Table.define({
+const User = Table.normal({
   name: 'user',
   fields: {
     name: Field.string(),
