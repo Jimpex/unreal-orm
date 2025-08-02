@@ -1,56 +1,52 @@
 {
-  "name": "unreal-orm",
-  "version": "0.5.0",
-  "description": "UnrealORM is a modern, type-safe ORM for SurrealDB that gives you native SurrealDB power, full TypeScript safety, and zero abstraction—no decorators, no magic, just classes and functions. Designed for developers who want direct control, advanced schema features, and a frictionless experience.",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
-    }
-  },
-  "scripts": {
-    "test": "bun test",
-    "build": "tsc src/index.ts --outDir dist --declaration --sourcemap",
-    "prepublishOnly": "pnpm run test && pnpm run build",
-    "publish:flow": "pnpm run test && pnpm run build && npm publish --access public"
-  },
-  "keywords": [
-    "surrealdb",
-    "orm",
-    "typescript",
-    "database",
-    "query-builder",
-    "unreal"
-  ],
-  "author": "Jimpex <contact@jimpex.dev> (https://jimpex.dev)",
-  "license": "ISC",
-  "packageManager": "pnpm@10.11.1",
-  "devDependencies": {
-    "@surrealdb/node": "1.0.0-beta.3",
-    "@types/bun": "^1.2.16",
-    "@types/node": "^22.15.29",
-    "surrealdb": "^1.3.2",
-    "type-fest": "^4.41.0"
-  },
-  "peerDependencies": {
-    "surrealdb": "^1.3.2",
-    "typescript": "^5"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/jimpex/unreal-orm.git"
-  },
-  "bugs": {
-    "url": "https://github.com/jimpex/unreal-orm/issues"
-  },
-  "homepage": "https://unreal-orm.jimpex.dev"
+	"name": "unreal-orm",
+	"version": "0.5.1",
+	"description": "UnrealORM is a modern, type-safe ORM for SurrealDB that gives you native SurrealDB power, full TypeScript safety, and zero abstraction—no decorators, no magic, just classes and functions. Designed for developers who want direct control, advanced schema features, and a frictionless experience.",
+	"main": "dist/index.js",
+	"module": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"test": "bun test",
+		"build": "tsc src/index.ts --outDir dist --declaration --sourcemap",
+		"prepublishOnly": "pnpm run test && pnpm run build",
+		"publish:flow": "pnpm run test && pnpm run build && npm publish --access public"
+	},
+	"keywords": [
+		"surrealdb",
+		"orm",
+		"typescript",
+		"database",
+		"query-builder",
+		"unreal"
+	],
+	"author": "Jimpex <contact@jimpex.dev> (https://jimpex.dev)",
+	"license": "ISC",
+	"packageManager": "pnpm@10.11.1",
+	"devDependencies": {
+		"@surrealdb/node": "1.0.0-beta.3",
+		"@types/bun": "^1.2.16",
+		"@types/node": "^22.15.29",
+		"surrealdb": "^1.3.2",
+		"type-fest": "^4.41.0"
+	},
+	"peerDependencies": {
+		"surrealdb": "^1.3.2",
+		"typescript": "^5"
+	},
+	"files": ["dist", "README.md", "LICENSE"],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/jimpex/unreal-orm.git"
+	},
+	"bugs": {
+		"url": "https://github.com/jimpex/unreal-orm/issues"
+	},
+	"homepage": "https://unreal-orm.jimpex.dev"
 }

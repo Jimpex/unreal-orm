@@ -1,0 +1,22 @@
+---
+title: v0.5.1
+---
+
+# v0.5.1
+
+## Fixes
+
+### Schema Generation
+
+- **Fixed OVERWRITE method application**: The `OVERWRITE` and `IF NOT EXISTS` methods were only being applied to `DEFINE TABLE` statements, but not to `DEFINE FIELD` or `DEFINE INDEX` statements. This inconsistency has been resolved by ensuring these methods are now consistently applied to all schema definition statements (tables, fields, and indexes).
+
+  This fix ensures that when using schema generation with the `OVERWRITE` method, all schema elements will be properly overwritten as expected, providing consistent behavior across the entire schema.
+
+  ```typescript
+  // Now correctly applies OVERWRITE to table, fields, and indexes
+  await applySchema(db, [User, UserEmailIndex], "OVERWRITE");
+  ```
+
+## Tests
+
+- Added comprehensive tests to verify that the `OVERWRITE` and `IF NOT EXISTS` methods are correctly applied to all schema definition types.
