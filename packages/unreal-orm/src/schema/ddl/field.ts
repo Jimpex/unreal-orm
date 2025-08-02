@@ -1,5 +1,6 @@
 import type { AnyModelClass } from "../../define/table/types/model";
 import type { FieldDefinition } from "../../define/field/types";
+import type { SchemaApplicationMethod } from "../generator";
 import { enumerateSubfields } from "../../define/field/utils";
 
 /**
@@ -14,9 +15,13 @@ import { enumerateSubfields } from "../../define/field/utils";
  * It is used by the main `generateTableSchemaQl` function and is not intended for direct use.
  *
  * @param modelClass The model class to generate field DDL for.
+ * @param method The method to use for schema application if the field already exists.
  * @returns An array of strings, where each string is a complete `DEFINE FIELD ...;` statement.
  */
-export function generateFieldsDdl(modelClass: AnyModelClass): string[] {
+export function generateFieldsDdl(
+	modelClass: AnyModelClass,
+	method: SchemaApplicationMethod = "error",
+): string[] {
 	const tableName = modelClass._tableName;
 	const fields = modelClass._fields;
 	const allStatements: string[] = [];
@@ -28,7 +33,11 @@ export function generateFieldsDdl(modelClass: AnyModelClass): string[] {
 		const subfields = enumerateSubfields(fieldDef, fieldName);
 		for (const { path, fieldDef: subDef } of subfields) {
 			if (/\[\*\]$/.test(path)) continue;
-			let fieldStatement = `DEFINE FIELD ${path} ON TABLE ${tableName}`;
+			let fieldStatement = "DEFINE FIELD";
+			if (method !== "error") {
+				fieldStatement += ` ${method}`;
+			}
+			fieldStatement += ` ${path} ON TABLE ${tableName}`;
 
 			if (subDef.flexible === true) {
 				fieldStatement += " FLEXIBLE";

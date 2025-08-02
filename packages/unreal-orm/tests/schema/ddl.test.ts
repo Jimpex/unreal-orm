@@ -106,4 +106,49 @@ describe("DDL Generation", () => {
 		);
 		await applySchema(db, [User, Post, Authored]);
 	});
+
+	test("generates DDL with OVERWRITE method for table, fields, and indexes", () => {
+		class User extends Table.normal({
+			name: "user_overwrite",
+			fields: {
+				name: Field.string(),
+				email: Field.string(),
+			},
+			schemafull: true,
+		}) {}
+
+		const UserEmailIndex = Index.define(() => User, {
+			name: "idx_user_email_overwrite",
+			fields: ["email"],
+			unique: true,
+		});
+
+		const ddl = generateFullSchemaQl([User, UserEmailIndex], "OVERWRITE");
+		expect(ddl).toContain("DEFINE TABLE OVERWRITE user_overwrite");
+		expect(ddl).toContain("DEFINE FIELD OVERWRITE name ON TABLE user_overwrite TYPE string");
+		expect(ddl).toContain("DEFINE FIELD OVERWRITE email ON TABLE user_overwrite TYPE string");
+		expect(ddl).toContain("DEFINE INDEX OVERWRITE idx_user_email_overwrite ON TABLE user_overwrite FIELDS email UNIQUE");
+	});
+
+	test("generates DDL with IF NOT EXISTS method for table, fields, and indexes", () => {
+		class Product extends Table.normal({
+			name: "product_exists",
+			fields: {
+				name: Field.string(),
+				price: Field.number(),
+			},
+			schemafull: true,
+		}) {}
+
+		const ProductNameIndex = Index.define(() => Product, {
+			name: "idx_product_name_exists",
+			fields: ["name"],
+		});
+
+		const ddl = generateFullSchemaQl([Product, ProductNameIndex], "IF NOT EXISTS");
+		expect(ddl).toContain("DEFINE TABLE IF NOT EXISTS product_exists");
+		expect(ddl).toContain("DEFINE FIELD IF NOT EXISTS name ON TABLE product_exists TYPE string");
+		expect(ddl).toContain("DEFINE FIELD IF NOT EXISTS price ON TABLE product_exists TYPE number");
+		expect(ddl).toContain("DEFINE INDEX IF NOT EXISTS idx_product_name_exists ON TABLE product_exists FIELDS name");
+	});
 });

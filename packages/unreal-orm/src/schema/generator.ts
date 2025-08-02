@@ -29,7 +29,7 @@ export function generateTableSchemaQl(
 	method: SchemaApplicationMethod = "error",
 ): string {
 	const tableDdl = generateTableDdl(modelClass, method);
-	const fieldsDdl = generateFieldsDdl(modelClass);
+	const fieldsDdl = generateFieldsDdl(modelClass, method);
 	const allStatements = [tableDdl, ...fieldsDdl];
 
 	return allStatements.join("\n");
@@ -57,7 +57,7 @@ export function generateFullSchemaQl(
 		.map((mc) => generateTableSchemaQl(mc, method))
 		.join("\n\n");
 
-	const indexSchemas = indexes.map(generateIndexDdl).join("\n");
+	const indexSchemas = indexes.map((idx) => generateIndexDdl(idx, method)).join("\n");
 
 	const schema = [tableSchemas, indexSchemas].filter(Boolean).join("\n\n");
 	// TODO: Debug logging
