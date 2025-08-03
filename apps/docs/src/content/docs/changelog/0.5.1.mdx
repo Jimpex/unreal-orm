@@ -1,10 +1,21 @@
 ---
 title: v0.5.1
+description: Changelog for Unreal ORM v0.5.1
+lastUpdated: 2025-08-02
+sidebar_label: 0.5.1
+sidebar_position: 2
+tags:
+  - release
+  - changelog
+toc: true
+feedback: true
 ---
+import { Aside } from '@astrojs/starlight/components';
 
-# v0.5.1
 
-## Fixes
+This release includes an important bug fix for schema generation, ensuring consistent behavior when using the `OVERWRITE` and `IF NOT EXISTS` methods.
+
+## 🛠️ Fixes
 
 ### Schema Generation
 
@@ -17,6 +28,6 @@ title: v0.5.1
   await applySchema(db, [User, UserEmailIndex], "OVERWRITE");
   ```
 
-## Tests
+## 🧪 Tests
 
 - Added comprehensive tests to verify that the `OVERWRITE` and `IF NOT EXISTS` methods are correctly applied to all schema definition types.
