@@ -27,6 +27,13 @@ export function generateTableDdl(
 	}
 	defineTableStatement += ` ${tableName}`;
 
+	// Add table type
+	if (options.type === "relation") {
+		defineTableStatement += " TYPE RELATION";
+	} else if (options.type === "normal") {
+		defineTableStatement += " TYPE NORMAL";
+	}
+
 	const schemafullOpt = options.schemafull;
 
 	if (schemafullOpt === true) {

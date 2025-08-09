@@ -36,7 +36,7 @@ describe("Relation Table - definition and type checks", () => {
 	}) {}
 
 	test("apply schema", async () => {
-		await applySchema(db, [User, Post, Authored]);
+		await applySchema(db, [User, Post, Authored], "OVERWRITE");
 	});
 
 	test("should hydrate related records via fetch", async () => {

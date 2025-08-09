@@ -48,7 +48,7 @@ describe("DDL Generation", () => {
 		});
 
 		const ddl = generateFullSchemaQl([User, UserEmailIndex, UserNameAgeIndex]);
-		expect(ddl).toContain("DEFINE TABLE userddl SCHEMAFULL");
+		expect(ddl).toContain("DEFINE TABLE userddl TYPE NORMAL SCHEMAFULL");
 		expect(ddl).toContain("DEFINE FIELD name ON TABLE userddl TYPE string");
 		expect(ddl).toContain("DEFINE FIELD age ON TABLE userddl TYPE number");
 		expect(ddl).toContain(
@@ -68,7 +68,7 @@ describe("DDL Generation", () => {
 			schemafull: false,
 		}) {}
 		const ddl = generateFullSchemaQl([Flex]);
-		expect(ddl).toContain("DEFINE TABLE flexddl SCHEMALESS");
+		expect(ddl).toContain("DEFINE TABLE flexddl TYPE NORMAL SCHEMALESS");
 		expect(ddl).toContain("DEFINE FIELD foo ON TABLE flexddl TYPE string");
 		await applySchema(db, [Flex]);
 	});
@@ -94,7 +94,7 @@ describe("DDL Generation", () => {
 			schemafull: true,
 		}) {}
 		const ddl = generateFullSchemaQl([Authored]);
-		expect(ddl).toContain("DEFINE TABLE authoredrel SCHEMAFULL");
+		expect(ddl).toContain("DEFINE TABLE authoredrel TYPE RELATION SCHEMAFULL");
 		expect(ddl).toContain(
 			"DEFINE FIELD in ON TABLE authoredrel TYPE record<userrel>",
 		);
@@ -104,7 +104,7 @@ describe("DDL Generation", () => {
 		expect(ddl).toContain(
 			"DEFINE FIELD since ON TABLE authoredrel TYPE datetime",
 		);
-		await applySchema(db, [User, Post, Authored]);
+		await applySchema(db, [User, Post, Authored], "OVERWRITE");
 	});
 
 	test("generates DDL with OVERWRITE method for table, fields, and indexes", () => {
@@ -125,9 +125,15 @@ describe("DDL Generation", () => {
 
 		const ddl = generateFullSchemaQl([User, UserEmailIndex], "OVERWRITE");
 		expect(ddl).toContain("DEFINE TABLE OVERWRITE user_overwrite");
-		expect(ddl).toContain("DEFINE FIELD OVERWRITE name ON TABLE user_overwrite TYPE string");
-		expect(ddl).toContain("DEFINE FIELD OVERWRITE email ON TABLE user_overwrite TYPE string");
-		expect(ddl).toContain("DEFINE INDEX OVERWRITE idx_user_email_overwrite ON TABLE user_overwrite FIELDS email UNIQUE");
+		expect(ddl).toContain(
+			"DEFINE FIELD OVERWRITE name ON TABLE user_overwrite TYPE string",
+		);
+		expect(ddl).toContain(
+			"DEFINE FIELD OVERWRITE email ON TABLE user_overwrite TYPE string",
+		);
+		expect(ddl).toContain(
+			"DEFINE INDEX OVERWRITE idx_user_email_overwrite ON TABLE user_overwrite FIELDS email UNIQUE",
+		);
 	});
 
 	test("generates DDL with IF NOT EXISTS method for table, fields, and indexes", () => {
@@ -145,10 +151,19 @@ describe("DDL Generation", () => {
 			fields: ["name"],
 		});
 
-		const ddl = generateFullSchemaQl([Product, ProductNameIndex], "IF NOT EXISTS");
+		const ddl = generateFullSchemaQl(
+			[Product, ProductNameIndex],
+			"IF NOT EXISTS",
+		);
 		expect(ddl).toContain("DEFINE TABLE IF NOT EXISTS product_exists");
-		expect(ddl).toContain("DEFINE FIELD IF NOT EXISTS name ON TABLE product_exists TYPE string");
-		expect(ddl).toContain("DEFINE FIELD IF NOT EXISTS price ON TABLE product_exists TYPE number");
-		expect(ddl).toContain("DEFINE INDEX IF NOT EXISTS idx_product_name_exists ON TABLE product_exists FIELDS name");
+		expect(ddl).toContain(
+			"DEFINE FIELD IF NOT EXISTS name ON TABLE product_exists TYPE string",
+		);
+		expect(ddl).toContain(
+			"DEFINE FIELD IF NOT EXISTS price ON TABLE product_exists TYPE number",
+		);
+		expect(ddl).toContain(
+			"DEFINE INDEX IF NOT EXISTS idx_product_name_exists ON TABLE product_exists FIELDS name",
+		);
 	});
 });

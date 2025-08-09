@@ -36,7 +36,7 @@ describe("Relation Table - advanced hydration", () => {
 	}) {}
 
 	test("apply schema", async () => {
-		await applySchema(db, [User, Post, Authored]);
+		await applySchema(db, [User, Post, Authored], "OVERWRITE");
 	});
 
 	test("should hydrate array of edges and multi-hop", async () => {

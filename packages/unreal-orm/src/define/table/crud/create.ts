@@ -44,10 +44,19 @@ export function getCreateMethod<
 				"SurrealDB instance must be provided to create a record.",
 			);
 
-		const createdRecords = await db.create<CreateInputData>(
-			this.getTableName(),
-			data as CreateInputData,
-		);
+		let createdRecords: { [key: string]: unknown }[];
+		if (this._options.type === "relation") {
+			createdRecords = await db.insertRelation(
+				this.getTableName(),
+				data as CreateInputData,
+			);
+		} else {
+			createdRecords = await db.create<CreateInputData>(
+				this.getTableName(),
+				data as CreateInputData,
+			);
+		}
+
 		const createdRecord = createdRecords[0] as TableData;
 		const instance = new this(createdRecord) as InstanceType<T>;
 

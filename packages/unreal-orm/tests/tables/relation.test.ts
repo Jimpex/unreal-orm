@@ -38,7 +38,7 @@ describe("Table.relation (edge table) behavior", () => {
 	}) {}
 
 	test("apply schema", async () => {
-		await applySchema(db, [User, Group, MemberOf]);
+		await applySchema(db, [User, Group, MemberOf], "OVERWRITE");
 	});
 
 	test("relation table: create edge with required in/out", async () => {
