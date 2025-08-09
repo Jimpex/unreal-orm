@@ -1,6 +1,6 @@
 {
 	"name": "unreal-orm",
-	"version": "0.5.1",
+	"version": "0.5.2",
 	"description": "UnrealORM is a modern, type-safe ORM for SurrealDB that gives you native SurrealDB power, full TypeScript safety, and zero abstraction—no decorators, no magic, just classes and functions. Designed for developers who want direct control, advanced schema features, and a frictionless experience.",
 	"main": "dist/index.js",
 	"module": "dist/index.js",

@@ -1,0 +1,55 @@
+---
+title: v0.5.2
+description: Changelog for Unreal ORM v0.5.2
+lastUpdated: 2025-08-08
+sidebar_label: 0.5.2
+sidebar_position: 3
+tags:
+  - release
+  - changelog
+toc: true
+feedback: true
+---
+import { Aside } from '@astrojs/starlight/components';
+
+This release fixes a critical issue with relation table DDL generation and ensures proper SurrealDB table type specifications are applied during schema creation.
+
+## 🛠️ Fixes
+
+### Schema Generation
+
+- **Fixed table TYPE clause in DDL generation**: Restored the missing `TYPE` clause in `DEFINE TABLE` statements. The DDL generator now correctly outputs:
+  - `DEFINE TABLE tablename TYPE RELATION` for relation tables created with `Table.relation()`
+  - `DEFINE TABLE tablename TYPE NORMAL` for normal tables created with `Table.normal()`
+  
+  Previously, relation tables were being created as normal tables, which prevented proper SurrealDB edge/graph functionality.
+
+  ```typescript
+  // Now correctly generates TYPE RELATION DDL
+  class Likes extends Table.relation({
+    name: 'likes',
+    schemafull: true,
+    fields: {
+      in: Field.record(() => User),
+      out: Field.record(() => Post),
+    }
+  }) {}
+  
+  // Generates: DEFINE TABLE likes TYPE RELATION SCHEMAFULL;
+  ```
+
+### Relation Table Creation
+
+- **Enhanced relation table record creation**: Updated the `create` method to use SurrealDB's `insertRelation` method specifically for relation tables, ensuring proper edge record creation and validation.
+
+- **Improved type safety**: Replaced generic `any[]` types with more specific `{ [key: string]: unknown }[]` for better type safety in relation table creation.
+
+## 🧪 Tests
+
+- Updated all DDL generation tests to expect correct `TYPE` clauses in generated schema
+- Added `OVERWRITE` method to relation table schema applications to prevent conflicts during testing
+- Enhanced test coverage for relation table functionality
+
+<Aside type="note" title="Breaking Change">
+  If you were relying on the previous DDL output format in custom schema generation, you may need to update your expectations to include the `TYPE NORMAL` or `TYPE RELATION` clauses.
+</Aside>
