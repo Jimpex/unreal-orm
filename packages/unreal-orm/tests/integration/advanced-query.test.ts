@@ -119,12 +119,57 @@ describe("Advanced Querying", () => {
 		expect(found[0]).not.toHaveProperty("age");
 	});
 
-	// TODO: Group by test
-	// test("group by city", async () => {
-	//   // Example: group by city and count users
-	//   const found = await User.select(db, { groupBy: ["city"], select: ["city", { count: "*" }] });
-	//   expect(found.some(g => g.city === "NY" && g.count === 2)).toBe(true);
-	// });
+	test("comprehensive: all query options combined", async () => {
+		// Test using most available options: select, where, orderBy, limit, start, fetch, vars
+		const found = await Post.select(db, {
+			select: ["title", "published", "author"],
+			where: "published = $published",
+			vars: { published: true },
+			orderBy: [{ field: "title", order: "ASC" }],
+			limit: 2,
+			start: 0,
+			fetch: ["author"],
+		});
+
+		expect(found.length).toBe(2);
+		expect(found[0]).toHaveProperty("title");
+		expect(found[0]).toHaveProperty("published");
+		expect(found[0]).toHaveProperty("author");
+		expect(found[0]).not.toHaveProperty("id"); // Not selected
+
+		// Should be ordered by title ASC: "First", "Third"
+		expect(found[0]?.title).toBe("First");
+		expect(found[1]?.title).toBe("Third");
+
+		// Both should be published
+		expect(found.every((p) => p.published === true)).toBe(true);
+	});
+
+	test("group by with aggregation", async () => {
+		// Test GROUP BY functionality
+		const found = await User.select(db, {
+			select: ["city", "count() as user_count"],
+			groupBy: ["city"],
+			orderBy: [{ field: "city", order: "ASC" }],
+		});
+
+		expect(found.length).toBe(2); // Two cities: LA, NY
+		expect(found.some((g) => g.city === "LA" && g.user_count === 1)).toBe(true);
+		expect(found.some((g) => g.city === "NY" && g.user_count === 2)).toBe(true);
+	});
+
+	test("only option: single record", async () => {
+		// Test the 'only' option to return single record instead of array
+		const user = await User.select(db, {
+			where: "name = $name",
+			vars: { name: "Alice" },
+			only: true,
+			limit: 1,
+		});
+
+		expect(user).not.toBeInstanceOf(Array);
+		expect(user?.name).toBe("Alice");
+	});
 
 	test("negative: invalid query", async () => {
 		expect(User.select(db, { where: "not_a_field = 123" })).resolves.toThrow();

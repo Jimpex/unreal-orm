@@ -94,6 +94,8 @@ export function getSelectMethod<
 			);
 			queryParts.push(`WHERE ${opts.where}`);
 		}
+		if (opts.groupBy && opts.groupBy.length > 0)
+			queryParts.push(`GROUP BY ${opts.groupBy.join(", ")}`);
 		if (opts.orderBy && opts.orderBy.length > 0) {
 			const orderByClauses = opts.orderBy.map((ob: OrderByClause) => {
 				let clause = String(ob.field);
@@ -108,8 +110,6 @@ export function getSelectMethod<
 		if (opts.start !== undefined) queryParts.push(`START ${opts.start}`);
 		if (opts.fetch && opts.fetch.length > 0)
 			queryParts.push(`FETCH ${opts.fetch.join(", ")}`);
-		if (opts.groupBy && opts.groupBy.length > 0)
-			queryParts.push(`GROUP BY ${opts.groupBy.join(", ")}`);
 		const finalQuery = queryParts.join(" ");
 		// TODO: Debug logging
 		// console.debug(
