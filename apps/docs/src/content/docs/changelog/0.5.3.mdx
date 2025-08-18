@@ -1,0 +1,65 @@
+---
+title: v0.5.3
+description: Changelog for Unreal ORM v0.5.3
+lastUpdated: 2025-08-18
+sidebar_label: 0.5.3
+sidebar_position: 4
+tags:
+  - release
+  - changelog
+toc: true
+feedback: true
+---
+import { Aside } from '@astrojs/starlight/components';
+
+This release enhances the query builder with comprehensive SurrealDB clause support, improves query syntax ordering, and adds extensive test coverage for advanced query features.
+
+## ✨ Features
+
+### Query Builder Enhancements
+
+- **Complete SurrealDB clause support**: Added support for all modern SurrealDB query clauses:
+  - `WITH INDEX` and `WITH NOINDEX` for index control
+  - `SPLIT` clause for field splitting operations
+  - `TIMEOUT` clause for query timeout specification
+  - `PARALLEL` clause for parallel query execution
+  - `TEMPFILES` clause for temporary file usage
+  - `EXPLAIN` clause for query plan analysis
+
+- **Query syntax ordering**: Reordered `SelectQueryOptions` interface properties to match SurrealDB's official syntax order, improving developer experience and consistency.
+
+- **Enhanced ORDER BY support**: Added support for `COLLATE` and `NUMERIC` options in ORDER BY clauses with correct syntax positioning.
+
+## 🛠️ Fixes
+
+### Query Builder
+
+- **Fixed 'only' clause positioning**: Corrected a bug where the `ONLY` clause was incorrectly positioned in the FROM clause and incorrectly parsed, ensuring proper single record query behavior.
+
+- **Fixed SurrealQL clause ordering**: Corrected the order of `COLLATE` and `NUMERIC` modifiers in ORDER BY clauses to appear before the sort direction (ASC/DESC), matching SurrealDB syntax requirements.
+
+- **Improved type safety**: Enhanced type assertions and boolean coercion in query result processing to prevent type-related issues.
+
+- **Query builder refactoring**: Extracted query building logic into focused helper functions for better maintainability while preserving all functionality:
+  - `buildSelectFromClause()` for SELECT/FROM logic and RecordId binding
+  - `buildOrderByClause()` for ORDER BY with collation/numeric options
+  - `buildQuery()` for complete query assembly in correct SQL order
+  - `executeAndProcessQuery()` for query execution and result processing
+
+## 🧪 Tests
+
+- **Comprehensive test coverage**: Added extensive test coverage for all new query options including WITH, SPLIT, TIMEOUT, PARALLEL, TEMPFILES, and EXPLAIN clauses.
+
+- **Query debugging tests**: Added isolated test cases to identify and document query execution issues, particularly with the PARALLEL clause.
+
+- **Enhanced query validation**: Improved test assertions and error handling for complex query combinations.
+
+<Aside type="caution" title="Known Issue">
+  The `PARALLEL` clause may cause queries to hang in some cases due to a likely SurrealDB client bug when tested in Node.js embedded mode in memory.
+</Aside>
+
+## 📚 Documentation
+
+- **Enhanced JSDoc**: Updated function documentation to reflect new query capabilities and correct clause ordering.
+
+- **Query examples**: Added comprehensive examples demonstrating all supported SurrealDB query clauses and their proper usage.
