@@ -30,12 +30,20 @@ export interface OrderByClause {
  * ```
  */
 export interface SelectQueryOptions<TTable> {
-	/** The table or record ID to select from. Defaults to the model's table. */
-	from?: string | RecordId<string>;
 	/** An array of fields to select. If omitted, all fields (`*`) are selected. */
 	select?: (keyof TTable | string)[];
+	/** The table or record ID to select from. Defaults to the model's table. */
+	from?: string | RecordId<string>;
+	/** If true, returns only the first record from the result set. */
+	only?: boolean;
+	/** The `WITH` clause for the query, specifying index usage. */
+	with?: { indexes: string[] } | { noIndex: true };
 	/** The `WHERE` clause for the query. */
 	where?: string;
+	/** An array of fields to split the results by. */
+	split?: (keyof TTable | string)[];
+	/** An array of fields to group the results by. */
+	groupBy?: (keyof TTable | string)[];
 	/** An array of `OrderByClause` objects to sort the results. */
 	orderBy?: OrderByClause[];
 	/** The maximum number of records to return. */
@@ -44,18 +52,14 @@ export interface SelectQueryOptions<TTable> {
 	start?: number;
 	/** An array of fields to fetch (expand related records). */
 	fetch?: string[];
-	/** An array of fields to group the results by. */
-	groupBy?: (keyof TTable | string)[];
+	/** The timeout for the query, specified in a duration string (e.g. "1m"). */
+	timeout?: string;
 	/** If true, runs the query in parallel with other queries. */
 	parallel?: boolean;
-	/** The timeout for the query, specified in seconds or a duration string (e.g. "1m"). */
-	timeout?: string | number;
-	/** The `WITH` clause for the query, specifying common table expressions. */
-	with?: string[];
+	/** If true, enables temporary file usage for the query. */
+	tempfiles?: boolean;
 	/** If true, returns the query plan instead of the results. */
 	explain?: boolean;
-	/** If true, returns only the first record from the result set. */
-	only?: boolean;
 	/** An object of variables to bind to the query. */
 	vars?: Record<string, unknown>;
 }
@@ -78,6 +82,6 @@ export interface CountQueryOptions<TTable> {
 	groupBy?: (keyof TTable | string)[];
 	/** If true, runs the query in parallel with other queries. */
 	parallel?: boolean;
-	/** The timeout for the query, specified in seconds or a duration string (e.g. "1m"). */
-	timeout?: string | number;
+	/** The timeout for the query, specified in a duration string (e.g. "1m"). */
+	timeout?: string;
 }

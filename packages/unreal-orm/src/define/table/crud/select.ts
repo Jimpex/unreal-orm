@@ -20,7 +20,7 @@ import type { FieldDefinition } from "../../field/types";
 function buildSelectFromClause<TTable>(
 	opts: SelectQueryOptions<TTable>,
 	tableName: string,
-	bindings: Record<string, unknown>
+	bindings: Record<string, unknown>,
 ): { selectFromClause: string; isDirectIdQuery: boolean } {
 	const selectFields =
 		opts.select && opts.select.length > 0
@@ -53,9 +53,9 @@ function buildSelectFromClause<TTable>(
 function buildOrderByClause(orderBy: OrderByClause[]): string {
 	const orderByClauses = orderBy.map((ob) => {
 		let clause = String(ob.field);
-		if (ob.order) clause += ` ${ob.order.toUpperCase()}`;
 		if (ob.collate) clause += " COLLATE";
 		if (ob.numeric) clause += " NUMERIC";
+		if (ob.order) clause += ` ${ob.order.toUpperCase()}`;
 		return clause;
 	});
 	return `ORDER BY ${orderByClauses.join(", ")}`;
@@ -63,27 +63,45 @@ function buildOrderByClause(orderBy: OrderByClause[]): string {
 
 /**
  * Builds the complete SurrealDB query string from query options.
- * Assembles all clauses in the correct order: SELECT, FROM, WHERE, GROUP BY, ORDER BY, LIMIT, START, FETCH.
+ * Assembles all clauses in the correct order: SELECT, FROM, WITH, WHERE, SPLIT, GROUP BY, ORDER BY, LIMIT, START, FETCH, TIMEOUT, PARALLEL, TEMPFILES, EXPLAIN.
  */
 function buildQuery<TTable>(
 	opts: SelectQueryOptions<TTable>,
 	tableName: string,
-	bindings: Record<string, unknown>
+	bindings: Record<string, unknown>,
 ): { query: string; isDirectIdQuery: boolean } {
 	const queryParts: string[] = [];
 
 	// SELECT and FROM clauses
-	const { selectFromClause, isDirectIdQuery } = buildSelectFromClause(opts, tableName, bindings);
+	const { selectFromClause, isDirectIdQuery } = buildSelectFromClause(
+		opts,
+		tableName,
+		bindings,
+	);
 	queryParts.push(selectFromClause);
+
+	// WITH clause (after FROM)
+	if (opts.with) {
+		if ("noIndex" in opts.with && opts.with.noIndex) {
+			queryParts.push("WITH NOINDEX");
+		} else if ("indexes" in opts.with && opts.with.indexes.length > 0) {
+			queryParts.push(`WITH INDEX ${opts.with.indexes.join(", ")}`);
+		}
+	}
 
 	// WHERE clause
 	if (opts.where) {
 		queryParts.push(`WHERE ${opts.where}`);
 		if (isDirectIdQuery) {
 			console.warn(
-				"[ORM WARNING] Applying WHERE clause to a direct RecordId query. This is unusual."
+				"[ORM WARNING] Applying WHERE clause to a direct RecordId query. This is unusual.",
 			);
 		}
+	}
+
+	// SPLIT clause (after WHERE)
+	if (opts.split && opts.split.length > 0) {
+		queryParts.push(`SPLIT ${opts.split.join(", ")}`);
 	}
 
 	// GROUP BY clause
@@ -111,6 +129,26 @@ function buildQuery<TTable>(
 		queryParts.push(`FETCH ${opts.fetch.join(", ")}`);
 	}
 
+	// TIMEOUT clause (after FETCH)
+	if (opts.timeout) {
+		queryParts.push(`TIMEOUT ${opts.timeout}`);
+	}
+
+	// PARALLEL clause (after TIMEOUT)
+	if (opts.parallel) {
+		queryParts.push("PARALLEL");
+	}
+
+	// TEMPFILES clause (after PARALLEL)
+	if (opts.tempfiles) {
+		queryParts.push("TEMPFILES");
+	}
+
+	// EXPLAIN clause (after TEMPFILES)
+	if (opts.explain) {
+		queryParts.push("EXPLAIN");
+	}
+
 	return { query: queryParts.join(" "), isDirectIdQuery };
 }
 
@@ -123,25 +161,35 @@ async function executeAndProcessQuery<T, ModelInstanceType, TTable>(
 	query: string,
 	bindings: Record<string, unknown>,
 	opts: SelectQueryOptions<TTable>,
-	ModelClass: new (data: T) => ModelInstanceType
+	ModelClass: new (data: T) => ModelInstanceType,
 ): Promise<unknown> {
-	console.debug(
-		`[ORM DEBUG] Executing query: "${query}" with bindings:`,
-		JSON.parse(JSON.stringify(bindings))
-	);
+	// console.debug(
+	// 	`[ORM DEBUG] Executing query: "${query}" with bindings:`,
+	// 	JSON.parse(JSON.stringify(bindings)),
+	// );
 
-	const shouldReturnRawData = opts.groupBy || opts.select;
+	const shouldReturnRawData =
+		!!opts.groupBy || !!opts.select || !!opts.explain || !!opts.split;
 
 	if (opts.only) {
 		// Single record query
 		const [queryResult] = await db.query<T[]>(query, bindings);
-		return shouldReturnRawData ? queryResult : queryResult && new ModelClass(queryResult);
+		return shouldReturnRawData
+			? (queryResult as T)
+			: queryResult && new ModelClass(queryResult);
 	}
 
 	// Multiple records query
 	const [queryResults] = await db.query<T[][]>(query, bindings);
+	// console.debug("[ORM DEBUG] Query completed, processing results:", {
+	// 	resultCount: queryResults?.length,
+	// 	shouldReturnRawData,
+	// 	hasGroupBy: !!opts.groupBy,
+	// 	hasFetch: !!opts.fetch,
+	// });
+
 	return shouldReturnRawData
-		? queryResults
+		? (queryResults as T[])
 		: queryResults?.map((r) => new ModelClass(r));
 }
 
@@ -200,7 +248,7 @@ export function getSelectMethod<
 		db: Surreal,
 		options?: SelectQueryOptions<
 			InferShapeFromFields<(typeof this)["_fields"]>
-		>
+		>,
 	): Promise<unknown> {
 		const opts = options || {};
 		const tableName = this.getTableName();
