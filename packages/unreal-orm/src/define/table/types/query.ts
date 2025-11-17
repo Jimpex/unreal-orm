@@ -1,4 +1,4 @@
-import type { RecordId } from "surrealdb";
+import type { RecordId, Table, BoundQuery, Expr } from "surrealdb";
 
 /**
  * Defines a single clause for an `ORDER BY` statement.
@@ -33,13 +33,13 @@ export interface SelectQueryOptions<TTable> {
 	/** An array of fields to select. If omitted, all fields (`*`) are selected. */
 	select?: (keyof TTable | string)[];
 	/** The table or record ID to select from. Defaults to the model's table. */
-	from?: string | RecordId<string>;
+	from?: Table | RecordId;
 	/** If true, returns only the first record from the result set. */
 	only?: boolean;
 	/** The `WITH` clause for the query, specifying index usage. */
 	with?: { indexes: string[] } | { noIndex: true };
-	/** The `WHERE` clause for the query. */
-	where?: string;
+	/** The `WHERE` clause for the query. Use surql templates or SurrealDB expressions for type-safe parameter binding. */
+	where?: BoundQuery | Expr;
 	/** An array of fields to split the results by. */
 	split?: (keyof TTable | string)[];
 	/** An array of fields to group the results by. */
@@ -60,9 +60,70 @@ export interface SelectQueryOptions<TTable> {
 	tempfiles?: boolean;
 	/** If true, returns the query plan instead of the results. */
 	explain?: boolean;
-	/** An object of variables to bind to the query. */
-	vars?: Record<string, unknown>;
 }
+
+/**
+ * Defines the update mode for SurrealDB 2.0 builder pattern.
+ * Determines how the update operation will modify the record.
+ */
+export type UpdateMode = "content" | "merge" | "replace" | "patch";
+
+/**
+ * JSON Patch operation for patch mode (RFC 6902)
+ */
+export interface JsonPatchOperation {
+	op: "add" | "remove" | "replace" | "move" | "copy" | "test";
+	path: string;
+	value?: unknown;
+	from?: string;
+}
+
+/**
+ * Defines the options available for an `UPDATE` query using SurrealDB 2.0 builder pattern.
+ * @template TTable The data shape of the table being updated.
+ * @example
+ * ```ts
+ * // Full content replacement (UPDATE)
+ * await User.update(db, userId, {
+ *   data: { name: 'John', age: 30 },
+ *   mode: 'content'
+ * });
+ *
+ * // Partial merge (MERGE/PATCH)
+ * await User.update(db, userId, {
+ *   data: { age: 31 },
+ *   mode: 'merge'
+ * });
+ *
+ * // JSON Patch operations
+ * await User.update(db, userId, {
+ *   data: [{ op: 'replace', path: '/age', value: 31 }],
+ *   mode: 'patch'
+ * });
+ * ```
+ */
+export type StandardUpdateOptions<TTable> = {
+	data: Partial<TTable>;
+	mode: Exclude<UpdateMode, "patch">;
+};
+
+export type PatchUpdateOptions = {
+	data: JsonPatchOperation[];
+	mode: "patch";
+};
+
+export type UpdateOptions<TTable> =
+	| StandardUpdateOptions<TTable>
+	| PatchUpdateOptions;
+
+export type UpdateOptionsForMode<
+	TTable,
+	TMode extends UpdateMode,
+> = TMode extends "patch"
+	? PatchUpdateOptions
+	: StandardUpdateOptions<TTable> & {
+			mode: Exclude<UpdateMode, "patch"> & TMode;
+		};
 
 /**
  * Defines the options available for a `COUNT` query.

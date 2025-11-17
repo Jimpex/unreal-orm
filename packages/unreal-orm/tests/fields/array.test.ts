@@ -1,7 +1,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
 import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
-import type { Surreal } from "surrealdb";
+import { surql, type Surreal } from "surrealdb";
 
 let db: Surreal;
 
@@ -16,7 +16,7 @@ describe("Field.array - primitive arrays", () => {
 	class TagsModel extends Table.normal({
 		name: "tags_model",
 		fields: {
-			tags: Field.array(Field.string(), { max: 5, default: "[]" }),
+			tags: Field.array(Field.string(), { max: 5, default: surql`[]` }),
 		},
 		schemafull: true,
 	}) {}
@@ -37,7 +37,10 @@ describe("Field.array - primitive arrays", () => {
 
 		const fetched = await TagsModel.select(db, { from: record.id, only: true });
 		expect(fetched?.tags).toEqual(["a", "b", "c"]);
-		const updated = await fetched?.update(db, { tags: ["tag3", "tag4"] });
+		const updated = await fetched?.update(db, {
+			mode: "merge",
+			data: { tags: ["tag3", "tag4"] },
+		});
 		expect(updated?.tags).toEqual(["tag3", "tag4"]);
 	});
 
@@ -53,7 +56,7 @@ describe("Field.array - object arrays", () => {
 		fields: {
 			items: Field.array(
 				Field.object({ foo: Field.string(), bar: Field.number() }),
-				{ default: "[]" },
+				{ default: surql`[]` },
 			),
 		},
 		schemafull: true,

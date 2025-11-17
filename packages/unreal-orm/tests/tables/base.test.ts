@@ -69,7 +69,10 @@ describe("BaseTable and Shared Model Logic", () => {
 
 	test("update method changes fields", async () => {
 		const inst = await Simple.create(db, { foo: "up", bar: 3 });
-		const updatedInst = await inst.update(db, { foo: "changed", bar: 99 });
+		const updatedInst = await inst.update(db, {
+			mode: "content",
+			data: { foo: "changed", bar: 99 },
+		});
 		expect(updatedInst.foo).toBe("changed");
 		expect(updatedInst.bar).toBe(99);
 	});

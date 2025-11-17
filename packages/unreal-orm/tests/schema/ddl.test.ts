@@ -8,7 +8,8 @@ import {
 	applySchema,
 	generateFullSchemaQl,
 } from "../../src";
-import type Surreal from "surrealdb";
+import { surql } from "surrealdb";
+import type { Surreal } from "surrealdb";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 
 let db: Surreal;
@@ -31,10 +32,10 @@ describe("DDL Generation", () => {
 			},
 			schemafull: true,
 			permissions: {
-				select: "FULL",
-				create: "FULL",
-				update: "NONE",
-				delete: "NONE",
+				select: surql`FULL`,
+				create: surql`FULL`,
+				update: surql`NONE`,
+				delete: surql`NONE`,
 			},
 		}) {}
 		const UserEmailIndex = Index.define(() => User, {

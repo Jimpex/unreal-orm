@@ -10,10 +10,9 @@
 
     // Bundler mode
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "declaration": true,
-    "emitDeclarationOnly": true,
+    "declarationMap": true,
     "outDir": "./dist",
 
     // Best practices
@@ -28,5 +27,6 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
-  }
+  },
+  "include": ["src/**/*"]
 }

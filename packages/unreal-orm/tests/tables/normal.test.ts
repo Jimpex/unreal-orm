@@ -1,6 +1,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
 import { Field, Table, applySchema } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
+import { surql } from "surrealdb";
 import type { Surreal } from "surrealdb";
 
 let db: Surreal;
@@ -27,7 +28,10 @@ describe("Normal Table Creation & Options", () => {
 		expect(prod.name).toBe("Widget");
 		expect(prod.price).toBe(9.99);
 		prod.price = 12.5;
-		await prod.update(db, { name: prod.name, price: 12.5 });
+		await prod.update(db, {
+			mode: "content",
+			data: { name: prod.name, price: 12.5 },
+		});
 		expect(prod.price).toBe(12.5);
 		await prod.delete(db);
 		const found = await Product.select(db, { from: prod.id, only: true });
@@ -57,10 +61,10 @@ describe("Normal Table Creation & Options", () => {
 				foo: Field.string(),
 			},
 			permissions: {
-				select: "where true",
-				create: "where true",
-				update: "where true",
-				delete: "where true",
+				select: surql`where true`,
+				create: surql`where true`,
+				update: surql`where true`,
+				delete: surql`where true`,
 			},
 			schemafull: true,
 		}) {}

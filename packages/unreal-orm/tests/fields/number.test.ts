@@ -3,7 +3,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
 import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
-import type { Surreal } from "surrealdb";
+import { surql, type Surreal } from "surrealdb";
 
 let db: Surreal;
 
@@ -18,7 +18,7 @@ describe("Field.number - basic", () => {
 	class NumberModel extends Table.normal({
 		name: "number_model",
 		fields: {
-			score: Field.number({ default: "10" }),
+			score: Field.number({ default: surql`10` }),
 			count: Field.number(),
 		},
 		schemafull: true,

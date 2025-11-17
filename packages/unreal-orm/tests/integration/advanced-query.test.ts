@@ -1,6 +1,6 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
 import { Field, Table, applySchema } from "../../src";
-import type { Surreal } from "surrealdb";
+import { eq, surql, type Surreal, Table as SurrealTable } from "surrealdb";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 
 let db: Surreal;
@@ -66,18 +66,18 @@ describe("Advanced Querying", () => {
 	});
 
 	test("filter: users in NY", async () => {
+		const city = "NY";
 		const found = await User.select(db, {
-			where: "city = $city",
-			vars: { city: "NY" },
+			where: surql`city = ${city}`,
 		});
 		expect(found.length).toBe(2);
 		expect(found.map((u) => u.name).sort()).toEqual(["Alice", "Carol"]);
 	});
 
 	test("filter: users age > 28", async () => {
+		const age = 28;
 		const found = await User.select(db, {
-			where: "age > $age",
-			vars: { age: 28 },
+			where: surql`age > ${age}`,
 		});
 		expect(found.length).toBe(2);
 		expect(found.map((u) => u.name).sort()).toEqual(["Alice", "Carol"]);
@@ -109,10 +109,10 @@ describe("Advanced Querying", () => {
 	});
 
 	test("projection: select only name", async () => {
+		const city = "NY";
 		const found = await User.select(db, {
 			select: ["name"],
-			where: "city = $city",
-			vars: { city: "NY" },
+			where: surql`city = ${city}`,
 		});
 		expect(found.length).toBe(2);
 		expect(found[0]).toHaveProperty("name");
@@ -120,11 +120,11 @@ describe("Advanced Querying", () => {
 	});
 
 	test("comprehensive: all query options combined", async () => {
-		// Test using most available options: select, where, orderBy, limit, start, fetch, vars
+		// Test using most available options: select, where, orderBy, limit, start, fetch
+		const published = true;
 		const found = await Post.select(db, {
 			select: ["title", "published", "author"],
-			where: "published = $published",
-			vars: { published: true },
+			where: surql`published = ${published}`,
 			orderBy: [{ field: "title", order: "ASC" }],
 			limit: 2,
 			start: 0,
@@ -160,9 +160,9 @@ describe("Advanced Querying", () => {
 
 	test("only option: single record", async () => {
 		// Test the 'only' option to return single record instead of array
+		const name = "Alice";
 		const user = await User.select(db, {
-			where: "name = $name",
-			vars: { name: "Alice" },
+			where: surql`name = ${name}`,
 			only: true,
 			limit: 1,
 		});
@@ -173,11 +173,11 @@ describe("Advanced Querying", () => {
 
 	test("with clause: index specification", async () => {
 		// Test WITH INDEX clause
+		const city = "NY";
 		const found = await User.select(db, {
 			select: ["name", "city"],
 			with: { indexes: ["city_idx"] },
-			where: "city = $city",
-			vars: { city: "NY" },
+			where: surql`city = ${city}`,
 		});
 
 		expect(found.length).toBe(2);
@@ -186,11 +186,11 @@ describe("Advanced Querying", () => {
 
 	test("with clause: no index", async () => {
 		// Test WITH NOINDEX clause
+		const age = 25;
 		const found = await User.select(db, {
 			select: ["name", "age"],
 			with: { noIndex: true },
-			where: "age > $age",
-			vars: { age: 25 },
+			where: surql`age > ${age}`,
 		});
 
 		expect(found.length).toBe(2);
@@ -249,10 +249,10 @@ describe("Advanced Querying", () => {
 
 	test("explain query plan", async () => {
 		// Test EXPLAIN clause
+		const city = "NY";
 		const plan = await User.select(db, {
 			select: ["name", "city"],
-			where: "city = $city",
-			vars: { city: "NY" },
+			where: surql`city = ${city}`,
 			explain: true,
 		});
 
@@ -266,11 +266,12 @@ describe("Advanced Querying", () => {
 		console.log("Starting complex query test...");
 
 		try {
+			const published = true;
 			const found = await Post.select(db, {
 				select: ["title", "published", "author"],
-				from: "post",
+				from: new SurrealTable("post"),
 				with: { noIndex: true },
-				where: "published = $published",
+				where: surql`published = ${published}`,
 				groupBy: ["published"],
 				orderBy: [{ field: "title", order: "ASC" }],
 				limit: 5,
@@ -280,7 +281,6 @@ describe("Advanced Querying", () => {
 				// TODO: address query not resolving bug with parallel
 				// parallel: true,
 				tempfiles: true,
-				vars: { published: true },
 			});
 
 			// Should return raw data due to groupBy
@@ -296,12 +296,12 @@ describe("Advanced Querying", () => {
 		console.log("Testing minimal PARALLEL query...");
 
 		try {
+			const city = "NY";
 			const found = await User.select(db, {
 				select: ["name", "city"],
-				where: "city = $city",
+				where: eq("city", city),
 				parallel: true,
 				timeout: "3s",
-				vars: { city: "NY" },
 			});
 			expect(Array.isArray(found)).toBe(true);
 			expect(found.length).toBe(2);
@@ -372,6 +372,8 @@ describe("Advanced Querying", () => {
 	});
 
 	test("negative: invalid query", async () => {
-		expect(User.select(db, { where: "not_a_field = 123" })).resolves.toThrow();
+		expect(
+			User.select(db, { where: surql`not_a_field = 123` }),
+		).resolves.toThrow();
 	});
 });

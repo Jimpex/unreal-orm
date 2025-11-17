@@ -1,6 +1,19 @@
 import type { RecordId, Surreal } from "surrealdb";
 import type { FieldDefinition } from "../../field/types";
-import type { SelectQueryOptions } from "./query";
+import type { SelectQueryOptions, JsonPatchOperation } from "./query";
+
+/**
+ * A type that represents any SurrealDB-compatible object that can perform
+ * CRUD operations. This includes Surreal instances, SurrealSession instances,
+ * and Transaction objects.
+ *
+ * This type picks only the core methods that are guaranteed to be available
+ * across all SurrealDB object types, ensuring maximum compatibility.
+ */
+export type SurrealLike = Pick<
+	Surreal,
+	"create" | "select" | "update" | "delete" | "query" | "relate"
+>;
 
 /**
  * Defines the core options for creating a table schema.
@@ -113,9 +126,16 @@ export declare class BaseTable<TData extends Record<string, unknown>> {
 	// biome-ignore lint/suspicious/noExplicitAny: $dynamic can contain any data
 	$dynamic: any;
 	constructor(data: TData);
-	update(db: Surreal, data: Partial<TData>): Promise<this>;
-	merge(db: Surreal, data: Partial<TData>): Promise<this>;
-	delete(db: Surreal): Promise<void>;
+	// Update overloads for different data types
+	update(
+		db: SurrealLike,
+		options: { data: Partial<TData>; mode: "content" | "merge" | "replace" },
+	): Promise<this>;
+	update(
+		db: SurrealLike,
+		options: { data: JsonPatchOperation[]; mode: "patch" },
+	): Promise<this>;
+	delete(db: SurrealLike): Promise<void>;
 }
 
 /**
@@ -152,7 +172,7 @@ export type ModelStatic<
 	getTableName(): string;
 	create<T extends ModelStatic<TInstance, TFields, TOptions>>(
 		this: T,
-		db: Surreal,
+		db: SurrealLike,
 		data: CreateData<TFields>,
 	): Promise<InstanceType<T>>;
 
@@ -163,7 +183,7 @@ export type ModelStatic<
 		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
 	>(
 		this: ModelStatic<TInstance, TFields, TOptions>,
-		db: Surreal,
+		db: SurrealLike,
 		options: QueryOptions & { groupBy: string[] },
 	): Promise<Record<string, unknown>[]>;
 
@@ -172,7 +192,7 @@ export type ModelStatic<
 		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
 	>(
 		this: ModelStatic<TInstance, TFields, TOptions>,
-		db: Surreal,
+		db: SurrealLike,
 		options: QueryOptions & { select: string[]; only: true },
 	): Promise<Partial<InferShapeFromFields<TFields>> | undefined>;
 
@@ -181,7 +201,7 @@ export type ModelStatic<
 		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
 	>(
 		this: ModelStatic<TInstance, TFields, TOptions>,
-		db: Surreal,
+		db: SurrealLike,
 		options: QueryOptions & { select: string[] },
 	): Promise<Partial<InferShapeFromFields<TFields>>[]>;
 
@@ -190,7 +210,7 @@ export type ModelStatic<
 		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
 	>(
 		this: ModelStatic<TInstance, TFields, TOptions>,
-		db: Surreal,
+		db: SurrealLike,
 		options: QueryOptions & { only: true; select?: undefined },
 	): Promise<TInstance | undefined>;
 
@@ -199,44 +219,45 @@ export type ModelStatic<
 		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
 	>(
 		this: ModelStatic<TInstance, TFields, TOptions>,
-		db: Surreal,
+		db: SurrealLike,
 		options: QueryOptions & { select?: undefined },
 	): Promise<TInstance[]>;
 
 	// 6. Full instances AND array of records expected (no options provided)
 	select(
 		this: ModelStatic<TInstance, TFields, TOptions>,
-		db: Surreal,
+		db: SurrealLike,
 	): Promise<TInstance[]>;
 
+	// Static update overloads for different data types
 	update<T extends ModelStatic<TInstance, TFields, TOptions>>(
 		this: T,
-		db: Surreal,
+		db: SurrealLike,
 		id: RecordId,
-		data: Partial<InferShapeFromFields<TFields>>,
+		options: {
+			data: Partial<InferShapeFromFields<TFields>>;
+			mode: "content" | "merge" | "replace";
+		},
+	): Promise<InstanceType<T>>;
+	update<T extends ModelStatic<TInstance, TFields, TOptions>>(
+		this: T,
+		db: SurrealLike,
+		id: RecordId,
+		options: { data: JsonPatchOperation[]; mode: "patch" },
 	): Promise<InstanceType<T>>;
 
 	delete<T extends ModelStatic<TInstance, TFields, TOptions>>(
 		this: T,
-		db: Surreal,
+		db: SurrealLike,
 		id: RecordId,
 	): Promise<void>;
-
-	merge<T extends ModelStatic<TInstance, TFields, TOptions>>(
-		this: T,
-		db: Surreal,
-		id: RecordId,
-		data: Partial<InferShapeFromFields<TFields>>,
-	): Promise<InstanceType<T>>;
 };
 
 // --- Placeholders for Any Model ---
 
 /** A placeholder type representing any model instance, used to break circular dependencies. */
-// biome-ignore lint/suspicious/noExplicitAny: Placeholder type for circular dependencies requires 'any'.
-export type AnyModelInstance = ModelInstance<any>;
+export type AnyModelInstance = ModelInstance<Record<string, unknown>>;
 
 /** A placeholder type representing any model class, used to break circular dependencies. */
-export type AnyModelClass =
-	// biome-ignore lint/suspicious/noExplicitAny: Placeholder type for circular dependencies requires 'any'.
-	ModelStatic<any, any, any>;
+// biome-ignore lint/suspicious/noExplicitAny: Placeholder type for any model class
+export type AnyModelClass = ModelStatic<any, any, any>;

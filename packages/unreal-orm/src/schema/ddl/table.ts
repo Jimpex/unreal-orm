@@ -1,5 +1,24 @@
 import type { AnyModelClass } from "../../define/table/types/model";
 import type { SchemaApplicationMethod } from "../generator";
+import type { BoundQuery, Expr } from "surrealdb";
+import { surql } from "surrealdb";
+
+/**
+ * Converts a string, BoundQuery, or Expr to a string for DDL generation.
+ */
+function queryToString(value: string | BoundQuery | Expr): string {
+	// Handle string
+	if (typeof value === "string") {
+		return value;
+	}
+	// Handle BoundQuery
+	if ("query" in value) {
+		return value.query;
+	}
+	// Handle Expr - convert to BoundQuery using surql template
+	const boundQuery = surql`${value}`;
+	return boundQuery.query;
+}
 
 /**
  * Generates a SurrealQL `DEFINE TABLE` statement for a given model class.
@@ -46,13 +65,21 @@ export function generateTableDdl(
 		const { permissions } = options;
 		const permissionsClauses: string[] = [];
 		if (permissions.select)
-			permissionsClauses.push(`FOR select ${permissions.select}`);
+			permissionsClauses.push(
+				`FOR select ${queryToString(permissions.select)}`,
+			);
 		if (permissions.create)
-			permissionsClauses.push(`FOR create ${permissions.create}`);
+			permissionsClauses.push(
+				`FOR create ${queryToString(permissions.create)}`,
+			);
 		if (permissions.update)
-			permissionsClauses.push(`FOR update ${permissions.update}`);
+			permissionsClauses.push(
+				`FOR update ${queryToString(permissions.update)}`,
+			);
 		if (permissions.delete)
-			permissionsClauses.push(`FOR delete ${permissions.delete}`);
+			permissionsClauses.push(
+				`FOR delete ${queryToString(permissions.delete)}`,
+			);
 		if (permissionsClauses.length > 0) {
 			defineTableStatement += ` PERMISSIONS ${permissionsClauses.join(", ")}`;
 		}

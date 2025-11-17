@@ -1,7 +1,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
 import { Field, Index, Table, applySchema } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
-import type { Surreal } from "surrealdb";
+import { surql, type Surreal } from "surrealdb";
 
 let db: Surreal;
 
@@ -18,8 +18,8 @@ describe("Validation & Error Handling", () => {
 		fields: {
 			name: Field.string(), // required
 			email: Field.string(), // required
-			age: Field.number({ default: "18" }), // optional with default
-			isActive: Field.bool({ default: "true" }),
+			age: Field.number({ default: surql`18` }), // optional with default
+			isActive: Field.bool({ default: surql`true` }),
 		},
 		schemafull: true,
 	}) {}

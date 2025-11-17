@@ -3,7 +3,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
 import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
-import type { Surreal } from "surrealdb";
+import { surql, type Surreal } from "surrealdb";
 
 let db: Surreal;
 
@@ -18,7 +18,7 @@ describe("Field.bool - basic", () => {
 	class BoolModel extends Table.normal({
 		name: "bool_model",
 		fields: {
-			isActive: Field.bool({ default: "true" }),
+			isActive: Field.bool({ default: surql`true` }),
 			isDeleted: Field.bool(),
 		},
 		schemafull: true,

@@ -41,8 +41,9 @@ describe("Field.datetime - basic", () => {
 			created: now,
 			updated: now,
 		});
-		expect(record.created.toString()).toBe(now.toString());
-		expect(record.updated.toString()).toBe(now.toString());
+		// Prevent error from different level of precision
+		expect(new Date(record.created).getTime()).toBe(now.getTime());
+		expect(new Date(record.updated).getTime()).toBe(now.getTime());
 	});
 
 	test("should create record with ISO string", async () => {
@@ -51,8 +52,9 @@ describe("Field.datetime - basic", () => {
 			created: iso,
 			updated: iso,
 		});
-		expect(record.created.toString()).toBe(iso.toString());
-		expect(record.updated.toString()).toBe(iso.toString());
+		// Prevent error from different level of precision
+		expect(new Date(record.created).getTime()).toBe(iso.getTime());
+		expect(new Date(record.updated).getTime()).toBe(iso.getTime());
 	});
 });
 
@@ -90,7 +92,7 @@ describe("Field.datetime - optional", () => {
 		const record = await OptionalDateTimeModel.create(db, { expires: now });
 		expect(record.expires).toBeDefined();
 		if (record.expires) {
-			expect(record.expires.toString()).toBe(now.toString());
+			expect(new Date(record.expires).getTime()).toBe(now.getTime());
 		}
 	});
 });

@@ -1,7 +1,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
 import { Field, Table, applySchema } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
-import { RecordId, type Surreal } from "surrealdb";
+import { eq, RecordId, type Surreal } from "surrealdb";
 
 let db: Surreal;
 
@@ -74,8 +74,7 @@ describe("Table.relation (edge table) behavior", () => {
 			joined: new Date(),
 		});
 		const found = await MemberOf.select(db, {
-			where: "in = $id",
-			vars: { id: user.id },
+			where: eq("in", user.id),
 		});
 		expect(found.length).toBeGreaterThan(0);
 		expect(found[0]?.in.toString()).toBe(user.id.toString());

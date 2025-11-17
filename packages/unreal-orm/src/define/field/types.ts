@@ -1,19 +1,20 @@
 import type { ModelStatic, TableDefineOptions } from "../table/types/model";
+import type { BoundQuery, Expr } from "surrealdb";
 
 /**
  * Defines a SurrealDB permissions clause for a specific field.
- * The value for each property should be a valid SurrealQL `WHERE` clause.
+ * The value for each property should be a valid SurrealQL `WHERE` clause, BoundQuery, or Expr.
  * @internal This is a low-level type. For user-facing options, see `PermissionsClause` in `src/schema/options.ts`.
  */
 export interface FieldPermissionsOptions {
 	/** A SurrealQL `WHERE` clause for `SELECT` permissions. */
-	select?: string;
+	select?: BoundQuery | Expr;
 	/** A SurrealQL `WHERE` clause for `CREATE` permissions. */
-	create?: string;
+	create?: BoundQuery | Expr;
 	/** A SurrealQL `WHERE` clause for `UPDATE` permissions. */
-	update?: string;
+	update?: BoundQuery | Expr;
 	/** A SurrealQL `WHERE` clause for `DELETE` permissions. */
-	delete?: string;
+	delete?: BoundQuery | Expr;
 }
 
 /**
@@ -22,15 +23,15 @@ export interface FieldPermissionsOptions {
  */
 export interface FieldOptions {
 	/** A SurrealQL `ASSERT` clause to enforce a constraint on the field value. */
-	assert?: string;
-	/** A default value for the field, specified as a SurrealQL expression string. */
-	default?: string;
+	assert?: BoundQuery | Expr;
+	/** A default value for the field, specified as a SurrealQL expression BoundQuery or Expr. */
+	default?: BoundQuery | Expr;
 	/** A SurrealQL `VALUE` clause to compute the field's value upon write. */
-	value?: string;
+	value?: BoundQuery | Expr;
 	/** If true, the field cannot be modified after creation. */
 	readonly?: boolean;
-	/** Field-level permissions, specified as a raw string or a `FieldPermissionsOptions` object. */
-	permissions?: string | FieldPermissionsOptions;
+	/** Field-level permissions, specified as a BoundQuery/Expr object or a `FieldPermissionsOptions` object. */
+	permissions?: BoundQuery | Expr | FieldPermissionsOptions;
 	/** A comment to add to the field definition in the database schema. */
 	comment?: string;
 }

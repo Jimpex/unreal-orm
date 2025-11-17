@@ -3,7 +3,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
 import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
-import type { Surreal } from "surrealdb";
+import { surql, type Surreal } from "surrealdb";
 
 let db: Surreal;
 
@@ -21,7 +21,7 @@ describe("Field.object - basic", () => {
 			profile: Field.object({
 				displayName: Field.string(),
 				age: Field.number(),
-				verified: Field.bool({ default: "false" }),
+				verified: Field.bool({ default: surql`false` }),
 			}),
 		},
 		schemafull: true,

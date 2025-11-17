@@ -1,7 +1,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
 import { Field, Table, applySchema } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
-import type { Surreal } from "surrealdb";
+import { eq, type Surreal } from "surrealdb";
 
 let db: Surreal;
 
@@ -28,7 +28,7 @@ describe("Model Methods (Instance & Static)", () => {
 			this.age++;
 		}
 		static findByName(db: Surreal, name: string) {
-			return this.select(db, { where: "name = $name", vars: { name } });
+			return this.select(db, { where: eq("name", name) });
 		}
 		static platformName(): string {
 			return "UnrealORM";

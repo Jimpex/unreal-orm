@@ -3,7 +3,7 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
 import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
-import type { Surreal } from "surrealdb";
+import { surql, type Surreal } from "surrealdb";
 
 let db: Surreal;
 
@@ -18,7 +18,7 @@ describe("Field.string - basic", () => {
 	class StringModel extends Table.normal({
 		name: "string_model",
 		fields: {
-			name: Field.string({ default: "'anon'" }),
+			name: Field.string({ default: surql`'anon'` }),
 			desc: Field.string(),
 		},
 		schemafull: true,

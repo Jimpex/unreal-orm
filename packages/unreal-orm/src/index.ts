@@ -37,10 +37,7 @@ export { Index } from "./define/index";
 /**
  * Core types related to field definitions and their options.
  */
-export type {
-	FieldDefinition,
-	FieldOptions,
-} from "./define/field/types";
+export type { FieldDefinition, FieldOptions } from "./define/field/types";
 
 /**
  * The type definition for a database index.
@@ -48,11 +45,17 @@ export type {
 export type { IndexDefinition } from "./define/index/types";
 
 /**
- * Types for constructing and executing `SELECT` and `COUNT` queries.
+ * Types for constructing and executing `SELECT`, `UPDATE`, and `COUNT` queries.
  */
 export type {
 	OrderByClause,
 	SelectQueryOptions,
+	UpdateOptions,
+	UpdateMode,
+	StandardUpdateOptions,
+	PatchUpdateOptions,
+	UpdateOptionsForMode,
+	JsonPatchOperation,
 	CountQueryOptions,
 } from "./define/table/types/query";
 

@@ -4,6 +4,7 @@ import type {
 	ModelInstance,
 	ModelStatic,
 	TableDefineOptions,
+	SurrealLike,
 } from "../types/model";
 import type { FieldDefinition } from "../../field/types";
 
@@ -25,7 +26,10 @@ export function getDeleteMethod<
 >() {
 	type TableData = InferShapeFromFields<TFields>;
 
-	return async function (this: ModelInstance<TableData>, db: Surreal): Promise<void> {
+	return async function (
+		this: ModelInstance<TableData>,
+		db: SurrealLike,
+	): Promise<void> {
 		const ModelClass = this.constructor as ModelStatic<
 			ModelInstance<TableData>,
 			TFields,

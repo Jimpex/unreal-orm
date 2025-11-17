@@ -2,6 +2,7 @@
 
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
 import { Field, Table, applySchema } from "../../src";
+import { surql } from "surrealdb";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
 
@@ -59,8 +60,7 @@ describe("Relation Table - advanced hydration", () => {
 
 		// Fetch all Authored edges for Alice
 		const authoredEdges = await Authored.select(db, {
-			where: "in = $id",
-			vars: { id: alice.id },
+			where: surql`in = ${alice.id}`,
 			fetch: ["out"],
 		});
 		expect(authoredEdges.length).toBe(2);

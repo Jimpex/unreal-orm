@@ -1,10 +1,12 @@
 import type { Surreal } from "surrealdb";
+import { Table, RecordId } from "surrealdb";
 import type {
 	ModelStatic,
 	InferShapeFromFields,
 	CreateData,
 	ModelInstance,
 	TableDefineOptions,
+	SurrealLike,
 } from "../types/model";
 import type { FieldDefinition } from "../../field/types";
 
@@ -32,33 +34,61 @@ export function getCreateMethod<
 	type TableData = InferShapeFromFields<TFields>;
 	type CreateInputData = InferShapeFromFields<TFields>;
 
+	// Type for relation table data with required in/out RecordId fields
+	type RelationCreateData = {
+		in: RecordId;
+		out: RecordId;
+		[key: string]: unknown;
+	};
+
 	return async function create<
 		T extends ModelStatic<
 			ModelInstance<InferShapeFromFields<TFields>>,
 			TFields,
 			TableDefineOptions<TFields>
 		>,
-	>(this: T, db: Surreal, data: CreateData<TFields>): Promise<InstanceType<T>> {
+	>(
+		this: T,
+		db: SurrealLike,
+		data: CreateData<TFields>,
+	): Promise<InstanceType<T>> {
 		if (!db)
 			throw new Error(
 				"SurrealDB instance must be provided to create a record.",
 			);
 
-		let createdRecords: { [key: string]: unknown }[];
+		let createdRecord: { [key: string]: unknown };
 		if (this._options.type === "relation") {
-			createdRecords = await db.insertRelation(
-				this.getTableName(),
-				data as CreateInputData,
+			// For relation tables, validate and use the relate API with in/out/from/to data
+			const relationData = data as RelationCreateData;
+
+			// Validate that in and out are RecordId instances
+			if (!relationData.in || !relationData.out) {
+				throw new Error("Relation tables require 'in' and 'out' properties");
+			}
+
+			if (!(relationData.in instanceof RecordId)) {
+				throw new Error("'in' property must be a RecordId instance");
+			}
+
+			if (!(relationData.out instanceof RecordId)) {
+				throw new Error("'out' property must be a RecordId instance");
+			}
+
+			createdRecord = await db.relate(
+				relationData.in,
+				new Table(this.getTableName()),
+				relationData.out,
+				relationData,
 			);
 		} else {
-			createdRecords = await db.create<CreateInputData>(
-				this.getTableName(),
-				data as CreateInputData,
-			);
+			// For normal tables, use the new create builder pattern
+			const createdRecords = await db
+				.create(new Table(this.getTableName()))
+				.content(data as CreateInputData);
+			createdRecord = createdRecords[0] as { [key: string]: unknown };
 		}
-
-		const createdRecord = createdRecords[0] as TableData;
-		const instance = new this(createdRecord) as InstanceType<T>;
+		const instance = new this(createdRecord as TableData) as InstanceType<T>;
 
 		return instance;
 	};

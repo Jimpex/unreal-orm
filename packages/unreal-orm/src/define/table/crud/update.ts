@@ -5,21 +5,84 @@ import type {
 	ModelStatic,
 	TableDefineOptions,
 } from "../types/model";
+import type { SurrealLike } from "../types/model";
 import type { FieldDefinition } from "../../field/types";
+import type {
+	UpdateOptions,
+	UpdateMode,
+	JsonPatchOperation,
+} from "../types/query";
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Validates that UpdateOptions has the required mode property.
+ */
+function validateUpdateOptions<T>(options: UpdateOptions<T>): void {
+	if (!options.mode) {
+		throw new Error(
+			"UpdateOptions.mode is required. Use 'content' for full replacement, 'merge' for partial updates, 'replace' for full replacement, or 'patch' for partial updates.",
+		);
+	}
+}
+
+/**
+ * Executes an update using the SurrealDB 2.0 builder pattern.
+ */
+async function executeUpdate<T>(
+	db: SurrealLike,
+	id: RecordId,
+	options: UpdateOptions<T>,
+): Promise<T> {
+	validateUpdateOptions(options);
+
+	// Handle different modes with proper type narrowing
+	if (options.mode === "patch") {
+		// Patch mode expects JSON Patch operations
+		const builder = db
+			.update<T>(id)
+			// @ts-ignore SurrealDB types are incorrect
+			.patch(options.data);
+		return builder as unknown as T;
+	}
+
+	// Content, merge, replace modes expect Partial<T>
+	const builder = db.update<T>(id)[options.mode](options.data as Partial<T>);
+	return builder as unknown as T;
+}
+
+// ============================================================================
+// INSTANCE METHOD
+// ============================================================================
 
 /**
  * A factory function that generates the instance `update` method for a model.
- * This method performs a full record replacement (`UPDATE` in SurrealQL), replacing the entire
- * document with the provided data. All required fields must be included in the `data` object,
- * otherwise SurrealDB will throw an error.
- * 
- * For partial updates, use the `.merge()` method.
+ * This method performs updates using the SurrealDB 2.0 builder pattern with
+ * a required mode property. All update operations must specify whether they
+ * are doing a full replacement or partial merge.
  *
  * @example
  * ```ts
  * const user = await User.select(db, 'user:123');
- * // Note: 'name' is a required field, so it must be included.
- * const updatedUser = await user.update(db, { name: 'Jane Doe', age: 31 });
+ * // Full content replacement
+ * const updatedUser = await user.update(db, {
+ *   data: { name: 'Jane Doe', age: 31 },
+ *   mode: 'content'
+ * });
+ *
+ * // Partial merge
+ * const updatedUser = await user.update(db, {
+ *   data: { age: 32 },
+ *   mode: 'merge'
+ * });
+ *
+ * // JSON Patch operations
+ * const updatedUser = await user.update(db, {
+ *   data: [{ op: 'replace', path: '/age', value: 32 }],
+ *   mode: 'patch'
+ * });
  * ```
  *
  * @returns The instance `update` method implementation.
@@ -29,34 +92,59 @@ export function getUpdateMethod<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 >() {
 	type TableData = InferShapeFromFields<TFields>;
-	type CreateInputData = InferShapeFromFields<TFields>;
 
 	return async function update(
 		this: ModelInstance<TableData>,
-		db: Surreal,
-		data: Partial<CreateInputData>,
+		db: SurrealLike,
+		options: UpdateOptions<TableData>,
 	): Promise<ModelInstance<TableData>> {
 		const ModelClass = this.constructor as ModelStatic<
 			ModelInstance<TableData>,
 			TFields,
 			TableDefineOptions<TFields>
 		>;
-		return ModelClass.update(db, this.id, data);
+
+		const updatedRecord = await executeUpdate<TableData>(db, this.id, options);
+
+		if (!updatedRecord) {
+			throw new Error(`Failed to update record ${String(this.id)}.`);
+		}
+
+		return new ModelClass(updatedRecord as TableData & { id: RecordId });
 	};
 }
 
+// ============================================================================
+// STATIC METHOD
+// ============================================================================
+
 /**
  * A factory function that generates the static `update` method for a model.
- * This method performs a full record replacement (`UPDATE` in SurrealQL) for a given record ID,
- * replacing the entire document with the provided data. All required fields must be included in the `data` object,
- * otherwise SurrealDB will throw an error.
- * 
- * For partial updates, use the `.merge()` method.
+ * This method performs updates using the SurrealDB 2.0 builder pattern with
+ * a required mode property. All update operations must specify whether they
+ * are doing a full replacement or partial merge.
  *
  * @example
  * ```ts
- * // Note: 'name' is a required field, so it must be included.
- * const updatedUser = await User.update(db, 'user:123', { name: 'Jane Doe', age: 31 });
+ * // Full content replacement (UPDATE)
+ * const updatedUser = await User.update(db, 'user:123', {
+ *   data: { name: 'Jane Doe', age: 31 },
+ *   mode: 'content'
+ * });
+ *
+ * // Partial merge (MERGE/PATCH)
+ * const updatedUser = await User.update(db, 'user:123', {
+ *   data: { age: 32 },
+ *   mode: 'merge'
+ * });
+ *
+ * // With additional options
+ * const updatedUser = await User.update(db, 'user:123', {
+ *   data: { status: 'active' },
+ *   mode: 'merge',
+ *   output: 'diff',
+ *   timeout: '5s'
+ * });
  * ```
  *
  * @returns The static `update` method implementation.
@@ -67,7 +155,8 @@ export function getStaticUpdateMethod<
 >() {
 	type TableData = InferShapeFromFields<TFields>;
 
-	return async function update<
+	// Create overloaded function signatures
+	async function update<
 		T extends ModelStatic<
 			ModelInstance<InferShapeFromFields<TFields>>,
 			TFields,
@@ -75,9 +164,36 @@ export function getStaticUpdateMethod<
 		>,
 	>(
 		this: T,
-		db: Surreal,
+		db: SurrealLike,
 		id: RecordId,
-		data: Partial<TableData>,
+		options: {
+			data: Partial<TableData>;
+			mode: "content" | "merge" | "replace";
+		},
+	): Promise<InstanceType<T>>;
+	async function update<
+		T extends ModelStatic<
+			ModelInstance<InferShapeFromFields<TFields>>,
+			TFields,
+			TableDefineOptions<TFields>
+		>,
+	>(
+		this: T,
+		db: SurrealLike,
+		id: RecordId,
+		options: { data: JsonPatchOperation[]; mode: "patch" },
+	): Promise<InstanceType<T>>;
+	async function update<
+		T extends ModelStatic<
+			ModelInstance<InferShapeFromFields<TFields>>,
+			TFields,
+			TableDefineOptions<TFields>
+		>,
+	>(
+		this: T,
+		db: SurrealLike,
+		id: RecordId,
+		options: UpdateOptions<TableData>,
 	): Promise<InstanceType<T>> {
 		if (!db) {
 			throw new Error(
@@ -85,18 +201,18 @@ export function getStaticUpdateMethod<
 			);
 		}
 
-		const existingRecord = await db.select<TableData>(id);
-		if (!existingRecord) {
-			throw new Error(`Record with ID ${id} not found for update.`);
-		}
+		// Execute the update using the builder pattern
+		const updatedRecord = await executeUpdate<TableData>(db, id, options);
 
-		const updatedRecord = await db.update<TableData>(id, data as TableData);
 		if (!updatedRecord) {
 			throw new Error(`Failed to update record ${id}.`);
 		}
 
+		// Return hydrated model instance
 		return new this(
 			updatedRecord as TableData & { id: RecordId },
 		) as InstanceType<T>;
-	};
+	}
+
+	return update;
 }

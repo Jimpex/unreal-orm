@@ -1,10 +1,11 @@
-import type { Surreal } from "surrealdb";
-import { RecordId } from "surrealdb";
+import type { Surreal, BoundQuery, Expr } from "surrealdb";
+import { RecordId, Table, surql } from "surrealdb";
 import type {
 	ModelStatic,
 	InferShapeFromFields,
 	ModelInstance,
 	TableDefineOptions,
+	SurrealLike,
 } from "../types/model";
 import type { SelectQueryOptions, OrderByClause } from "../types/query";
 import type { FieldDefinition } from "../../field/types";
@@ -15,35 +16,40 @@ import type { FieldDefinition } from "../../field/types";
 
 /**
  * Builds the SELECT and FROM clauses of a SurrealDB query.
- * Handles RecordId binding, ONLY clause, and field selection.
+ * Handles RecordId interpolation, ONLY clause, and field selection.
  */
 function buildSelectFromClause<TTable>(
 	opts: SelectQueryOptions<TTable>,
 	tableName: string,
-	bindings: Record<string, unknown>,
-): { selectFromClause: string; isDirectIdQuery: boolean } {
+): {
+	selectParts: string[];
+	fromValue: Table | RecordId;
+	isDirectIdQuery: boolean;
+} {
 	const selectFields =
 		opts.select && opts.select.length > 0
 			? (opts.select as string[]).join(", ")
 			: "*";
 
-	let fromClause: string;
+	let fromValue: Table | RecordId;
 	let isDirectIdQuery = false;
 
 	if (opts.from) {
 		if (opts.from instanceof RecordId) {
-			bindings.fromIdBinding = opts.from;
-			fromClause = "$fromIdBinding";
+			fromValue = opts.from;
 			isDirectIdQuery = true;
 		} else {
-			fromClause = opts.from;
+			fromValue = opts.from;
 		}
 	} else {
-		fromClause = tableName;
+		fromValue = new Table(tableName);
 	}
 
-	const selectFromClause = `SELECT ${selectFields} FROM${opts.only ? " ONLY" : ""} ${fromClause}`;
-	return { selectFromClause, isDirectIdQuery };
+	const selectParts = [
+		`SELECT ${selectFields}`,
+		`FROM${opts.only ? " ONLY" : ""}`,
+	];
+	return { selectParts, fromValue, isDirectIdQuery };
 }
 
 /**
@@ -62,36 +68,63 @@ function buildOrderByClause(orderBy: OrderByClause[]): string {
 }
 
 /**
- * Builds the complete SurrealDB query string from query options.
+ * Builds the complete SurrealDB query as a BoundQuery object from query options.
  * Assembles all clauses in the correct order: SELECT, FROM, WITH, WHERE, SPLIT, GROUP BY, ORDER BY, LIMIT, START, FETCH, TIMEOUT, PARALLEL, TEMPFILES, EXPLAIN.
  */
 function buildQuery<TTable>(
 	opts: SelectQueryOptions<TTable>,
 	tableName: string,
-	bindings: Record<string, unknown>,
-): { query: string; isDirectIdQuery: boolean } {
-	const queryParts: string[] = [];
-
+): { query: BoundQuery; isDirectIdQuery: boolean } {
 	// SELECT and FROM clauses
-	const { selectFromClause, isDirectIdQuery } = buildSelectFromClause(
+	const { selectParts, fromValue, isDirectIdQuery } = buildSelectFromClause(
 		opts,
 		tableName,
-		bindings,
 	);
-	queryParts.push(selectFromClause);
+
+	// Build the base SQL string
+	const onlyClause = opts.only ? " ONLY" : "";
+	const selectFields =
+		opts.select && opts.select.length > 0
+			? (opts.select as string[]).join(", ")
+			: "*";
+	let sqlString = `SELECT ${selectFields} FROM${onlyClause}`;
+	const bindings: Record<string, unknown> = {};
+
+	// Add table/record to bindings and update SQL
+	const tableKey = `table_${Date.now()}`;
+	sqlString += ` $${tableKey}`;
+	bindings[tableKey] = fromValue;
 
 	// WITH clause (after FROM)
 	if (opts.with) {
 		if ("noIndex" in opts.with && opts.with.noIndex) {
-			queryParts.push("WITH NOINDEX");
+			sqlString += " WITH NOINDEX";
 		} else if ("indexes" in opts.with && opts.with.indexes.length > 0) {
-			queryParts.push(`WITH INDEX ${opts.with.indexes.join(", ")}`);
+			sqlString += ` WITH INDEX ${opts.with.indexes.join(", ")}`;
 		}
 	}
 
 	// WHERE clause
 	if (opts.where) {
-		queryParts.push(`WHERE ${opts.where}`);
+		let whereQuery: BoundQuery;
+
+		// Check if opts.where is an object before using 'in' operator
+		if (
+			opts.where &&
+			typeof opts.where === "object" &&
+			"query" in opts.where &&
+			"bindings" in opts.where
+		) {
+			// BoundQuery where clause - use directly
+			whereQuery = opts.where as BoundQuery;
+		} else {
+			// Expr where clause - convert to BoundQuery using surql template
+			whereQuery = surql`${opts.where as Expr}`;
+		}
+
+		sqlString += ` WHERE ${whereQuery.query}`;
+		// Merge WHERE bindings
+		Object.assign(bindings, whereQuery.bindings);
 		if (isDirectIdQuery) {
 			console.warn(
 				"[ORM WARNING] Applying WHERE clause to a direct RecordId query. This is unusual.",
@@ -101,55 +134,65 @@ function buildQuery<TTable>(
 
 	// SPLIT clause (after WHERE)
 	if (opts.split && opts.split.length > 0) {
-		queryParts.push(`SPLIT ${opts.split.join(", ")}`);
+		sqlString += ` SPLIT ${opts.split.join(", ")}`;
 	}
 
 	// GROUP BY clause
 	if (opts.groupBy && opts.groupBy.length > 0) {
-		queryParts.push(`GROUP BY ${opts.groupBy.join(", ")}`);
+		sqlString += ` GROUP BY ${opts.groupBy.join(", ")}`;
 	}
 
 	// ORDER BY clause
 	if (opts.orderBy && opts.orderBy.length > 0) {
-		queryParts.push(buildOrderByClause(opts.orderBy));
+		sqlString += ` ${buildOrderByClause(opts.orderBy)}`;
 	}
 
 	// LIMIT clause
 	if (opts.limit !== undefined) {
-		queryParts.push(`LIMIT ${opts.limit}`);
+		const limitKey = `limit_${Date.now()}`;
+		sqlString += ` LIMIT $${limitKey}`;
+		bindings[limitKey] = opts.limit;
 	}
 
 	// START clause
 	if (opts.start !== undefined) {
-		queryParts.push(`START ${opts.start}`);
+		const startKey = `start_${Date.now()}`;
+		sqlString += ` START $${startKey}`;
+		bindings[startKey] = opts.start;
 	}
 
 	// FETCH clause
 	if (opts.fetch && opts.fetch.length > 0) {
-		queryParts.push(`FETCH ${opts.fetch.join(", ")}`);
+		sqlString += ` FETCH ${opts.fetch.join(", ")}`;
 	}
 
 	// TIMEOUT clause (after FETCH)
 	if (opts.timeout) {
-		queryParts.push(`TIMEOUT ${opts.timeout}`);
+		sqlString += ` TIMEOUT ${opts.timeout}`;
 	}
 
 	// PARALLEL clause (after TIMEOUT)
 	if (opts.parallel) {
-		queryParts.push("PARALLEL");
+		sqlString += " PARALLEL";
 	}
 
 	// TEMPFILES clause (after PARALLEL)
 	if (opts.tempfiles) {
-		queryParts.push("TEMPFILES");
+		sqlString += " TEMPFILES";
 	}
 
 	// EXPLAIN clause (after TEMPFILES)
 	if (opts.explain) {
-		queryParts.push("EXPLAIN");
+		sqlString += " EXPLAIN";
 	}
 
-	return { query: queryParts.join(" "), isDirectIdQuery };
+	// Create BoundQuery from SQL string and bindings
+	let query = surql``;
+	query = query.append(sqlString, bindings);
+
+	// console.log(query.query, query.bindings);
+
+	return { query, isDirectIdQuery };
 }
 
 /**
@@ -157,39 +200,27 @@ function buildQuery<TTable>(
  * Returns either raw data (for projections/grouping) or hydrated model instances.
  */
 async function executeAndProcessQuery<T, ModelInstanceType, TTable>(
-	db: Surreal,
-	query: string,
-	bindings: Record<string, unknown>,
+	db: SurrealLike,
+	query: BoundQuery,
 	opts: SelectQueryOptions<TTable>,
 	ModelClass: new (data: T) => ModelInstanceType,
 ): Promise<unknown> {
-	// console.debug(
-	// 	`[ORM DEBUG] Executing query: "${query}" with bindings:`,
-	// 	JSON.parse(JSON.stringify(bindings)),
-	// );
-
 	const shouldReturnRawData =
 		!!opts.groupBy || !!opts.select || !!opts.explain || !!opts.split;
 
 	if (opts.only) {
 		// Single record query
-		const [queryResult] = await db.query<T[]>(query, bindings);
+		const [queryResult] = await db.query<T[]>(query).collect();
 		return shouldReturnRawData
-			? (queryResult as T)
+			? queryResult
 			: queryResult && new ModelClass(queryResult);
 	}
 
 	// Multiple records query
-	const [queryResults] = await db.query<T[][]>(query, bindings);
-	// console.debug("[ORM DEBUG] Query completed, processing results:", {
-	// 	resultCount: queryResults?.length,
-	// 	shouldReturnRawData,
-	// 	hasGroupBy: !!opts.groupBy,
-	// 	hasFetch: !!opts.fetch,
-	// });
+	const [queryResults] = await db.query<T[][]>(query).collect();
 
 	return shouldReturnRawData
-		? (queryResults as T[])
+		? queryResults
 		: queryResults?.map((r) => new ModelClass(r));
 }
 
@@ -245,23 +276,22 @@ export function getSelectMethod<
 			TFields,
 			TableDefineOptions<TFields>
 		>,
-		db: Surreal,
+		db: SurrealLike,
 		options?: SelectQueryOptions<
 			InferShapeFromFields<(typeof this)["_fields"]>
 		>,
 	): Promise<unknown> {
 		const opts = options || {};
 		const tableName = this.getTableName();
-		const bindings: Record<string, unknown> = opts.vars || {};
 
 		// Build the complete query
-		const { query } = buildQuery(opts, tableName, bindings);
+		const { query } = buildQuery(opts, tableName);
 
 		// Execute query and process results
 		return executeAndProcessQuery<
 			InferShapeFromFields<(typeof this)["_fields"]>,
 			InstanceType<typeof this>,
 			InferShapeFromFields<(typeof this)["_fields"]>
-		>(db, query, bindings, opts, this);
+		>(db, query, opts, this);
 	};
 }

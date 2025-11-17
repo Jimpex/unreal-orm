@@ -1,7 +1,23 @@
 import type { AnyModelClass } from "../../define/table/types/model";
 import type { FieldDefinition } from "../../define/field/types";
 import type { SchemaApplicationMethod } from "../generator";
+import type { BoundQuery, Expr } from "surrealdb";
+import type { FieldPermissionsOptions } from "../../define/field/types";
 import { enumerateSubfields } from "../../define/field/utils";
+import { surql } from "surrealdb";
+
+/**
+ * Converts a BoundQuery or Expr to a string for DDL generation.
+ */
+function queryToString(value: BoundQuery | Expr): string {
+	// Handle BoundQuery
+	if ("query" in value) {
+		return value.query;
+	}
+	// Handle Expr - convert to BoundQuery using surql template
+	const boundQuery = surql`${value}`;
+	return boundQuery.query;
+}
 
 /**
  * Generates an array of SurrealQL `DEFINE FIELD` statements for a given model class.
@@ -45,14 +61,14 @@ export function generateFieldsDdl(
 			fieldStatement += ` TYPE ${subDef.type}`;
 
 			if (subDef.assert) {
-				fieldStatement += ` ASSERT ${subDef.assert}`;
+				fieldStatement += ` ASSERT ${queryToString(subDef.assert)}`;
 			}
 			if (subDef.value) {
-				fieldStatement += ` VALUE ${subDef.value}`;
+				fieldStatement += ` VALUE ${queryToString(subDef.value)}`;
 			}
 
 			if (subDef.default) {
-				fieldStatement += ` DEFAULT ${subDef.default}`;
+				fieldStatement += ` DEFAULT ${queryToString(subDef.default)}`;
 			}
 
 			if (subDef.readonly) {
@@ -61,17 +77,26 @@ export function generateFieldsDdl(
 
 			if (subDef.permissions) {
 				const permParts: string[] = [];
-				if (typeof subDef.permissions === "string") {
-					permParts.push(subDef.permissions);
+				if (
+					"select" in subDef.permissions ||
+					"create" in subDef.permissions ||
+					"update" in subDef.permissions ||
+					"delete" in subDef.permissions
+				) {
+					// Handle FieldPermissionsOptions object
+					const perms = subDef.permissions as FieldPermissionsOptions;
+					if (perms.select)
+						permParts.push(`FOR select ${queryToString(perms.select)}`);
+					if (perms.create)
+						permParts.push(`FOR create ${queryToString(perms.create)}`);
+					if (perms.update)
+						permParts.push(`FOR update ${queryToString(perms.update)}`);
+					if (perms.delete)
+						permParts.push(`FOR delete ${queryToString(perms.delete)}`);
 				} else {
-					if (subDef.permissions.select)
-						permParts.push(`FOR select ${subDef.permissions.select}`);
-					if (subDef.permissions.create)
-						permParts.push(`FOR create ${subDef.permissions.create}`);
-					if (subDef.permissions.update)
-						permParts.push(`FOR update ${subDef.permissions.update}`);
-					if (subDef.permissions.delete)
-						permParts.push(`FOR delete ${subDef.permissions.delete}`);
+					// Handle BoundQuery | Expr directly
+					const perms = subDef.permissions as BoundQuery | Expr;
+					permParts.push(queryToString(perms));
 				}
 				if (permParts.length > 0) {
 					fieldStatement += ` PERMISSIONS ${permParts.join(" ")}`;

@@ -1,33 +1,34 @@
 // User-facing schema option types for Unreal-ORM
 
 import type { FieldDefinition } from "../define/field/types.ts";
+import type { BoundQuery, Expr } from "surrealdb";
 
 /**
  * Defines a SurrealDB permissions clause for a table or field.
- * The value for each property should be a valid SurrealQL `WHERE` clause.
+ * The value for each property should be a valid SurrealQL `WHERE` clause, BoundQuery, or Expr.
  *
  * @example
  * ```ts
  * const permissions = {
  *   // Only the record owner or an admin can select
- *   select: 'owner = $auth.id OR "admin" IN $auth.tags',
+ *   select: surql`owner = $auth.id OR "admin" IN $auth.tags`,
  *   // Any authenticated user can create
- *   create: '$auth.id != NONE',
+ *   create: surql`$auth.id != NONE`,
  *   // Only the owner can update or delete
- *   update: 'owner = $auth.id',
- *   delete: 'owner = $auth.id',
+ *   update: surql`owner = $auth.id`,
+ *   delete: surql`owner = $auth.id`,
  * };
  * ```
  */
 export interface PermissionsClause {
 	/** A SurrealQL `WHERE` clause for `SELECT` permissions. */
-	select?: string;
+	select?: BoundQuery | Expr;
 	/** A SurrealQL `WHERE` clause for `CREATE` permissions. */
-	create?: string;
+	create?: BoundQuery | Expr;
 	/** A SurrealQL `WHERE` clause for `UPDATE` permissions. */
-	update?: string;
+	update?: BoundQuery | Expr;
 	/** A SurrealQL `WHERE` clause for `DELETE` permissions. */
-	delete?: string;
+	delete?: BoundQuery | Expr;
 }
 
 /** Permissions for a specific field. */

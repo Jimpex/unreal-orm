@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { Field, Table, applySchema, generateFullSchemaQl } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
+import { surql } from "surrealdb";
 import type { Surreal } from "surrealdb";
 
 let db: Surreal;
@@ -16,18 +17,28 @@ describe("FieldOptions (base) - generic field option behaviors", () => {
 	class BaseTable extends Table.normal({
 		name: "fieldopt_user",
 		fields: {
-			asserted: Field.string({ assert: "$value.len() > 3" }),
-			withDefault: Field.number({ default: "42" }),
+			asserted: Field.string({ assert: surql`$value.len() > 3` }),
+			withDefault: Field.number({ default: surql`42` }),
 			withValue: Field.option(
-				Field.string({ value: "$value && string::lowercase($value)" }),
+				Field.string({ value: surql`$value && string::lowercase($value)` }),
 			),
 			readonlyField: Field.option(Field.string({ readonly: true })),
 			withPermissions: Field.option(
 				Field.string({
-					permissions: { select: "WHERE $auth.id = id" },
+					permissions: { select: surql`WHERE $auth.id = id` },
 				}),
 			),
 			withComment: Field.option(Field.string({ comment: "A comment" })),
+			withSurqlAssert: Field.option(
+				Field.string({
+					assert: surql`$value.len() > 3`,
+				}),
+			),
+			withSurqlDefault: Field.option(
+				Field.number({
+					default: surql`42`,
+				}),
+			),
 		},
 		schemafull: true,
 	}) {}
@@ -52,7 +63,7 @@ describe("FieldOptions (base) - generic field option behaviors", () => {
 		expect(ddl).toContain(
 			"DEFINE FIELD withComment ON TABLE fieldopt_user TYPE option<string>",
 		);
-		await applySchema(db, [BaseTable]);
+		await applySchema(db, [BaseTable], "OVERWRITE");
 	});
 
 	test("assert: rejects invalid, accepts valid", async () => {
@@ -80,7 +91,9 @@ describe("FieldOptions (base) - generic field option behaviors", () => {
 			asserted: "abcd",
 			readonlyField: "init",
 		});
-		expect(rec.update(db, { readonlyField: "changed" })).rejects.toThrow();
+		expect(
+			rec.update(db, { mode: "merge", data: { readonlyField: "changed" } }),
+		).rejects.toThrow();
 		// Should still be original value
 		const fetched = await BaseTable.select(db, { from: rec.id, only: true });
 		expect(fetched?.readonlyField).toBe("init");
@@ -99,5 +112,32 @@ describe("FieldOptions (base) - generic field option behaviors", () => {
 	test("comment: DDL includes comment", () => {
 		const ddl = generateFullSchemaQl([BaseTable]);
 		expect(ddl).toContain("COMMENT 'A comment'");
+	});
+
+	test("BoundQuery: surql templates work for assert and default", () => {
+		const ddl = generateFullSchemaQl([BaseTable]);
+		// Should include the surql assert clause
+		expect(ddl).toContain("ASSERT $value.len() > 3");
+		// Should include the surql default clause
+		expect(ddl).toContain("DEFAULT 42");
+	});
+
+	test("BoundQuery: runtime behavior works with surql", async () => {
+		// Test assert with surql
+		expect(
+			BaseTable.create(db, { asserted: "valid", withSurqlAssert: "ab" }),
+		).rejects.toThrow();
+		const validRec = await BaseTable.create(db, {
+			asserted: "valid",
+			withSurqlAssert: "valid",
+		});
+		expect(validRec.withSurqlAssert).toBe("valid");
+
+		// Test default with surql
+		const defaultRec = await BaseTable.create(db, {
+			asserted: "valid",
+			withSurqlAssert: "test",
+		});
+		expect(defaultRec.withSurqlDefault).toBe(42);
 	});
 });
