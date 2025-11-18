@@ -1,0 +1,376 @@
+---
+title: Migration from pre-1.0 to 1.0.0 alpha
+description: Upgrade guide for migrating to UnrealORM 1.0.0 alpha with breaking changes, step-by-step instructions, and troubleshooting.
+---
+
+This guide helps you upgrade your UnrealORM codebase to 1.0.0 alpha. The 1.0.0 release includes major improvements including transaction support, SurrealDB 2.0 integration, and enhanced update APIs.
+
+## Breaking Changes
+
+### 1. Update Method Signature
+
+**Before (pre-1.0):**
+
+```ts
+// Instance methods
+await user.update(db, { name: "Jane" });
+await user.merge(db, { name: "Jane" });
+
+// Static methods
+await User.update(db, "user:123", { name: "Jane" });
+await User.merge(db, "user:123", { name: "Jane" });
+```
+
+**After (1.0.0 alpha):**
+
+```ts
+// Instance methods - now requires explicit mode
+await user.update(db, { data: { name: "Jane" }, mode: "merge" });
+await user.update(db, { data: { name: "Jane" }, mode: "content" });
+
+// Static methods - now requires explicit mode
+await User.update(db, "user:123", {
+  data: { name: "Jane" },
+  mode: "merge",
+});
+```
+
+### 2. Removed `merge` Method
+
+The `merge` method has been removed. Use `update` with `mode: 'merge'` instead.
+
+**Before:**
+
+```ts
+await user.merge(db, { name: "Jane" });
+```
+
+**After:**
+
+```ts
+await user.update(db, { data: { name: "Jane" }, mode: "merge" });
+```
+
+### 3. SurrealDB 2.0 Alpha Dependency
+
+UnrealORM 1.0.0 alpha requires SurrealDB 2.0 alpha. Update your dependencies:
+
+**package.json:**
+
+```json
+{
+  "dependencies": {
+    "surrealdb": "^2.0.0-alpha.14",
+    "@surrealdb/node": "2.3.4" // if you run embedded, such as for internal testing
+  }
+}
+```
+
+### 4. Field Options Type Changes
+
+Field options now use `BoundQuery` and `Expr` types instead of strings for better type safety.
+
+**Before:**
+
+```ts
+Field.string({
+  assert: "$value CONTAINS '@'",
+  default: "'unknown@example.com'",
+});
+```
+
+**After:**
+
+```ts
+import { surql } from "surrealdb";
+
+Field.string({
+  assert: surql`$value CONTAINS "@"`,
+  default: surql`"unknown@example.com"`,
+});
+```
+
+## Step-by-Step Migration
+
+### 1. Update Dependencies
+
+```bash
+# Update SurrealDB to 2.0 alpha
+npm install surrealdb@alpha @surrealdb/node@alpha
+
+# Update UnrealORM
+npm install unreal-orm@alpha
+```
+
+### 2. Update Update Method Calls
+
+Find all instances of `.update()` and `.merge()` calls and update them:
+
+```bash
+# Search for update calls (manual review required)
+grep -r "\.update(" src/
+grep -r "\.merge(" src/
+```
+
+**Migration patterns:**
+
+```ts
+// Pattern 1: Simple updates
+// Before
+await user.update(db, { name: "Jane" });
+// After
+await user.update(db, { data: { name: "Jane" }, mode: "merge" });
+
+// Pattern 2: Merge calls
+// Before
+await user.merge(db, { name: "Jane" });
+// After
+await user.update(db, { data: { name: "Jane" }, mode: "merge" });
+
+// Pattern 3: Static updates
+// Before
+await User.update(db, "user:123", { name: "Jane" });
+// After
+await User.update(db, "user:123", {
+  data: { name: "Jane" },
+  mode: "content",
+});
+```
+
+### 3. Update Field Definitions
+
+Update field options to use `surql` templates:
+
+```ts
+import { surql } from "surrealdb";
+
+// Before
+class User extends Table.normal({
+  name: "user",
+  fields: {
+    email: Field.string({
+      assert: "$value CONTAINS '@'",
+      default: "'unknown@example.com'",
+    }),
+    active: Field.bool({ default: "true" }),
+  },
+}) {}
+
+// After
+class User extends Table.normal({
+  name: "user",
+  fields: {
+    email: Field.string({
+      assert: surql`$value CONTAINS "@"`,
+      default: surql`"unknown@example.com"`,
+    }),
+    active: Field.bool({ default: surql`true` }),
+  },
+}) {}
+```
+
+## Transaction Migration
+
+### Basic Transaction Usage
+
+```ts
+import { Surreal } from "surrealdb";
+
+const db = new Surreal();
+await db.connect("memory");
+
+// Start a transaction
+const tx = await db.beginTransaction();
+
+try {
+  // All operations now use the transaction instead of db
+  const user = await User.create(tx, { name: "Alice" });
+  const post = await Post.create(tx, { title: "Hello", author: user.id });
+
+  await user.update(tx, { data: { name: "Alice Smith" }, mode: "merge" });
+
+  // Commit the transaction
+  await tx.commit();
+} catch (error) {
+  // Rollback on error
+  await tx.cancel();
+  throw error;
+}
+```
+
+### Feature Flag Checking
+
+Check if transactions are supported in your SurrealDB version:
+
+```ts
+import { Features } from "surrealdb";
+
+if (db.isFeatureSupported(Features.Transactions)) {
+  // Transactional operations
+  const tx = await db.beginTransaction();
+  // ... use transaction
+} else {
+  // Fallback to non-transactional operations
+  console.warn("Transactions not supported, using regular operations");
+}
+```
+
+## Update API Migration
+
+### Update Modes Explained
+
+| Mode      | Description                       | Use Case                    |
+| --------- | --------------------------------- | --------------------------- |
+| `content` | Full document replacement         | Complete record updates     |
+| `merge`   | Partial field updates             | Incremental changes         |
+| `replace` | Full document replacement (alias) | Same as content             |
+| `patch`   | JSON Patch operations             | Complex field-level changes |
+
+### Migration Examples
+
+```ts
+// 1. Simple field updates (most common)
+// Before
+await user.update(db, { name: "Jane" });
+await user.merge(db, { email: "jane@example.com" });
+
+// After
+await user.update(db, { data: { name: "Jane" }, mode: "merge" });
+await user.update(db, { data: { email: "jane@example.com" }, mode: "merge" });
+
+// 2. Complete record replacement
+// Before (update with all required fields)
+await user.update(db, { name: "Jane", email: "jane@example.com", age: 30 });
+
+// After
+await user.update(db, {
+  data: { name: "Jane", email: "jane@example.com", age: 30 },
+  mode: "content",
+});
+
+// 3. JSON Patch operations (new in 1.0.0)
+const user = await User.update(db, "user:123", {
+  data: [
+    { op: "replace", path: "/name", value: "Jane" },
+    { op: "add", path: "/age", value: 30 },
+  ],
+  mode: "patch",
+});
+```
+
+## SurrealDB 2.0 Integration
+
+### New Imports
+
+```ts
+import { surql, BoundQuery, Expr } from "surrealdb";
+```
+
+### Query Building Changes
+
+```ts
+// Before (string-based queries)
+const users = await User.select(db, {
+  where: "age > 18 AND status = 'active'",
+});
+
+// After (syntax highlighted and automatic variable binding)
+const users = await User.select(db, {
+  // using surql template
+  where: surql`age > 18 AND status = 'active'`,
+  // or using Expr api
+  where: and(eq("active", true), gte("age", age)),
+  // or both!
+  where: surql`${eq("active", true)} AND age >= ${age}`,
+});
+```
+
+### Field Option Updates
+
+```ts
+// Before
+Field.string({
+  permissions: {
+    select: "WHERE $auth.id = owner",
+  },
+});
+
+// After
+Field.string({
+  permissions: {
+    select: surql`WHERE $auth.id = owner`,
+  },
+});
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### 1. TypeScript errors with update methods
+
+**Error:** `Argument of type '{ name: string }' is not assignable to parameter of type 'UpdateOptions<...>'`
+
+**Solution:** Wrap data in `data` property and specify `mode`:
+
+```ts
+// Wrong
+await user.update(db, { name: "Jane" });
+
+// Correct
+await user.update(db, { data: { name: "Jane" }, mode: "merge" });
+```
+
+#### 2. Field option type errors
+
+**Error:** `Type 'string' is not assignable to type 'BoundQuery | Expr'`
+
+**Solution:** Use `surql` template literals:
+
+```ts
+import { surql } from "surrealdb";
+
+// Wrong
+Field.string({ default: "default_value" });
+
+// Correct
+Field.string({ default: surql`default_value` });
+```
+
+#### 3. Transaction not supported
+
+**Error:** `beginTransaction is not a function`
+
+**Solution:** Check SurrealDB version and feature support:
+
+```ts
+import { Features } from "surrealdb";
+
+if (!db.isFeatureSupported(Features.Transactions)) {
+  console.log("Transactions require SurrealDB v3 (alpha)");
+  // Use regular db operations instead
+}
+```
+
+### Getting Help
+
+- **GitHub Issues**: [Report bugs](https://github.com/Jimpex/unreal-orm/issues)
+- **GitHub Discussions**: [Ask questions](https://github.com/Jimpex/unreal-orm/discussions)
+- **Documentation**: [Full docs](https://unreal-orm.jimpex.dev)
+
+### Migration Checklist
+
+- [ ] Update SurrealDB to 2.0 alpha
+- [ ] Update UnrealORM to 1.0.0 alpha
+- [ ] Replace all `.merge()` calls with `.update({ mode: 'merge' })`
+- [ ] Update all `.update()` calls to use new signature
+- [ ] Convert field options to use `surql` templates
+- [ ] Add transaction support where needed
+- [ ] Test all CRUD operations
+- [ ] Verify type safety with TypeScript compiler
+
+---
+
+:::note
+This is an alpha release. Some APIs may change before the final 1.0.0 release. Check the [GitHub repository](https://github.com/Jimpex/unreal-orm) for the latest updates.
+:::

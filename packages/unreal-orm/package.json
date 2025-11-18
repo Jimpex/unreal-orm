@@ -1,6 +1,10 @@
 {
 	"name": "unreal-orm",
 	"version": "1.0.0-alpha.1",
+	"publishConfig": {
+		"access": "public",
+		"tag": "alpha"
+	},
 	"description": "UnrealORM is a modern, type-safe ORM for SurrealDB that gives you native SurrealDB power, full TypeScript safety, and zero abstraction—no decorators, no magic, just classes and functions. Designed for developers who want direct control, advanced schema features, and a frictionless experience.",
 	"main": "dist/index.js",
 	"module": "dist/index.js",
@@ -15,8 +19,8 @@
 	"scripts": {
 		"test": "bun test",
 		"build": "tsc --project tsconfig.json",
-		"prepublishOnly": "pnpm run test && pnpm run build",
-		"publish:flow": "pnpm run test && pnpm run build && npm publish --access public"
+		"prepublishOnly": "bun run test && bun run build",
+		"publish:flow": "bun run test && bun run build && bun publish"
 	},
 	"keywords": [
 		"surrealdb",

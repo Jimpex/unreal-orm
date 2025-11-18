@@ -22,7 +22,7 @@ export interface OrderByClause {
  * ```ts
  * // Find all active users, order by name, and fetch their posts
  * const activeUsers = await User.find({
- *   where: 'isActive = true',
+ *   where: surql`isActive = true`,
  *   orderBy: [{ field: 'name', order: 'ASC' }],
  *   fetch: ['posts'],
  *   limit: 50
@@ -132,7 +132,7 @@ export type UpdateOptionsForMode<
  * ```ts
  * // Count all active users
  * const activeUserCount = await User.count({
- *   where: 'isActive = true'
+ *   where: surql`isActive = true`
  * });
  * ```
  */

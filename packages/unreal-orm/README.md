@@ -31,7 +31,7 @@ UnrealORM is a modern, type-safe ORM for SurrealDB that gives you native Surreal
 **Why UnrealORM?**
 I created this package because I wanted something like it for my own projects. Building UnrealORM gave me the perfect excuse to spend more time crafting an even better, reusable solution for the community.
 
-> **Note:** UnrealORM is not at version 1.0 yet. While the API is stabilizing and major breaking changes are unlikely, please be aware that some changes may still occur before the 1.0 release.
+> **Note:** This is UnrealORM 1.0.0 alpha 1, built to support SurrealDB's 2.0 alpha SDK. While the API is stabilizing, please be aware that some changes may still occur before the final 1.0 release.
 
 ## Core Philosophy
 
@@ -46,6 +46,79 @@ UnrealORM aims to provide a powerful and intuitive way to interact with SurrealD
 - **Query Building (Lightweight)**: Supports direct SurrealQL with type-safe parameters.
 - **Developer Experience**: Aims to make working with SurrealDB in TypeScript a pleasant and productive experience.
 - **SurrealDB Feature Support**: For a detailed breakdown of supported SurrealDB 2.x schema features, please see our [CAPABILITIES.md](https://unreal-orm.jimpex.dev/package/capabilities/) document.
+
+## New Features in UnrealORM 1.0.0 alpha
+
+🔧 **SurrealDB SDK 2 Alpha Support**: Updated to use SurrealDB JavaScript SDK 2 alpha, providing compatibility with both SurrealDB v2 and v3.
+
+🚀 **Client-side Transactions Support**: Execute atomic operations across multiple records and tables.
+
+> **Note:** Client-side transactions are only supported in SurrealDB v3 (alpha).
+
+```ts
+// Start a transaction
+const tx = await db.beginTransaction();
+
+try {
+  // Create user and post in the same transaction
+  const user = await User.create(tx, {
+    name: "Alice",
+    email: "alice@example.com",
+  });
+  const post = await Post.create(tx, { title: "Hello World", author: user.id });
+
+  // Commit if everything succeeds
+  await tx.commit();
+} catch (error) {
+  // Rollback on any error
+  await tx.cancel();
+  throw error;
+}
+```
+
+🎯 **Enhanced Update API**: Explicit update modes for better control and type safety.
+
+```ts
+// Full content replacement
+await user.update(db, {
+  data: { name: "Jane", email: "jane@example.com" },
+  mode: "content",
+});
+
+// Partial merge (replaces old .merge() method)
+await user.update(db, {
+  data: { name: "Jane" },
+  mode: "merge",
+});
+
+// JSON Patch operations
+await user.update(db, {
+  data: [{ op: "replace", path: "/name", value: "Jane" }],
+  mode: "patch",
+});
+```
+
+✨ **Surql and Expressions**: Functional expressions and surql templates
+
+```ts
+import { surql, and, eq, gte } from "surrealdb";
+
+// Field validation with functional expressions
+age: Field.number({ assert: and(gte(18), lte(120)) }),
+
+// Dynamic queries
+const age = 18;
+const users = await User.select(db, {
+  // using Expr api
+  where: and(eq("active", true), gte("age", age)),
+  // using surql template
+  where: surql`active = true AND age >= ${age}`,
+  // or both!
+  where: surql`${eq("active", true)} AND age >= ${age}`,
+});
+```
+
+📖 **Migration Guide**: Upgrading to UnrealORM 1.0.0 alpha? See our [Migration Guide](https://unreal-orm.jimpex.dev/getting-started/migrating-to-100-alpha) for detailed upgrade instructions.
 
 ## unreal-orm vs. surrealdb package
 
@@ -70,16 +143,16 @@ Install `unreal-orm` using your favorite package manager:
 
 ```bash
 # Using pnpm
-pnpm add unreal-orm surrealdb typescript
+pnpm add unreal-orm@alpha surrealdb typescript
 
 # Using npm
-npm install unreal-orm surrealdb typescript
+npm install unreal-orm@alpha surrealdb typescript
 
 # Using yarn
-yarn add unreal-orm surrealdb typescript
+yarn add unreal-orm@alpha surrealdb typescript
 
 # Using bun
-bun add unreal-orm surrealdb typescript
+bun add unreal-orm@alpha surrealdb typescript
 ```
 
 _Note: `surrealdb` and `typescript` are peer dependencies._
@@ -87,7 +160,7 @@ _Note: `surrealdb` and `typescript` are peer dependencies._
 ## Quick Blog API in 30 seconds
 
 ```ts
-import { Surreal } from "surrealdb";
+import { Surreal, surql } from "surrealdb";
 import { surrealdbNodeEngines } from "@surrealdb/node";
 import Table, { Field, Index, applySchema } from "unreal-orm";
 
@@ -96,7 +169,10 @@ class User extends Table.normal({
   name: "user",
   fields: {
     name: Field.string(),
-    email: Field.string({ assert: '$value CONTAINS "@"' }),
+    email: Field.string({
+      assert: surql`$value CONTAINS "@"`,
+      default: surql`"unknown@example.com"`,
+    }),
   },
 }) {
   // Add custom methods directly to the class
@@ -109,7 +185,7 @@ class User extends Table.normal({
 class Post extends Table.normal({
   name: "post",
   fields: {
-    title: Field.string({ default: "'Untitled'" }),
+    title: Field.string({ default: surql`"Untitled"` }),
     content: Field.string(),
     author: Field.record(() => User), // Link to the User table
   },

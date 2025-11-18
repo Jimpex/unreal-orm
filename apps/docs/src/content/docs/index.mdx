@@ -43,18 +43,19 @@ const User = Table.normal({
   name: 'user',
   fields: {
     name: Field.string(),
-    email: Field.string({ 
-      assert: 'string::is::email($value)' 
+    email: Field.string({
+      assert: surql`string::is::email($value)`
     }),
-    createdAt: Field.datetime({ 
-      default: 'time::now()' 
-    })
-  }
+    createdAt: Field.datetime({
+      default: surql`time::now()`
+    }),
+  },
 });
 
-// Type-safe queries
+// Type-safe queries with bound parameters
+const pattern = '%@example.com';
 const users = await User.select(db, {
-  where: 'email LIKE $pattern',
-  limit: 10
-}, { pattern: '%@example.com' });
+  where: surql`email LIKE ${pattern}`,
+  limit: 10,
+});
 ```

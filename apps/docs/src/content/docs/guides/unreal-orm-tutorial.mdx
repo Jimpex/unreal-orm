@@ -17,7 +17,7 @@ Unreal-ORM is designed for **SurrealDB** and can run on **Node.js** or **Bun**. 
 
 ```bash
 npm init -y
-npm install surrealdb unreal-orm @surrealdb/node
+npm install surrealdb@alpha unreal-orm@alpha @surrealdb/node@alpha
 npm install -D typescript @types/node tsx
 ```
 
@@ -76,7 +76,7 @@ class User extends Table.normal({
 
 async function main() {
   const db = new Surreal();
-  await db.connect('memory://');
+  await db.connect('mem://');
   await db.use({ namespace: 'blog', database: 'tutorial' });
   
   // Apply schema to database
@@ -151,18 +151,21 @@ const user = await User.create(db, {
 // Find a single record by its ID
 const foundUser = await User.select(db, { from: user.id, only: true });
 
-// --- 3. Update & Merge ---
-// For partial updates (most common), use .merge()
-const mergedUser = await foundUser.merge(db, {
-  bio: 'Senior Developer',
+// --- 3. Update ---
+// Partial update (most common): merge specific fields
+const mergedUser = await foundUser.update(db, {
+  data: { bio: 'Senior Developer' },
+  mode: 'merge',
 });
 
-// For full document replacement, use .update()
-// Note: You must provide ALL required fields.
+// Full document replacement: content mode (must provide ALL required fields)
 const updatedUser = await mergedUser.update(db, {
-  name: 'Alice Smith',
-  email: 'alice.smith@example.com',
-  bio: 'Lead Developer',
+  data: {
+    name: 'Alice Smith',
+    email: 'alice.smith@example.com',
+    bio: 'Lead Developer',
+  },
+  mode: 'content',
 });
 
 // --- 4. Delete ---
@@ -189,7 +192,7 @@ class User extends Table.normal({
   // Static Method
   static async findByEmail(db: Surreal, email: string) {
     const users = await this.select(db, {
-      where: 'email = $email',
+      where: surql`email = $email`,
       vars: { email },
     });
     return users[0]; // Return the first match or undefined
@@ -245,7 +248,7 @@ class Post extends Table.normal({
     content: Field.string(),
     author: Field.record(() => User),
     tags: Field.option(Field.array(Field.string())),
-    published: Field.bool({ default: false }),
+    published: Field.bool({ default: surql`false` }),
   },
   schemafull: true,
 }) {}
@@ -283,9 +286,9 @@ class Post extends Table.normal({
   name: 'post',
   fields: {
     title: Field.string({
-      assert: '$value.length > 5',
+      assert: surql`$value.length > 5`,
       comment: 'Post title (min 6 chars)',
-      default: "'Untitled'",
+      default: surql`'Untitled'`,
     }),
     content: Field.string(),
   },
@@ -313,7 +316,7 @@ const tasks = await Task.select(db, {
 });
 ```
 
-### 3. Parameterized Queries (`vars`)
+{/* ### 3. Parameterized Queries (`vars`)
 
 Always use `vars` to pass dynamic values into your queries.
 
@@ -327,7 +330,7 @@ await User.select(db, {
 
 // Safe ✅  — use vars
 await User.select(db, {
-  where: 'email = $email',
+  where: surql`email = $email`,
   vars: { email: userInput }
 });
 ```
@@ -335,7 +338,7 @@ await User.select(db, {
 `vars` works in **all** Unreal-ORM query helpers. SurrealDB substitutes them server-side, giving you:
 
 * Protection against injection attacks
-* Clear separation between query text and data
+* Clear separation between query text and data */}
 
 ---
 
@@ -391,7 +394,7 @@ class Liked extends Table.relation({
   fields: {
     in: Field.record(() => User),
     out: Field.record(() => Post),
-    timestamp: Field.datetime({ default: () => new Date() }),
+    timestamp: Field.datetime({ default: surql`time::now()` }),
   },
   schemafull: true,
 }) {}
@@ -403,7 +406,6 @@ async function testEdges() {
   const like = await Liked.create(db, {
     in: user.id,
     out: post.id,
-    timestamp: new Date()
   });
   
   console.log('User liked post at:', like.timestamp);

@@ -55,6 +55,9 @@ function buildSelectFromClause<TTable>(
 /**
  * Builds the ORDER BY clause from OrderByClause objects.
  * Handles field, direction, collation, and numeric sorting options.
+ * @param orderBy - Array of order by clause objects.
+ * @returns Formatted ORDER BY clause string.
+ * @internal
  */
 function buildOrderByClause(orderBy: OrderByClause[]): string {
 	const orderByClauses = orderBy.map((ob) => {
@@ -242,11 +245,11 @@ async function executeAndProcessQuery<T, ModelInstanceType, TTable>(
  * const user = await User.select(db, { from: 'user:1', only: true });
  *
  * // Simple filtering
- * const activeUsers = await User.select(db, { where: 'isActive = true' });
+ * const activeUsers = await User.select(db, { where: surql`isActive = true` });
  *
  * // Parameterized filtering
  * const youngUsers = await User.select(db, {
- *   where: 'age < $maxAge',
+ *   where: surql`age < $maxAge`,
  *   vars: { maxAge: 30 }
  * });
  *

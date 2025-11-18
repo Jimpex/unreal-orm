@@ -164,7 +164,7 @@ export const Field = {
 	/**
 	 * Defines a `string` field.
 	 * @param options Standard field options.
-	 * @example Field.string({ assert: '$value.length > 0' })
+	 * @example Field.string({ assert: surql`$value.length > 0` })
 	 */
 	string(options: FieldOptions = {}): FieldDefinition<string> {
 		return { ...options, type: "string" };
@@ -232,7 +232,7 @@ export const Field = {
 	/**
 	 * Defines a `datetime` field.
 	 * @param options Standard field options.
-	 * @example Field.datetime({ default: 'time::now()' })
+	 * @example Field.datetime({ default: surql`time::now()` })
 	 */
 	datetime(options: FieldOptions = {}): FieldDefinition<Date> {
 		return { ...options, type: "datetime" };

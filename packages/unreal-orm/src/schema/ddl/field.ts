@@ -8,6 +8,10 @@ import { surql } from "surrealdb";
 
 /**
  * Converts a BoundQuery or Expr to a string for DDL generation.
+ *
+ * @param value The BoundQuery or Expr to convert.
+ * @returns The string representation of the query.
+ * @internal This is a low-level utility for DDL generation.
  */
 function queryToString(value: BoundQuery | Expr): string {
 	// Handle BoundQuery
