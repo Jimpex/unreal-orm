@@ -1,21 +1,29 @@
-# Migration Guide: UnrealORM 1.x → 2.0 Alpha
+---
+title: Migrating 0.x → 1.0.0 alpha
+description: Upgrade guide for migrating to UnrealORM 1.0.0 alpha with breaking changes, step-by-step instructions, and troubleshooting.
+sidebar_label: Migration Guide
+sidebar_position: 1
+tags:
+  - migration
+  - guide
+  - breaking-changes
+toc: true
+feedback: true
+---
 
-This guide helps you upgrade your UnrealORM codebase from 1.x to 2.0 alpha. The 2.0 release includes major improvements including transaction support, SurrealDB 2.0 integration, and enhanced update APIs.
+import { Aside } from '@astrojs/starlight/components';
 
-## Table of Contents
+This guide helps you upgrade your UnrealORM codebase to 1.0.0 alpha. The 1.0.0 release includes major improvements including transaction support, SurrealDB JS SDK 2.0 alpha integration, and enhanced update APIs.
 
-- [Breaking Changes](#breaking-changes)
-- [Step-by-Step Migration](#step-by-step-migration)
-- [Transaction Migration](#transaction-migration)
-- [Update API Migration](#update-api-migration)
-- [SurrealDB 2.0 Migration](#surrealdb-20-migration)
-- [Troubleshooting](#troubleshooting)
+<Aside type="caution" title="Breaking Changes">
+  This migration guide covers breaking changes that require code updates. Please read carefully and test thoroughly.
+</Aside>
 
 ## Breaking Changes
 
 ### 1. Update Method Signature
 
-**Before (1.x):**
+**Before (pre-1.0):**
 
 ```ts
 // Instance methods
@@ -27,7 +35,7 @@ await User.update(db, "user:123", { name: "Jane" });
 await User.merge(db, "user:123", { name: "Jane" });
 ```
 
-**After (2.0):**
+**After (1.0.0 alpha):**
 
 ```ts
 // Instance methods - now requires explicit mode
@@ -59,7 +67,7 @@ await user.update(db, { data: { name: "Jane" }, mode: "merge" });
 
 ### 3. SurrealDB 2.0 Alpha Dependency
 
-UnrealORM 2.0 requires SurrealDB 2.0 alpha. Update your dependencies:
+UnrealORM 1.0.0 alpha requires SurrealDB 2.0 alpha. Update your dependencies:
 
 **package.json:**
 
@@ -67,7 +75,7 @@ UnrealORM 2.0 requires SurrealDB 2.0 alpha. Update your dependencies:
 {
   "dependencies": {
     "surrealdb": "^2.0.0-alpha.14",
-    "@surrealdb/node": "2.3.4"
+    "@surrealdb/node": "2.3.4" // if you run embedded, such as for internal testing
   }
 }
 ```
@@ -102,10 +110,10 @@ Field.string({
 
 ```bash
 # Update SurrealDB to 2.0 alpha
-npm install surrealdb@^2.0.0-alpha.14 @surrealdb/node@2.3.4
+npm install surrealdb@alpha @surrealdb/node@alpha
 
 # Update UnrealORM
-npm install unrealorm@^2.0.0-alpha.1
+npm install unreal-orm@alpha
 ```
 
 ### 2. Update Update Method Calls
@@ -254,7 +262,7 @@ await user.update(db, {
   mode: "content",
 });
 
-// 3. JSON Patch operations (new in 2.0)
+// 3. JSON Patch operations (new in 1.0.0)
 const user = await User.update(db, "user:123", {
   data: [
     { op: "replace", path: "/name", value: "Jane" },
@@ -264,7 +272,7 @@ const user = await User.update(db, "user:123", {
 });
 ```
 
-## SurrealDB 2.0 Migration
+## SurrealDB 2.0 Integration
 
 ### New Imports
 
@@ -280,9 +288,14 @@ const users = await User.select(db, {
   where: "age > 18 AND status = 'active'",
 });
 
-// After (type-safe queries)
+// After (syntax highlighted and automatic variable binding)
 const users = await User.select(db, {
+  // using surql template
   where: surql`age > 18 AND status = 'active'`,
+  // or using Expr api
+  where: and(eq("active", true), gte("age", age)),
+  // or both!
+  where: surql`${eq("active", true)} AND age >= ${age}`,
 });
 ```
 
@@ -348,7 +361,7 @@ Field.string({ default: surql`default_value` });
 import { Features } from "surrealdb";
 
 if (!db.isFeatureSupported(Features.Transactions)) {
-  console.log("Transactions require SurrealDB 2.0+");
+  console.log("Transactions require SurrealDB v3 (alpha)");
   // Use regular db operations instead
 }
 ```
@@ -362,7 +375,7 @@ if (!db.isFeatureSupported(Features.Transactions)) {
 ### Migration Checklist
 
 - [ ] Update SurrealDB to 2.0 alpha
-- [ ] Update UnrealORM to 2.0 alpha
+- [ ] Update UnrealORM to 1.0.0 alpha
 - [ ] Replace all `.merge()` calls with `.update({ mode: 'merge' })`
 - [ ] Update all `.update()` calls to use new signature
 - [ ] Convert field options to use `surql` templates
@@ -372,4 +385,6 @@ if (!db.isFeatureSupported(Features.Transactions)) {
 
 ---
 
-**Note**: This is an alpha release. Some APIs may change before the final 2.0 release. Check the [GitHub repository](https://github.com/Jimpex/unreal-orm) for the latest updates.
+<Aside type="note" title="Alpha Release">
+  This is an alpha release. Some APIs may change before the final 1.0.0 release. Check the <a href="https://github.com/Jimpex/unreal-orm">GitHub repository</a> for the latest updates.
+</Aside>

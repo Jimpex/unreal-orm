@@ -1,0 +1,125 @@
+---
+title: v1.0.0-alpha.1
+description: Changelog for Unreal ORM v1.0.0-alpha.1
+lastUpdated: 2025-11-17
+sidebar_label: 1.0.0-alpha.1
+sidebar_position: 5
+tags:
+  - release
+  - changelog
+  - alpha
+toc: true
+feedback: true
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This major release migrates Unreal ORM to SurrealDB JS SDK 2.0 alpha, adds comprehensive transaction support, and modernizes the API with enhanced type safety and query building capabilities.
+
+## ✨ Features
+
+### SurrealDB JS SDK 2.0 Alpha Migration
+
+- **Upgrade to SurrealDB SDK 2.0.0-alpha.14** (and @surrealdb/node 2.3.4 for internal tests)
+- **Add BoundQuery and Expr type support** for field options (assert, default, value, permissions)
+- **Implement surql template literals** for type-safe SurrealQL expressions
+- **Add SurrealLike type** for SurrealDB object compatibility (Surreal, Transaction, Session)
+
+### Client-side Transactions Support
+> **Note:** Client-side transactions are only supported in SurrealDB v3 (alpha).
+
+- **Implement SurrealLike parameter** for all CRUD methods (create, select, update, delete)
+- **Create comprehensive transaction tests** with feature flag checking
+- **Add feature flag checking** for transaction compatibility
+
+### API Modernization
+
+- **Refactor update methods** with explicit modes: content, merge, replace, patch
+- **Add JsonPatchOperation support** for patch mode updates
+- **Update build configuration** to exclude tests from package output
+
+### Development Tooling
+
+- **Switch package manager** from pnpm back to bun and update workspace configuration
+- **Update test files** with new update method syntax and surql templates
+
+## 🛠️ Breaking Changes
+
+<Aside type="caution" title="Breaking Changes">
+  This release requires SurrealDB 2.0 alpha SDK and includes several breaking API changes. See the [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-100-alpha/) for detailed upgrade instructions.
+</Aside>
+
+### Field Options Type Changes
+
+- **Field options now use BoundQuery/Expr instead of strings**
+
+  **Before:**
+
+  ```ts
+  Field.string({
+    assert: "$value CONTAINS '@'",
+    default: "'unknown@example.com'",
+  });
+  ```
+
+  **After:**
+
+  ```ts
+  import { surql } from "surrealdb";
+
+  Field.string({
+    assert: surql`$value CONTAINS "@"`,
+    default: surql`"unknown@example.com"`,
+  });
+  ```
+
+### Update Method Signature Changes
+
+- **Update method signature now requires mode parameter and options object**
+
+  **Before:**
+
+  ```ts
+  await user.update(db, { name: "Jane" });
+  await user.merge(db, { name: "Jane" });
+  ```
+
+  **After:**
+
+  ```ts
+  await user.update(db, { data: { name: "Jane" }, mode: "merge" });
+  await user.update(db, { data: { name: "Jane" }, mode: "content" });
+  ```
+
+### Merge Method Removal
+
+- **Merge method removed, use update with mode: "merge" instead**
+
+  **Before:**
+
+  ```ts
+  await user.merge(db, { name: "Jane" });
+  ```
+
+  **After:**
+
+  ```ts
+  await user.update(db, { data: { name: "Jane" }, mode: "merge" });
+  ```
+
+## 🧪 Tests
+
+All 171 tests pass across 25 files with the new SurrealDB 2.0 alpha integration. Transaction support is properly feature-flagged and gracefully handles databases that don't support transactions.
+
+## 📦 Package Information
+
+- **Version:** 1.0.0-alpha.1
+- **Unpacked size:** 141.77KB
+- **Registry:** https://registry.npmjs.org/
+- **Tag:** alpha
+
+---
+
+<Aside type="note" title="Alpha Release">
+  This is an alpha release. Some APIs may change before the final 1.0.0 release. Check the [GitHub repository](https://github.com/Jimpex/unreal-orm) for the latest updates.
+</Aside>
