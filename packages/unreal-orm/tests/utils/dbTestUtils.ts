@@ -3,7 +3,10 @@ import { createNodeEngines } from "@surrealdb/node";
 
 export async function setupInMemoryDb(namespace = "test", database = "test") {
 	const db = new Surreal({
-		engines: { ...createRemoteEngines(), ...createNodeEngines() },
+		engines: {
+			...createRemoteEngines(),
+			...createNodeEngines({ capabilities: { experimental: true } }),
+		},
 	});
 	await db.connect("mem://");
 	// await db.connect("http://localhost:8001", {

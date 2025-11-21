@@ -1,10 +1,15 @@
-import type { TableDefineOptions } from "./types/model";
+import type {
+	TableDefineOptions,
+	ModelInstance,
+	ModelStatic,
+} from "./types/model";
 
 import type { FieldDefinition } from "../field/types";
 import type {
 	NormalTableOptions,
 	RelationTableFields,
 	RelationTableOptions,
+	ViewTableOptions,
 } from "../../schema/options";
 import { createBaseModel } from "./base";
 import { getCreateMethod } from "./crud/create";
@@ -98,6 +103,43 @@ const Table = {
 		>,
 	>(options: RelationTableOptions<TIn, TOut, TOther>) {
 		return defineTable({ ...options, type: "relation" });
+	},
+	/**
+	 * Defines a pre-computed table view (`DEFINE TABLE ... AS SELECT ...`).
+	 * Returns a base class that should be extended.
+	 *
+	 * @param options Configuration for the view table.
+	 * @returns A base model class to be extended.
+	 *
+	 * @example
+	 * ```ts
+	 * import { Table } from 'unreal-orm';
+	 * import { surql } from 'surrealdb';
+	 *
+	 * type AdultUser = { name: string; age: number };
+	 *
+	 * class AdultUsers extends Table.view<AdultUser>({
+	 *   name: 'adult_users',
+	 *   as: surql`SELECT name, age FROM user WHERE age >= 18`,
+	 * }) {}
+	 * ```
+	 */
+	view<TResult extends Record<string, unknown> = Record<string, unknown>>(
+		options: ViewTableOptions,
+	) {
+		const model = defineTable<Record<string, never>>({
+			...options,
+			type: "view",
+			fields: {} as Record<string, never>,
+		});
+
+		type ViewInstance = ModelInstance<Record<string, never>> & TResult;
+
+		return model as unknown as ModelStatic<
+			ViewInstance,
+			Record<string, never>,
+			TableDefineOptions<Record<string, never>>
+		>;
 	},
 } as const;
 

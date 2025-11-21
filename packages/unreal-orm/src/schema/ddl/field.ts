@@ -79,6 +79,13 @@ export function generateFieldsDdl(
 				fieldStatement += " READONLY";
 			}
 
+			if (subDef.reference) {
+				fieldStatement += " REFERENCE";
+				if (subDef.recordOnDelete && ["IGNORE", "UNSET", "CASCADE", "REJECT"].includes(subDef.recordOnDelete)) {
+					fieldStatement += ` ON DELETE ${subDef.recordOnDelete}`;
+				}
+			}
+
 			if (subDef.permissions) {
 				const permParts: string[] = [];
 				if (

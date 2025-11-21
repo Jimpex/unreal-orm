@@ -12,7 +12,7 @@ import type {
 	RecordId,
 	Uuid,
 } from "surrealdb";
-import type { FieldDefinition, FieldOptions } from "./types";
+import type { FieldDefinition, FieldOptions, ReferenceOptions } from "./types";
 import type {
 	AnyModelClass,
 	InferFieldType,
@@ -43,7 +43,18 @@ export interface CustomFieldOptions extends ObjectFieldOptions {}
 /**
  * Defines the options for a `record` field, which creates a standard **Record Link**.
  */
-export interface RecordFieldOptions extends FieldOptions {}
+export interface RecordFieldOptions extends FieldOptions {
+	/**
+	 * If true, marks this field as a `REFERENCE`.
+	 * This allows the linked record to define a `references` field to see incoming links.
+	 * 
+	 * **EXPERIMENTAL**: Requires the `record_references` experimental capability to be enabled.
+	 * Enable with `--allow-experimental record_references` when starting SurrealDB.
+	 * 
+	 * @since SurrealDB v2.2.0
+	 */
+	reference?: boolean | ReferenceOptions;
+}
 
 /**
  * Defines the specific geometric type for a `geometry` field.
@@ -361,13 +372,22 @@ export const Field = {
 		tableClassThunk: () => TModel,
 		options: RecordFieldOptions = {},
 	): FieldDefinition<InstanceType<TModel> | RecordId<TModel["_tableName"]>> {
+		const isReference = !!options.reference;
+		const referenceOptions =
+			typeof options.reference === "object" ? options.reference : {};
+		const onDelete = referenceOptions.onDelete;
+
 		return {
 			...options,
 			get type() {
 				const tableClass = tableClassThunk();
 				return `record<${tableClass._tableName}>`;
 			},
+			arrayElementType: undefined,
+			objectSchema: undefined,
 			recordTableThunk: tableClassThunk,
+			reference: isReference,
+			recordOnDelete: onDelete,
 		};
 	},
 };

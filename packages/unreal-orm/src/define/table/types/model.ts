@@ -1,4 +1,4 @@
-import type { RecordId, Surreal } from "surrealdb";
+import type { RecordId, Surreal, BoundQuery, Expr } from "surrealdb";
 import type { FieldDefinition } from "../../field/types";
 import type { SelectQueryOptions, JsonPatchOperation } from "./query";
 
@@ -38,12 +38,14 @@ export type TableDefineOptions<
 > = {
 	/** The name of the database table. */
 	name: string;
-	/** An object containing the field definitions for the table. */
-	fields: TFields;
-	/** The type of table, either a standard 'normal' table or a 'relation' (edge) table. */
-	type?: "normal" | "relation";
+	/** An object containing the field definitions for the table. Optional for views. */
+	fields?: TFields;
+	/** The type of table, either a standard 'normal' table, a 'relation' (edge) table, or a 'view'. */
+	type?: "normal" | "relation" | "view";
 	/** If true, the table will be created with `SCHEMAFULL`, enforcing the defined schema. */
 	schemafull?: boolean;
+	/** The query that defines the view (only for type: 'view'). */
+	as?: string | BoundQuery | Expr;
 };
 
 // --- Type Inference Helpers ---

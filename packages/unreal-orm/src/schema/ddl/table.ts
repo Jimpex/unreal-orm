@@ -49,7 +49,7 @@ export function generateTableDdl(
 	// Add table type
 	if (options.type === "relation") {
 		defineTableStatement += " TYPE RELATION";
-	} else if (options.type === "normal") {
+	} else if (options.type === "normal" || options.type === "view") {
 		defineTableStatement += " TYPE NORMAL";
 	}
 
@@ -59,6 +59,11 @@ export function generateTableDdl(
 		defineTableStatement += " SCHEMAFULL";
 	} else if (schemafullOpt === false) {
 		defineTableStatement += " SCHEMALESS";
+	}
+
+	// Add view definition
+	if (options.type === "view" && options.as) {
+		defineTableStatement += ` AS ${queryToString(options.as)}`;
 	}
 
 	if (options.permissions) {

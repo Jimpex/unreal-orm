@@ -109,3 +109,19 @@ export interface RelationTableOptions<
 	/** An object defining the fields for the relation, including `in` and `out`. */
 	fields: RelationTableFields<TIn, TOut, TOther>;
 }
+
+/**
+ * Options for defining a pre-computed table view (`DEFINE TABLE ... AS SELECT ...`).
+ * Views do not support changefeeds and are always inferred directly from the query.
+ */
+export interface ViewTableOptions
+	extends Omit<
+		NormalTableOptions<Record<string, never>>,
+		"changefeed" | "fields"
+	> {
+	/**
+	 * The query that defines the view.
+	 * Can be a string, a BoundQuery, or an Expr.
+	 */
+	as: string | BoundQuery | Expr;
+}

@@ -1,6 +1,5 @@
 import type { ModelStatic, TableDefineOptions } from "../table/types/model";
 import type { BoundQuery, Expr } from "surrealdb";
-
 /**
  * Defines a SurrealDB permissions clause for a specific field.
  * The value for each property should be a valid SurrealQL `WHERE` clause, BoundQuery, or Expr.
@@ -15,6 +14,39 @@ export interface FieldPermissionsOptions {
 	update?: BoundQuery | Expr;
 	/** A SurrealQL `WHERE` clause for `DELETE` permissions. */
 	delete?: BoundQuery | Expr;
+}
+
+/**
+ * Options for reference fields.
+ *
+ * **EXPERIMENTAL**: Requires the `record_references` experimental capability to be enabled.
+ * Enable with `--allow-experimental record_references` when starting SurrealDB.
+ *
+ * @since SurrealDB v2.2.0
+ */
+export interface ReferenceOptions {
+	/**
+	 * Specifies the behavior when the referenced record is deleted.
+	 */
+	onDelete?: "IGNORE" | "UNSET" | "CASCADE" | "REJECT";
+}
+
+/**
+ * Defines the options for a `record` field, which creates a standard **Record Link**.
+ */
+export interface RecordFieldOptions extends FieldOptions {
+	/**
+	 * If true or an object with options, marks this field as a `REFERENCE`.
+	 * This allows the linked record to define a `references` field to see incoming links.
+	 *
+	 * Can be set to `true` or an object with options.
+	 *
+	 * **EXPERIMENTAL**: Requires the `record_references` experimental capability to be enabled.
+	 * Enable with `--allow-experimental record_references` when starting SurrealDB.
+	 *
+	 * @since SurrealDB v2.2.0
+	 */
+	reference?: boolean | ReferenceOptions;
 }
 
 /**
@@ -64,6 +96,19 @@ export interface FieldDefinition<T = unknown> extends FieldOptions {
 	>;
 	/** @deprecated This property is not used and will be removed. */
 	recordReference?: boolean;
+	/**
+	 * If true, marks this field as a `REFERENCE`.
+	 * This allows the linked record to define a `references` field to see incoming links.
+	 * @since SurrealDB v2.2.0
+	 */
+	reference?: boolean;
 	/** For `record` fields, the action to take when the referenced record is deleted. */
-	recordOnDelete?: "cascade" | "set null" | "none";
+	recordOnDelete?:
+		| "cascade"
+		| "set null"
+		| "none"
+		| "IGNORE"
+		| "UNSET"
+		| "CASCADE"
+		| "REJECT";
 }
