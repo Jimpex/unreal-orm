@@ -92,7 +92,9 @@ export function createBaseModel<
       this.id = data.id as RecordId;
       Object.assign(this, data);
 
-      hydrate(this as ModelInstance<TableData>, data, fields, options);
+      if (fields) {
+        hydrate(this as ModelInstance<TableData>, data, fields, options);
+      }
     }
 
     update = instanceMethods.update;
