@@ -1,0 +1,83 @@
+---
+title: v1.0.0-alpha.2
+description: Changelog for Unreal ORM v1.0.0-alpha.2
+lastUpdated: 2025-11-20
+sidebar_label: 1.0.0-alpha.2
+sidebar_position: 6
+tags:
+  - release
+  - changelog
+  - alpha
+toc: true
+feedback: true
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This alpha release introduces support for SurrealDB's experimental `REFERENCE` fields and pre-computed table views, along with DDL generation updates.
+
+## ✨ Features
+
+### Reference Fields (Experimental)
+
+<Aside type="caution" title="Experimental Feature">
+  This feature uses the `REFERENCE` clause, which requires the `record_references` capability in SurrealDB. Enable it with `--allow-experimental record_references` when starting SurrealDB.
+</Aside>
+
+- **Added `reference` option to `RecordFieldOptions`**: You can now mark a record link as a `REFERENCE`.
+- **Support for `ON DELETE` actions**: Configure behavior when the referenced record is deleted (`IGNORE`, `UNSET`, `CASCADE`, `REJECT`).
+
+```typescript
+import { Field } from "unreal-orm";
+
+const Comment = Field.record(
+  () => User,
+  {
+    // Simple reference
+    reference: true, 
+    
+    // Or with specific options
+    reference: {
+        onDelete: "CASCADE" 
+    }
+  }
+);
+```
+
+### Table Views
+
+- **Added `Table.view()` method**: Define pre-computed table views using `DEFINE TABLE ... AS SELECT ...`.
+- **Support for `AS` clause**: Views are defined by a query that is executed to populate the table.
+
+```typescript
+import { Table } from "unreal-orm";
+import { surql } from "surrealdb";
+
+class AdultUsers extends Table.view({
+  name: "adult_users",
+  as: surql`SELECT * FROM user WHERE age >= 18`,
+}) {}
+```
+
+You can also provide a TypeScript type to `Table.view` to infer the shape of the view:
+
+```typescript
+type AdultUser = { name: string; age: number };
+
+class AdultUsers extends Table.view<AdultUser>({
+  name: "adult_users",
+  as: "SELECT name, age FROM user WHERE age >= 18",
+}) {}
+```
+
+## 🛠️ Internals
+
+### DDL Generation
+
+- **Updated DDL generators**:
+  - `generateFieldsDdl`: Adds `REFERENCE` and `ON DELETE` clauses.
+  - `generateTableDdl`: Adds `TYPE VIEW` (handled as normal tables with `AS` clause) and the `AS` query string.
+
+### Testing
+
+- **Enabled experimental capabilities**: Updated test database setup to allow experimental features for testing `REFERENCE` fields.
