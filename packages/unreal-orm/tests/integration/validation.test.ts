@@ -83,12 +83,22 @@ describe("Validation & Error Handling", () => {
 	});
 
 	test("negative: extra/unknown field is ignored or rejected", async () => {
-		const user = await User.create(db, {
-			name: "Frank",
-			email: "f@g.com",
-			// @ts-ignore
-			extra: "should not exist",
-		});
-		expect(user).not.toHaveProperty("extra");
+		try {
+			const user = await User.create(db, {
+				name: "Frank",
+				email: "f@g.com",
+				// @ts-ignore
+				extra: "should not exist",
+			});
+			// If it succeeds (v2 behavior), ensure the extra field is ignored
+			expect(user).not.toHaveProperty("extra");
+		} catch (e: unknown) {
+			// If it fails (v3 behavior), ensure it's the expected error
+			if (e instanceof Error) {
+				expect(e.message).toMatch(/no such field exists/i);
+			} else {
+				throw e;
+			}
+		}
 	});
 });

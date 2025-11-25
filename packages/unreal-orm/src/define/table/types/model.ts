@@ -119,15 +119,6 @@ export declare class BaseTable<TData extends Record<string, unknown>> {
 	id: RecordId;
 
 	/**
-	 * Dynamic fields that are not defined in the schema but are present in the data.
-	 * This is possible for schemaless tables.
-	 *
-	 * @type {*}
-	 */
-
-	// biome-ignore lint/suspicious/noExplicitAny: $dynamic can contain any data
-	$dynamic: any;
-	/**
 	 * Creates a new model instance with the provided data.
 	 * @param data - The initial data for the model instance.
 	 */

@@ -23,7 +23,7 @@ function buildSelectFromClause<TTable>(
 	tableName: string,
 ): {
 	selectParts: string[];
-	fromValue: Table | RecordId;
+	fromValue: Table | RecordId | BoundQuery | Expr;
 	isDirectIdQuery: boolean;
 } {
 	const selectFields =
@@ -31,7 +31,7 @@ function buildSelectFromClause<TTable>(
 			? (opts.select as string[]).join(", ")
 			: "*";
 
-	let fromValue: Table | RecordId;
+	let fromValue: Table | RecordId | BoundQuery | Expr;
 	let isDirectIdQuery = false;
 
 	if (opts.from) {
@@ -94,9 +94,38 @@ function buildQuery<TTable>(
 	const bindings: Record<string, unknown> = {};
 
 	// Add table/record to bindings and update SQL
-	const tableKey = `table_${Date.now()}`;
-	sqlString += ` $${tableKey}`;
-	bindings[tableKey] = fromValue;
+	if (
+		fromValue &&
+		typeof fromValue === "object" &&
+		"query" in fromValue &&
+		"bindings" in fromValue
+	) {
+		// BoundQuery FROM clause - use directly
+		sqlString += ` ${fromValue.query}`;
+		// Merge FROM bindings
+		Object.assign(bindings, fromValue.bindings);
+	} else if (fromValue instanceof Table) {
+		// Table FROM clause - bind as parameter
+		const tableKey = `table_${Date.now()}`;
+		sqlString += ` $${tableKey}`;
+		bindings[tableKey] = fromValue;
+	} else if (fromValue instanceof RecordId) {
+		// RecordId FROM clause - bind as parameter
+		const tableKey = `table_${Date.now()}`;
+		sqlString += ` $${tableKey}`;
+		bindings[tableKey] = fromValue;
+	} else if (fromValue && typeof fromValue === "object") {
+		// Expr FROM clause - convert to BoundQuery using surql template
+		const fromQuery = surql`${fromValue as Expr}`;
+		sqlString += ` ${fromQuery.query}`;
+		// Merge FROM bindings
+		Object.assign(bindings, fromQuery.bindings);
+	} else {
+		// Fallback - bind as parameter
+		const tableKey = `table_${Date.now()}`;
+		sqlString += ` $${tableKey}`;
+		bindings[tableKey] = fromValue;
+	}
 
 	// WITH clause (after FROM)
 	if (opts.with) {
@@ -192,8 +221,6 @@ function buildQuery<TTable>(
 	// Create BoundQuery from SQL string and bindings
 	let query = surql``;
 	query = query.append(sqlString, bindings);
-
-	// console.log(query.query, query.bindings);
 
 	return { query, isDirectIdQuery };
 }

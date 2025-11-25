@@ -13,7 +13,7 @@ import type {
  * (e.g., a `user` object with a `posts` array).
  *
  * For schemaless tables, any fields in the data that are not defined in the schema
- * are added to the instance's `$dynamic` property.
+ * are assigned directly to the instance as properties.
  *
  * @param instance The model instance to hydrate.
  * @param data The raw data from the database.
@@ -113,7 +113,7 @@ export function hydrate<
 			(instance as any)[key] = hydrateValue(value, fieldDef);
 		} else if (!options.schemafull) {
 			// biome-ignore lint/suspicious/noExplicitAny: Hydration is a dynamic process
-			(instance as any).$dynamic[key] = value;
+			(instance as any)[key] = value;
 		}
 	}
 }

@@ -1,6 +1,6 @@
 import { test, describe, expect, beforeAll, afterAll } from "bun:test";
 import { Field, Table, applySchema } from "../../src";
-import { eq, surql, type Surreal, Table as SurrealTable } from "surrealdb";
+import { eq, raw, surql, type Surreal, Table as SurrealTable } from "surrealdb";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 
 let db: Surreal;
@@ -375,5 +375,55 @@ describe("Advanced Querying", () => {
 		expect(
 			User.select(db, { where: surql`not_a_field = 123` }),
 		).resolves.toThrow();
+	});
+
+	test("select with BoundQuery in from clause", async () => {
+		// Test that BoundQuery works in the from option
+		const found = await User.select(db, {
+			from: surql`user WHERE age > 28`,
+		});
+
+		expect(found.length).toBe(2); // Alice (30) and Carol (35)
+		expect(found[0]).toHaveProperty("name");
+		expect(found[0]).toHaveProperty("age");
+		expect(found[0]).toHaveProperty("city");
+	});
+
+	test("select with Expr in from clause", async () => {
+		// Test that raw Expr works in the from option
+		const found = await User.select(db, {
+			from: raw("user"),
+			where: surql`age < 30`,
+		});
+
+		expect(found.length).toBe(1); // Bob (25)
+		expect(found[0]).toHaveProperty("name");
+		expect(found[0]).toHaveProperty("age");
+		expect(found[0]).toHaveProperty("city");
+	});
+
+	test("select with explicit Table in from clause", async () => {
+		// Test that explicit Table object works correctly (not misclassified as Expr)
+		const found = await User.select(db, {
+			from: new SurrealTable("user"),
+		});
+
+		expect(found.length).toBe(3); // All users
+		expect(found[0]).toHaveProperty("name");
+		expect(found[0]).toHaveProperty("age");
+		expect(found[0]).toHaveProperty("city");
+	});
+
+	test("select with explicit RecordId in from clause", async () => {
+		// Test that explicit RecordId object works correctly (not misclassified as Expr)
+		const user = users[0]; // Alice
+		const found = await User.select(db, {
+			from: user.id,
+			only: true,
+		});
+
+		expect(found).toBeDefined();
+		expect(found).toHaveProperty("name", "Alice");
+		expect(found).toHaveProperty("age", 30);
 	});
 });

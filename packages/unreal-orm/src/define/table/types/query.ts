@@ -32,8 +32,8 @@ export interface OrderByClause {
 export interface SelectQueryOptions<TTable> {
 	/** An array of fields to select. If omitted, all fields (`*`) are selected. */
 	select?: (keyof TTable | string)[];
-	/** The table or record ID to select from. Defaults to the model's table. */
-	from?: Table | RecordId;
+	/** The table or record ID to select from. Defaults to the model's table. Supports Table, RecordId, BoundQuery, or raw Expr for advanced use cases. */
+	from?: Table | RecordId | BoundQuery | Expr;
 	/** If true, returns only the first record from the result set. */
 	only?: boolean;
 	/** The `WITH` clause for the query, specifying index usage. */

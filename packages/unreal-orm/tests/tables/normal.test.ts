@@ -50,8 +50,9 @@ describe("Normal Table Creation & Options", () => {
 		// @ts-ignore
 		const flex = await Flex.create(db, { foo: "bar", extra: 42 });
 		expect(flex.foo).toBe("bar");
-		// TODO: Re-address $dynamic behavior
-		expect(flex.$dynamic.extra).toBe(42);
+		// Extra fields should be assigned directly to instance
+		// @ts-expect-error
+		expect(flex.extra).toBe(42);
 	});
 
 	test("table permissions: can be set (no runtime check)", async () => {

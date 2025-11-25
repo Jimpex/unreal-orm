@@ -81,7 +81,7 @@ describe("Table.relation (edge table) behavior", () => {
 		expect(found[0]?.out.toString()).toBe(group.id.toString());
 	});
 
-	test("relation table: instance typing and $dynamic", async () => {
+	test("relation table: instance typing", async () => {
 		const user = await User.create(db, { name: "Dora" });
 		const group = await Group.create(db, { label: "Math Club" });
 		const edge = await MemberOf.create(db, {
@@ -89,8 +89,6 @@ describe("Table.relation (edge table) behavior", () => {
 			out: group.id,
 			joined: new Date(),
 		});
-		// $dynamic should exist and be an object
-		expect(typeof edge.$dynamic).toBe("object");
 		// Edge instance should have id and all fields
 		expect(edge).toHaveProperty("id");
 		expect(edge).toHaveProperty("in");

@@ -49,17 +49,6 @@ describe("BaseTable and Shared Model Logic", () => {
 		expect(inst2?.notAValidProperty).toBeUndefined();
 	});
 
-	test("dynamic property support ($dynamic)", async () => {
-		const inst = await Simple.create(db, { foo: "dyn", bar: 1 });
-		// TODO: Re-address what happens when custom select fields are added to queries
-		// // Simulate a dynamic property returned from a query
-		// inst.extra = 42;
-		// expect(inst.extra).toBe(42);
-		// $dynamic bag for fields not defined in the schema
-		inst.$dynamic.surreal = "db";
-		expect(inst.$dynamic.surreal).toBe("db");
-	});
-
 	test("delete method removes record", async () => {
 		const inst = await Simple.create(db, { foo: "del", bar: 2 });
 		await inst.delete(db);
