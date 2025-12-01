@@ -84,7 +84,7 @@ function buildQuery<TTable>(
 		tableName,
 	);
 
-	// Build the base SQL string
+	// Build the base SurrealQL string
 	const onlyClause = opts.only ? " ONLY" : "";
 	const selectFields =
 		opts.select && opts.select.length > 0
@@ -218,7 +218,7 @@ function buildQuery<TTable>(
 		sqlString += " EXPLAIN";
 	}
 
-	// Create BoundQuery from SQL string and bindings
+	// Create BoundQuery from SurrealQL string and bindings
 	let query = surql``;
 	query = query.append(sqlString, bindings);
 

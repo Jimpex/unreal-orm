@@ -1,0 +1,19 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$id": "https://unreal-orm.jimpex.dev/schema.json",
+	"title": "UnrealORM Configuration",
+	"description": "Configuration file for UnrealORM CLI and runtime",
+	"type": "object",
+	"properties": {
+		"$schema": {
+			"type": "string",
+			"description": "JSON Schema reference for IDE support"
+		},
+		"path": {
+			"type": "string",
+			"description": "Path to the unreal folder containing surreal.ts and tables/",
+			"default": "./unreal",
+			"examples": ["./unreal", "./src/unreal"]
+		}
+	}
+}

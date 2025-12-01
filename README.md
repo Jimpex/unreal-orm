@@ -16,7 +16,8 @@ This repository is organized as a monorepo, making it easy to develop, test, and
 ├── apps/
 │   └── docs/           # Documentation site (Astro)
 ├── packages/
-│   └── unreal-orm/     # The ORM library source code
+│   ├── unreal-orm/     # The ORM library source code
+│   └── unreal-cli/     # CLI tools for schema management
 ├── CONTRIBUTING.md     # How to contribute
 └── ...
 ```
@@ -24,6 +25,7 @@ This repository is organized as a monorepo, making it easy to develop, test, and
 ---
 
 ## Documentation
+
 - [UnrealORM Documentation Site](https://unreal-orm.jimpex.dev/): Full docs, guides, and API reference
 - [Getting Started](https://unreal-orm.jimpex.dev/getting-started/readme/): Quickstart, installation, and onboarding
 - [Capabilities](https://unreal-orm.jimpex.dev/getting-started/capabilities/): Supported SurrealDB features
@@ -32,6 +34,7 @@ This repository is organized as a monorepo, making it easy to develop, test, and
 - [API Reference](https://unreal-orm.jimpex.dev/api/): Full API documentation
 
 - **Main ORM package:** See [`packages/unreal-orm/README.md`](packages/unreal-orm/README.md) for usage, API, and details.
+- **CLI tools:** See [`packages/unreal-cli/README.md`](packages/unreal-cli/README.md) for schema introspection, diffing, and migrations.
 - **Documentation site source:** See [`apps/docs/`](apps/docs/) for the Astro-powered docs.
 
 ---

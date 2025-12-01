@@ -67,6 +67,8 @@ export type {
 	ModelStatic,
 	ModelInstance,
 	InferShapeFromFields,
+	AnyModelClass,
+	SurrealLike,
 } from "./define/table/types/model";
 
 // #endregion
