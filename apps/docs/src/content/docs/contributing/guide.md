@@ -15,6 +15,7 @@ Please be respectful and considerate of others when contributing to this project
 
 unreal-orm is designed to provide a type-safe interface to SurrealDB while staying as close as possible to SurrealDB's native capabilities.  
 Key principles include:
+
 - **Native First**: Expose SurrealDB features directly, don't abstract them away
 - **Type Safety Without Overhead**: Use TypeScript for developer experience, not runtime checks
 - **Query Building**: Allow direct SurrealQL usage with type safety
@@ -51,15 +52,19 @@ Key principles include:
 
 ## Project Structure
 
-unreal-orm is organized as a pnpm monorepo:
+unreal-orm is organized as a monorepo:
+
 ```
 unreal-orm/
 ├── apps/                  # Applications
 │   └── docs/              # Documentation site (Astro + Starlight)
 ├── packages/              # Packages
-│   └── unreal-orm/        # Main library package
-│       ├── src/           # Source code
-│       └── tests/         # Tests
+│   ├── unreal-orm/        # Main ORM library
+│   │   ├── src/           # Source code
+│   │   └── tests/         # Tests
+│   └── unreal-cli/        # CLI tools for schema management
+│       ├── src/           # CLI source code
+│       └── tests/         # CLI tests
 ```
 
 ## Development Workflow
@@ -91,6 +96,7 @@ unreal-orm/
 ### Commit Message Format
 
 We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+
 ```
 <type>(<scope>): <description>
 
@@ -98,7 +104,9 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 
 [optional footer(s)]
 ```
+
 Common types:
+
 - `feat`: A new feature
 - `fix`: A bug fix
 - `docs`: Documentation changes

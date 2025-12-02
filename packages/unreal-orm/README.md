@@ -118,7 +118,18 @@ const users = await User.select(db, {
 });
 ```
 
-📖 **Migration Guide**: Upgrading to UnrealORM 1.0.0 alpha? See our [Migration Guide](https://unreal-orm.jimpex.dev/getting-started/migrating-to-100-alpha) for detailed upgrade instructions.
+📖 **Migration Guide**: Upgrading to UnrealORM 1.0.0 alpha? See our [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha) for detailed upgrade instructions.
+
+🛠️ **CLI Tools**: New `@unreal-orm/cli` package for schema management:
+
+```bash
+bun add -g @unreal-orm/cli # or bunx @unreal-orm/cli init
+
+unreal init          # Initialize project
+unreal pull          # Generate TypeScript from database
+unreal push          # Apply schema to database
+unreal diff          # Compare code vs database
+```
 
 ## unreal-orm vs. surrealdb package
 

@@ -6,6 +6,7 @@ import starlightTypeDoc, { typeDocSidebarGroup } from "starlight-typedoc";
 import node from "@astrojs/node";
 
 import vercel from "@astrojs/vercel";
+import starlightThemeGalaxyPlugin from "starlight-theme-galaxy";
 
 // https://astro.build/config
 
@@ -13,6 +14,8 @@ export default defineConfig({
   integrations: [
     starlight({
       plugins: [
+        // @ts-ignore
+        starlightThemeGalaxyPlugin(),
         // Generate the documentation
         starlightTypeDoc({
           entryPoints: ["../../packages/unreal-orm/src/index.ts"],

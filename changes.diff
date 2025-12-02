@@ -1,0 +1,460 @@
+diff --git a/apps/docs/astro.config.mjs b/apps/docs/astro.config.mjs
+index add1bd2..d9318ba 100644
+--- a/apps/docs/astro.config.mjs
++++ b/apps/docs/astro.config.mjs
+@@ -6,6 +6,7 @@ import starlightTypeDoc, { typeDocSidebarGroup } from "starlight-typedoc";
+ import node from "@astrojs/node";
+ 
+ import vercel from "@astrojs/vercel";
++import starlightThemeGalaxyPlugin from "starlight-theme-galaxy";
+ 
+ // https://astro.build/config
+ 
+@@ -13,6 +14,8 @@ export default defineConfig({
+   integrations: [
+     starlight({
+       plugins: [
++        // @ts-ignore
++        starlightThemeGalaxyPlugin(),
+         // Generate the documentation
+         starlightTypeDoc({
+           entryPoints: ["../../packages/unreal-orm/src/index.ts"],
+diff --git a/apps/docs/package.json b/apps/docs/package.json
+index 58612ee..2a8d3ca 100644
+--- a/apps/docs/package.json
++++ b/apps/docs/package.json
+@@ -19,6 +19,7 @@
+     "chalk": "^5.4.1",
+     "glob": "^11.0.2",
+     "sharp": "^0.34.2",
++    "starlight-theme-galaxy": "^0.5.2",
+     "starlight-typedoc": "^0.21.3",
+     "typedoc": "^0.28.5",
+     "typedoc-plugin-markdown": "^4.6.4",
+diff --git a/apps/docs/src/content/docs/contributing/design-principles.md b/apps/docs/src/content/docs/contributing/design-principles.md
+index 6b750e1..6f0eda1 100644
+--- a/apps/docs/src/content/docs/contributing/design-principles.md
++++ b/apps/docs/src/content/docs/contributing/design-principles.md
+@@ -14,94 +14,108 @@ UnrealORM is designed to provide a type-safe interface to SurrealDB while stayin
+ ## Key Principles
+ 
+ ### 1. Native First
++
+ - **DO** expose SurrealDB's native features directly
+ - **DO** use SurrealQL expressions for computations and mutations
+ - **DON'T** create abstractions that hide or replace SurrealDB's native capabilities
+ - **DON'T** add computed fields or transformations at the ORM level
+ 
+ Example:
++
+ ```typescript
++import { surql } from "surrealdb";
++
+ // GOOD: Using SurrealQL's native time::now() function
+-const User = Table.define({
+-    createdAt: Field.datetime({ default: 'time::now()' })
++const User = Table.normal({
++  createdAt: Field.datetime({ default: surql`time::now()` }),
+ });
+ 
+ // BAD: Adding ORM-level computation
+-const User = Table.define({
+-    createdAt: Field.datetime({ defaultNow: true }) // Don't add this kind of abstraction
++const User = Table.normal({
++  createdAt: Field.datetime({ defaultNow: true }), // Don't add this kind of abstraction
+ });
+ ```
+ 
+ ### 2. Type Safety Without Overhead
++
+ - **DO** provide TypeScript types for all SurrealDB features
+ - **DO** use type inference to improve developer experience
+ - **DON'T** add runtime type checking or validation
+ - **DON'T** create complex type hierarchies that don't map to SurrealDB concepts
+ 
+ Example:
++
+ ```typescript
+ // GOOD: Types that directly map to SurrealDB concepts
+ interface RecordLinkOptions {
+-    table: typeof Table;
+-    reference?: boolean;
+-    onDelete?: 'cascade' | 'restrict' | 'no action';
++  table: typeof Table;
++  reference?: boolean;
++  onDelete?: "cascade" | "restrict" | "no action";
+ }
+ 
+ // BAD: Complex abstractions that don't map to SurrealDB
+ interface ComputedFieldOptions {
+-    compute: (record: any) => any; // Don't add client-side computation
++  compute: (record: any) => any; // Don't add client-side computation
+ }
+ ```
+ 
+ ### 3. Query Building
++
+ - **DO** allow direct use of SurrealQL in queries
+ - **DO** provide type-safe parameters for queries
+ - **DON'T** create a query builder that abstracts away SurrealQL
+ - **DON'T** add ORM-specific query operations
+ 
+ Example:
++
+ ```typescript
++import { surql, gte } from "surrealdb";
++
+ // GOOD: Direct use of SurrealQL with type-safe parameters
+-const adults = await User.find(db, {
+-    where: "age >= $minAge",
+-    orderBy: [{ field: "age", order: "DESC" }]
+-}, { minAge: 18 });
++const adults = await User.select(db, {
++  where: surql`age >= ${18}`,
++  // or using expressions
++  where: gte("age", 18),
++  order: [{ field: "age", direction: "DESC" }],
++});
+ 
+ // BAD: ORM-specific query abstractions
+-const adults = await User.where()
+-    .ageGreaterThan(18)
+-    .orderByAgeDesc()
+-    .find();
++const adults = await User.where().ageGreaterThan(18).orderByAgeDesc().find();
+ ```
+ 
+ ### 4. Schema Definition
++
+ - **DO** provide a direct mapping to SurrealDB's schema capabilities
+ - **DO** expose all SurrealQL field types and options
+ - **DON'T** add ORM-specific field types
+ - **DON'T** create schema features that can't be represented in SurrealDB
+ 
+ Example:
++
+ ```typescript
++import { surql } from "surrealdb";
++
+ // GOOD: Direct mapping to SurrealDB field types and options
+-const Product = Table.define({
+-    name: Field.string({
+-        assert: 'string::len($value) > 0',
+-        value: 'string::trim($value)'
+-    }),
+-    price: Field.number({
+-        assert: '$value >= 0'
+-    })
++const Product = Table.normal({
++  name: Field.string({
++    assert: surql`string::len($value) > 0`,
++    value: surql`string::trim($value)`,
++  }),
++  price: Field.number({
++    assert: surql`$value >= 0`,
++  }),
+ });
+ 
+ // BAD: ORM-specific validations or transformations
+-const Product = Table.define({
+-    name: Field.string({
+-        transform: (value) => value.trim(), // Don't add client-side transforms
+-        validate: (value) => value.length > 0 // Don't add client-side validation
+-    })
++const Product = Table.normal({
++  name: Field.string({
++    transform: (value) => value.trim(), // Don't add client-side transforms
++    validate: (value) => value.length > 0, // Don't add client-side validation
++  }),
+ });
+ ```
+ 
+ ### 5. Record Links and References
++
+ - **DO** use SurrealDB's native record linking capabilities
+ - **DO** support SurrealDB's reference tracking feature
+diff --git a/apps/docs/src/content/docs/contributing/guide.md b/apps/docs/src/content/docs/contributing/guide.md
+index fe71e7f..ca40667 100644
+--- a/apps/docs/src/content/docs/contributing/guide.md
++++ b/apps/docs/src/content/docs/contributing/guide.md
+@@ -15,6 +15,7 @@ Please be respectful and considerate of others when contributing to this project
+ 
+ unreal-orm is designed to provide a type-safe interface to SurrealDB while staying as close as possible to SurrealDB's native capabilities.  
+ Key principles include:
++
+ - **Native First**: Expose SurrealDB features directly, don't abstract them away
+ - **Type Safety Without Overhead**: Use TypeScript for developer experience, not runtime checks
+ - **Query Building**: Allow direct SurrealQL usage with type safety
+@@ -51,15 +52,19 @@ Key principles include:
+ 
+ ## Project Structure
+ 
+-unreal-orm is organized as a pnpm monorepo:
++unreal-orm is organized as a monorepo:
++
+ ```
+ unreal-orm/
+ ├── apps/                  # Applications
+ │   └── docs/              # Documentation site (Astro + Starlight)
+ ├── packages/              # Packages
+-│   └── unreal-orm/        # Main library package
+-│       ├── src/           # Source code
+-│       └── tests/         # Tests
++│   ├── unreal-orm/        # Main ORM library
++│   │   ├── src/           # Source code
++│   │   └── tests/         # Tests
++│   └── unreal-cli/        # CLI tools for schema management
++│       ├── src/           # CLI source code
++│       └── tests/         # CLI tests
+ ```
+ 
+ ## Development Workflow
+@@ -91,6 +96,7 @@ unreal-orm/
+ ### Commit Message Format
+ 
+ We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
++
+ ```
+ <type>(<scope>): <description>
+ 
+@@ -98,7 +104,9 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
+ 
+ [optional footer(s)]
+ ```
++
+ Common types:
++
+ - `feat`: A new feature
+ - `fix`: A bug fix
+ - `docs`: Documentation changes
+diff --git a/apps/docs/src/content/docs/guides/migrating-to-1.0.0-alpha.mdx b/apps/docs/src/content/docs/guides/migrating-to-1.0.0-alpha.mdx
+index f321177..977b88f 100644
+--- a/apps/docs/src/content/docs/guides/migrating-to-1.0.0-alpha.mdx
++++ b/apps/docs/src/content/docs/guides/migrating-to-1.0.0-alpha.mdx
+@@ -21,7 +21,27 @@ This guide helps you upgrade your UnrealORM codebase to 1.0.0 alpha. The 1.0.0 r
+ 
+ ## Breaking Changes
+ 
+-### 1. Update Method Signature
++### 1. `$dynamic` Property Removed
++
++Extra fields (fields not defined in your schema) are now assigned directly to model instances instead of being stored in the `$dynamic` property.
++
++**Before (pre-1.0):**
++
++```ts
++const user = await User.select(db, { fetch: ["*"] });
++// Extra fields were in $dynamic
++console.log(user.$dynamic.someExtraField);
++```
++
++**After (1.0.0 alpha):**
++
++```ts
++const user = await User.select(db, { fetch: ["*"] });
++// Extra fields are now directly on the instance
++console.log(user.someExtraField);
++```
++
++### 2. Update Method Signature
+ 
+ **Before (pre-1.0):**
+ 
+@@ -49,7 +69,7 @@ await User.update(db, "user:123", {
+ });
+ ```
+ 
+-### 2. Removed `merge` Method
++### 3. Removed `merge` Method
+ 
+ The `merge` method has been removed. Use `update` with `mode: 'merge'` instead.
+ 
+@@ -65,7 +85,33 @@ await user.merge(db, { name: "Jane" });
+ await user.update(db, { data: { name: "Jane" }, mode: "merge" });
+ ```
+ 
+-### 3. SurrealDB 2.0 Alpha Dependency
++### 4. `from` Method Enhanced
++
++The `from` method now supports `surql` template literals and raw queries in addition to record IDs.
++
++**Before (pre-1.0):**
++
++```ts
++// Only record IDs were supported
++const user = await User.from(db, "user:123");
++```
++
++**After (1.0.0 alpha):**
++
++```ts
++import { surql } from "surrealdb";
++
++// Record ID (still works)
++const user = await User.from(db, "user:123");
++
++// SurrealQL query
++const users = await User.from(db, surql`SELECT * FROM user WHERE age > 18`);
++
++// Raw query string
++const users = await User.from(db, { raw: "SELECT * FROM user WHERE active = true" });
++```
++
++### 5. SurrealDB 2.0 Alpha Dependency
+ 
+ UnrealORM 1.0.0 alpha requires SurrealDB 2.0 alpha. Update your dependencies:
+ 
+@@ -80,7 +126,7 @@ UnrealORM 1.0.0 alpha requires SurrealDB 2.0 alpha. Update your dependencies:
+ }
+ ```
+ 
+-### 4. Field Options Type Changes
++### 6. Field Options Type Changes
+ 
+ Field options now use `BoundQuery` and `Expr` types instead of strings for better type safety.
+ 
+@@ -104,6 +150,54 @@ Field.string({
+ });
+ ```
+ 
++## New: CLI Tools
++
++UnrealORM 1.0.0 alpha introduces a new CLI package for schema management:
++
++```bash
++# Install the CLI
++npm install -g @unreal-orm/cli
++
++# Or use with npx
++npx @unreal-orm/cli
++```
++
++### Available Commands
++
++| Command   | Description                                      |
++| --------- | ------------------------------------------------ |
++| `init`    | Initialize UnrealORM in your project             |
++| `pull`    | Introspect database and generate TypeScript schema |
++| `push`    | Apply TypeScript schema to database              |
++| `diff`    | Compare code schema with database schema         |
++| `mermaid` | Generate ERD diagrams from your schema           |
++
++### Quick Start
++
++```bash
++# Initialize a new project
++unreal init
++
++# Pull schema from existing database
++unreal pull --url http://localhost:8000 -u root -p root -n test -d test
++
++# Push local schema to database
++unreal push
++
++# View schema differences
++unreal diff
++```
++
++### Smart Merge
++
++The `pull` command now features intelligent merging that preserves your customizations:
++
++- **Adds** new fields/indexes with `// Added from database` comments
++- **Comments out** removed fields/indexes for review (never deletes your code)
++- **Preserves** your custom methods, comments, and formatting
++
++See the [CLI README](https://github.com/Jimpex/unreal-orm/tree/main/packages/unreal-cli) for full documentation.
++
+ ## Step-by-Step Migration
+ 
+ ### 1. Update Dependencies
+@@ -112,8 +206,9 @@ Field.string({
+ # Update SurrealDB to 2.0 alpha
+ npm install surrealdb@alpha @surrealdb/node@alpha
+ 
+-# Update UnrealORM
++# Update UnrealORM and CLI
+ npm install unreal-orm@alpha
++npm install -g @unreal-orm/cli
+ ```
+ 
+ ### 2. Update Update Method Calls
+@@ -376,12 +471,16 @@ if (!db.isFeatureSupported(Features.Transactions)) {
+ 
+ - [ ] Update SurrealDB to 2.0 alpha
+ - [ ] Update UnrealORM to 1.0.0 alpha
++- [ ] Install CLI: `npm install -g @unreal-orm/cli`
++- [ ] Replace `.$dynamic.field` with `.field` (direct property access)
+ - [ ] Replace all `.merge()` calls with `.update({ mode: 'merge' })`
+ - [ ] Update all `.update()` calls to use new signature
++- [ ] Update `.from()` calls if using raw queries (now supports `surql` and `{ raw: ... }`)
+ - [ ] Convert field options to use `surql` templates
+ - [ ] Add transaction support where needed
+ - [ ] Test all CRUD operations
+ - [ ] Verify type safety with TypeScript compiler
++- [ ] Use `unreal diff` to verify schema sync
+ 
+ ---
+ 
+diff --git a/bun.lock b/bun.lock
+index 3cbc375..e5b3aa6 100644
+--- a/bun.lock
++++ b/bun.lock
+@@ -20,6 +20,7 @@
+         "chalk": "^5.4.1",
+         "glob": "^11.0.2",
+         "sharp": "^0.34.2",
++        "starlight-theme-galaxy": "^0.5.2",
+         "starlight-typedoc": "^0.21.3",
+         "typedoc": "^0.28.5",
+         "typedoc-plugin-markdown": "^4.6.4",
+@@ -185,10 +186,16 @@
+ 
+     "@expressive-code/plugin-frames": ["@expressive-code/plugin-frames@0.41.3", "", { "dependencies": { "@expressive-code/core": "^0.41.3" } }, "sha512-rFQtmf/3N2CK3Cq/uERweMTYZnBu+CwxBdHuOftEmfA9iBE7gTVvwpbh82P9ZxkPLvc40UMhYt7uNuAZexycRQ=="],
+ 
++    "@expressive-code/plugin-line-numbers": ["@expressive-code/plugin-line-numbers@0.41.3", "", { "dependencies": { "@expressive-code/core": "^0.41.3" } }, "sha512-eig82a4CRC3XgVPQ2S/TMDcLiHJokOCD/mAdNVImpD3segVewxfjGgtj5DXQRo0E0q6f0R0EH34YzTFl5CEPqg=="],
++
+     "@expressive-code/plugin-shiki": ["@expressive-code/plugin-shiki@0.41.3", "", { "dependencies": { "@expressive-code/core": "^0.41.3", "shiki": "^3.2.2" } }, "sha512-RlTARoopzhFJIOVHLGvuXJ8DCEme/hjV+ZnRJBIxzxsKVpGPW4Oshqg9xGhWTYdHstTsxO663s0cdBLzZj9TQA=="],
+ 
+     "@expressive-code/plugin-text-markers": ["@expressive-code/plugin-text-markers@0.41.3", "", { "dependencies": { "@expressive-code/core": "^0.41.3" } }, "sha512-SN8tkIzDpA0HLAscEYD2IVrfLiid6qEdE9QLlGVSxO1KEw7qYvjpbNBQjUjMr5/jvTJ7ys6zysU2vLPHE0sb2g=="],
+ 
++    "@fontsource-variable/inter": ["@fontsource-variable/inter@5.2.8", "", {}, "sha512-kOfP2D+ykbcX/P3IFnokOhVRNoTozo5/JxhAIVYLpea/UBmCQ/YWPBfWIDuBImXX/15KH+eKh4xpEUyS2sQQGQ=="],
++
++    "@fontsource-variable/jetbrains-mono": ["@fontsource-variable/jetbrains-mono@5.2.8", "", {}, "sha512-WBA9elru6Jdp5df2mES55wuOO0WIrn3kpXnI4+W2ek5u3ZgLS9XS4gmIlcQhiZOWEKl95meYdvK7xI+ETLCq/Q=="],
++
+     "@gerrit0/mini-shiki": ["@gerrit0/mini-shiki@3.15.0", "", { "dependencies": { "@shikijs/engine-oniguruma": "^3.15.0", "@shikijs/langs": "^3.15.0", "@shikijs/themes": "^3.15.0", "@shikijs/types": "^3.15.0", "@shikijs/vscode-textmate": "^10.0.2" } }, "sha512-L5IHdZIDa4bG4yJaOzfasOH/o22MCesY0mx+n6VATbaiCtMeR59pdRqYk4bEiQkIHfxsHPNgdi7VJlZb2FhdMQ=="],
+ 
+     "@img/colour": ["@img/colour@1.0.0", "", {}, "sha512-A5P/LfWGFSl6nsckYtjw9da+19jB8hkJ6ACTGcDfEJ0aE+l2n2El7dsVM7UVHZQ9s2lmYMWlrS21YLy2IR1LUw=="],
+@@ -1041,6 +1048,8 @@
+ 
+     "space-separated-tokens": ["space-separated-tokens@2.0.2", "", {}, "sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q=="],
+ 
++    "starlight-theme-galaxy": ["starlight-theme-galaxy@0.5.2", "", { "dependencies": { "@expressive-code/core": "^0.41.3", "@expressive-code/plugin-line-numbers": "^0.41.3", "@fontsource-variable/inter": "^5.2.6", "@fontsource-variable/jetbrains-mono": "^5.2.6" }, "peerDependencies": { "@astrojs/starlight": ">=0.34" } }, "sha512-Df0V3dxq85dgP25wDCFdKSujJvkntnRF/YEWaukvyAJmviKr9sI62PiZ5oXbwYWzHf1yP5NikfGajBpxez270w=="],
++
+     "starlight-typedoc": ["starlight-typedoc@0.21.4", "", { "dependencies": { "github-slugger": "^2.0.0" }, "peerDependencies": { "@astrojs/starlight": ">=0.32.0", "typedoc": ">=0.28.0", "typedoc-plugin-markdown": ">=4.6.0" } }, "sha512-ZnajyNs3CxzaDrKplBY9Lg4R12YheegCvbD2cvczN+8fLET0Rh3sss5mMN206pk8pVXeZgjPY5IATPJoCjjHqA=="],
+ 
+     "statuses": ["statuses@2.0.2", "", {}, "sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw=="],
+diff --git a/packages/unreal-orm/README.md b/packages/unreal-orm/README.md
+index d0ee88f..b87d017 100644
+--- a/packages/unreal-orm/README.md
++++ b/packages/unreal-orm/README.md
+@@ -118,7 +118,18 @@ const users = await User.select(db, {
+ });
+ ```
+ 
+-📖 **Migration Guide**: Upgrading to UnrealORM 1.0.0 alpha? See our [Migration Guide](https://unreal-orm.jimpex.dev/getting-started/migrating-to-100-alpha) for detailed upgrade instructions.
++📖 **Migration Guide**: Upgrading to UnrealORM 1.0.0 alpha? See our [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha) for detailed upgrade instructions.
++
++🛠️ **CLI Tools**: New `@unreal-orm/cli` package for schema management:
++
++```bash
++bun add -g @unreal-orm/cli # or bunx @unreal-orm/cli init
++
++unreal init          # Initialize project
++unreal pull          # Generate TypeScript from database
++unreal push          # Apply schema to database
++unreal diff          # Compare code vs database
++```
+ 
+ ## unreal-orm vs. surrealdb package
+ 

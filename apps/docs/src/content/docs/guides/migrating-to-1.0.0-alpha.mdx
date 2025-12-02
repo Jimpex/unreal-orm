@@ -21,7 +21,27 @@ This guide helps you upgrade your UnrealORM codebase to 1.0.0 alpha. The 1.0.0 r
 
 ## Breaking Changes
 
-### 1. Update Method Signature
+### 1. `$dynamic` Property Removed
+
+Extra fields (fields not defined in your schema) are now assigned directly to model instances instead of being stored in the `$dynamic` property.
+
+**Before (pre-1.0):**
+
+```ts
+const user = await User.select(db, { fetch: ["*"] });
+// Extra fields were in $dynamic
+console.log(user.$dynamic.someExtraField);
+```
+
+**After (1.0.0 alpha):**
+
+```ts
+const user = await User.select(db, { fetch: ["*"] });
+// Extra fields are now directly on the instance
+console.log(user.someExtraField);
+```
+
+### 2. Update Method Signature
 
 **Before (pre-1.0):**
 
@@ -49,7 +69,7 @@ await User.update(db, "user:123", {
 });
 ```
 
-### 2. Removed `merge` Method
+### 3. Removed `merge` Method
 
 The `merge` method has been removed. Use `update` with `mode: 'merge'` instead.
 
@@ -65,7 +85,33 @@ await user.merge(db, { name: "Jane" });
 await user.update(db, { data: { name: "Jane" }, mode: "merge" });
 ```
 
-### 3. SurrealDB 2.0 Alpha Dependency
+### 4. `from` Method Enhanced
+
+The `from` method now supports `surql` template literals and raw queries in addition to record IDs.
+
+**Before (pre-1.0):**
+
+```ts
+// Only record IDs were supported
+const user = await User.from(db, "user:123");
+```
+
+**After (1.0.0 alpha):**
+
+```ts
+import { surql } from "surrealdb";
+
+// Record ID (still works)
+const user = await User.from(db, "user:123");
+
+// SurrealQL query
+const users = await User.from(db, surql`SELECT * FROM user WHERE age > 18`);
+
+// Raw query string
+const users = await User.from(db, { raw: "SELECT * FROM user WHERE active = true" });
+```
+
+### 5. SurrealDB 2.0 Alpha Dependency
 
 UnrealORM 1.0.0 alpha requires SurrealDB 2.0 alpha. Update your dependencies:
 
@@ -80,7 +126,7 @@ UnrealORM 1.0.0 alpha requires SurrealDB 2.0 alpha. Update your dependencies:
 }
 ```
 
-### 4. Field Options Type Changes
+### 6. Field Options Type Changes
 
 Field options now use `BoundQuery` and `Expr` types instead of strings for better type safety.
 
@@ -104,6 +150,54 @@ Field.string({
 });
 ```
 
+## New: CLI Tools
+
+UnrealORM 1.0.0 alpha introduces a new CLI package for schema management:
+
+```bash
+# Install the CLI
+npm install -g @unreal-orm/cli
+
+# Or use with npx
+npx @unreal-orm/cli
+```
+
+### Available Commands
+
+| Command   | Description                                      |
+| --------- | ------------------------------------------------ |
+| `init`    | Initialize UnrealORM in your project             |
+| `pull`    | Introspect database and generate TypeScript schema |
+| `push`    | Apply TypeScript schema to database              |
+| `diff`    | Compare code schema with database schema         |
+| `mermaid` | Generate ERD diagrams from your schema           |
+
+### Quick Start
+
+```bash
+# Initialize a new project
+unreal init
+
+# Pull schema from existing database
+unreal pull --url http://localhost:8000 -u root -p root -n test -d test
+
+# Push local schema to database
+unreal push
+
+# View schema differences
+unreal diff
+```
+
+### Smart Merge
+
+The `pull` command now features intelligent merging that preserves your customizations:
+
+- **Adds** new fields/indexes with `// Added from database` comments
+- **Comments out** removed fields/indexes for review (never deletes your code)
+- **Preserves** your custom methods, comments, and formatting
+
+See the [CLI README](https://github.com/Jimpex/unreal-orm/tree/main/packages/unreal-cli) for full documentation.
+
 ## Step-by-Step Migration
 
 ### 1. Update Dependencies
@@ -112,8 +206,9 @@ Field.string({
 # Update SurrealDB to 2.0 alpha
 npm install surrealdb@alpha @surrealdb/node@alpha
 
-# Update UnrealORM
+# Update UnrealORM and CLI
 npm install unreal-orm@alpha
+npm install -g @unreal-orm/cli
 ```
 
 ### 2. Update Update Method Calls
@@ -376,12 +471,16 @@ if (!db.isFeatureSupported(Features.Transactions)) {
 
 - [ ] Update SurrealDB to 2.0 alpha
 - [ ] Update UnrealORM to 1.0.0 alpha
+- [ ] Install CLI: `npm install -g @unreal-orm/cli`
+- [ ] Replace `.$dynamic.field` with `.field` (direct property access)
 - [ ] Replace all `.merge()` calls with `.update({ mode: 'merge' })`
 - [ ] Update all `.update()` calls to use new signature
+- [ ] Update `.from()` calls if using raw queries (now supports `surql` and `{ raw: ... }`)
 - [ ] Convert field options to use `surql` templates
 - [ ] Add transaction support where needed
 - [ ] Test all CRUD operations
 - [ ] Verify type safety with TypeScript compiler
+- [ ] Use `unreal diff` to verify schema sync
 
 ---
 
