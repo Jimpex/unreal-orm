@@ -7,7 +7,7 @@ import { introspect } from "../introspection/introspect";
 import { parseSurqlFile } from "../introspection/parseSurql";
 import { resolveConnection } from "../utils/connect";
 import { promptText, promptSelect } from "../utils/prompts";
-import type { SchemaAST, TableAST, FieldAST } from "../introspection/types";
+import type { SchemaAST, TableAST, FieldAST } from "unreal-orm";
 import { ui } from "../utils/ui";
 
 type SchemaSource = "code" | "database" | "surql";

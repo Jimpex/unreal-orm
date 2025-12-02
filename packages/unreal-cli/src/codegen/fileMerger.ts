@@ -1,6 +1,6 @@
-import type { SchemaAST, TableAST } from "../introspection/types";
+import type { SchemaAST, TableAST } from "unreal-orm";
+import { compareSchemas } from "unreal-orm";
 import { generateCode } from "./generator";
-import { compareSchemas } from "../diff/compare";
 import { smartMergeTableCode } from "./smartMerge";
 import chalk from "chalk";
 

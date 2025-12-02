@@ -1,11 +1,16 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { createRemoteEngines, Surreal } from "surrealdb";
 import { createNodeEngines } from "@surrealdb/node";
-import { Table, Field, Index, applySchema } from "unreal-orm";
+import {
+	Table,
+	Field,
+	Index,
+	applySchema,
+	extractTableFromModel,
+	type SchemaAST,
+} from "unreal-orm";
 import { introspect } from "../../src/introspection/introspect";
 import { compareSchemas } from "../../src/diff/compare";
-import { extractTableFromModel } from "../../src/diff/parseTypeScript";
-import type { SchemaAST } from "../../src/introspection/types";
 
 describe("Diff Command Integration", () => {
 	let db: Surreal;

@@ -13,7 +13,7 @@ import { introspect } from "../introspection/introspect";
 import { displayWarnings, clearWarnings } from "../introspection/warnings";
 import { loadConfig, resolveSchemaDir } from "../utils/config";
 import { promptFileReview } from "../utils/prompts";
-import type { SchemaAST } from "../introspection/types";
+import type { SchemaAST } from "unreal-orm";
 import { planFileChanges, type FileChange } from "../codegen/fileMerger";
 import { extractSchemaFromRuntime } from "../diff/parseTypeScript";
 import { getFileDiff, getChangeSummary } from "../utils/diffViewer";

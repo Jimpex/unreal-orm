@@ -9,19 +9,26 @@ import type {
 	SurrealLike,
 } from "../types/model";
 import type { FieldDefinition } from "../../field/types";
+import { getDatabase, isSurrealLike } from "../../../config";
 
 /**
  * A factory function that generates the static `create` method for a model class.
  * This is an internal helper used by the `createBaseModel` function to equip models
  * with their core CRUD functionality.
  *
- * The generated method takes a Surreal instance and the record data, creates the
- * record in the database, and returns a new, hydrated model instance.
+ * The generated method creates a record in the database and returns a new, hydrated model instance.
+ *
+ * Supports two calling patterns:
+ * - `User.create(db, data)` - explicit database instance
+ * - `User.create(data)` - uses configured default database
  *
  * @example
  * ```ts
- * // This is not called directly, but is used by the ORM to generate:
- * const user = await User.create(db, { name: 'John Doe', email: 'john.doe@example.com' });
+ * // With configured db
+ * const user = await User.create({ name: 'John Doe', email: 'john@example.com' });
+ *
+ * // With explicit db
+ * const user = await User.create(db, { name: 'John Doe', email: 'john@example.com' });
  * console.log(user.id); // RecordId('user:...')
  * ```
  *
@@ -49,13 +56,22 @@ export function getCreateMethod<
 		>,
 	>(
 		this: T,
-		db: SurrealLike,
-		data: CreateData<TFields>,
+		dbOrData: SurrealLike | CreateData<TFields>,
+		maybeData?: CreateData<TFields>,
 	): Promise<InstanceType<T>> {
-		if (!db)
-			throw new Error(
-				"SurrealDB instance must be provided to create a record.",
-			);
+		// Resolve db and data based on calling pattern
+		let db: SurrealLike;
+		let data: CreateData<TFields>;
+
+		if (isSurrealLike(dbOrData)) {
+			// Pattern: create(db, data)
+			db = dbOrData;
+			data = maybeData as CreateData<TFields>;
+		} else {
+			// Pattern: create(data) - use configured default
+			db = await getDatabase();
+			data = dbOrData;
+		}
 
 		let createdRecord: { [key: string]: unknown };
 		if (this._options.type === "relation") {

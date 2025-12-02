@@ -9,6 +9,7 @@ import type {
 } from "../types/model";
 import type { SelectQueryOptions, OrderByClause } from "../types/query";
 import type { FieldDefinition } from "../../field/types";
+import { getDatabase, isSurrealLike } from "../../../config";
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -263,35 +264,45 @@ async function executeAndProcessQuery<T, ModelInstanceType, TTable>(
  * This versatile method handles querying for records with options for filtering, sorting, pagination, and more.
  * It can return either hydrated model instances or raw query results, depending on the options provided.
  *
+ * Supports two calling patterns:
+ * - `User.select(db, options)` - explicit database instance
+ * - `User.select(options)` - uses configured default database
+ *
  * @example
  * ```ts
- * // Basic select all
+ * // Basic select all (with configured db)
+ * const users = await User.select();
+ *
+ * // Basic select all (with explicit db)
  * const users = await User.select(db);
  *
  * // Find by ID (returns a single instance or undefined)
- * const user = await User.select(db, { from: 'user:1', only: true });
+ * const user = await User.select({ from: 'user:1', only: true });
  *
  * // Simple filtering
- * const activeUsers = await User.select(db, { where: surql`isActive = true` });
+ * const activeUsers = await User.select({ where: surql`isActive = true` });
  *
  * // Parameterized filtering
- * const youngUsers = await User.select(db, {
+ * const youngUsers = await User.select({
  *   where: surql`age < $maxAge`,
  *   vars: { maxAge: 30 }
  * });
  *
  * // Sorting and pagination
- * const sortedUsers = await User.select(db, {
+ * const sortedUsers = await User.select({
  *   orderBy: [{ field: 'name', order: 'ASC' }],
  *   limit: 10,
  *   start: 20
  * });
  *
  * // Fetching related records
- * const usersWithPosts = await User.select(db, { fetch: ['posts'] });
+ * const usersWithPosts = await User.select({ fetch: ['posts'] });
  *
  * // Custom projection (returns raw data, not model instances)
- * const userNames = await User.select(db, { select: ['name'] });
+ * const userNames = await User.select({ select: ['name'] });
+ *
+ * // With explicit db (always works)
+ * const users = await User.select(db, { limit: 10 });
  * ```
  *
  * @returns The static `select` method implementation.
@@ -306,12 +317,29 @@ export function getSelectMethod<
 			TFields,
 			TableDefineOptions<TFields>
 		>,
-		db: SurrealLike,
-		options?: SelectQueryOptions<
+		dbOrOptions?:
+			| SurrealLike
+			| SelectQueryOptions<InferShapeFromFields<(typeof this)["_fields"]>>,
+		maybeOptions?: SelectQueryOptions<
 			InferShapeFromFields<(typeof this)["_fields"]>
 		>,
 	): Promise<unknown> {
-		const opts = options || {};
+		// Resolve db and options based on calling pattern
+		let db: SurrealLike;
+		let opts: SelectQueryOptions<
+			InferShapeFromFields<(typeof this)["_fields"]>
+		>;
+
+		if (isSurrealLike(dbOrOptions)) {
+			// Pattern: select(db, options?)
+			db = dbOrOptions;
+			opts = maybeOptions || {};
+		} else {
+			// Pattern: select(options?) - use configured default
+			db = await getDatabase();
+			opts = dbOrOptions || {};
+		}
+
 		const tableName = this.getTableName();
 
 		// Build the complete query

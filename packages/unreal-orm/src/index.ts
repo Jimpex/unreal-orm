@@ -22,13 +22,74 @@ export { Field } from "./define/field";
  * Functions for generating and applying the full database schema from all defined tables and indexes.
  * @see {@link ./schema/generator.ts}
  */
-export { applySchema, generateFullSchemaQl } from "./schema/generator";
+export {
+	applySchema,
+	generateFullSchemaQl,
+	generateTableSchemaQl,
+} from "./schema/generator";
 
 /**
  * The primary interface for defining database indexes on tables.
  * @see {@link ./define/index/index.ts}
  */
 export { Index } from "./define/index";
+
+/**
+ * Configuration functions for global database setup.
+ * Enables using ORM methods without passing db explicitly.
+ * @see {@link ./config/index.ts}
+ */
+export {
+	configure,
+	getDatabase,
+	hasDatabase,
+	clearConfig,
+	isSurrealLike,
+} from "./config";
+export type { ConfigureOptions } from "./config";
+
+/**
+ * Schema AST - bidirectional schema transformation.
+ * Enables programmatic schema comparison, migration generation, and introspection.
+ * @see {@link ./schema/ast/index.ts}
+ */
+export {
+	// Parser
+	parseTableDefinition,
+	parseFieldDefinition,
+	parseIndexDefinition,
+	extractTableName,
+	// Extractor
+	extractSchemaFromDefinables,
+	extractTableFromModel,
+	extractIndexFromDefinition,
+	isModelClass,
+	isIndexDefinition,
+	// Compare
+	compareSchemas,
+	schemasAreEqual,
+	groupChangesByTable,
+	filterChangesByType,
+	// Generator
+	generateSurqlFromAST,
+	generateMigrationSurql,
+} from "./schema/ast";
+
+export type {
+	// Types
+	SchemaAST,
+	TableAST,
+	FieldAST,
+	IndexAST,
+	EventAST,
+	PermissionsAST,
+	TableType,
+	// Compare types
+	ChangeType,
+	SchemaChange,
+	// Generator types
+	SchemaApplicationMethod,
+} from "./schema/ast";
 
 // #endregion
 

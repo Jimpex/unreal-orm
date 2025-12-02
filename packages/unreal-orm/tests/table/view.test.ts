@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { surql } from "surrealdb";
-import { Table, Field } from "../../src";
-import { generateTableDdl } from "../../src/schema/ddl/table";
+import { Table, Field, generateTableSchemaQl } from "../../src";
 
 describe("Table.view()", () => {
 	test("defines a view without fields (just query)", () => {
@@ -10,7 +9,7 @@ describe("Table.view()", () => {
 			as: "SELECT * FROM user WHERE age >= 18",
 		}) {}
 
-		const ddl = generateTableDdl(AdultUsers);
+		const ddl = generateTableSchemaQl(AdultUsers);
 		expect(ddl).toBe(
 			"DEFINE TABLE adult_users TYPE NORMAL AS SELECT * FROM user WHERE age >= 18;",
 		);
@@ -24,7 +23,7 @@ describe("Table.view()", () => {
 			as: "SELECT name, age FROM user WHERE age >= 18",
 		}) {}
 
-		const ddl = generateTableDdl(AdultUsers);
+		const ddl = generateTableSchemaQl(AdultUsers);
 		expect(ddl).toBe(
 			"DEFINE TABLE adult_users TYPE NORMAL AS SELECT name, age FROM user WHERE age >= 18;",
 		);
@@ -44,7 +43,7 @@ describe("Table.view()", () => {
 			as: surql`SELECT * FROM ${User} WHERE age >= 18`,
 		}) {}
 
-		const ddl = generateTableDdl(AdultUsers);
+		const ddl = generateTableSchemaQl(AdultUsers);
 		expect(ddl).toContain(
 			"DEFINE TABLE adult_users TYPE NORMAL AS SELECT * FROM",
 		);
@@ -58,7 +57,7 @@ describe("Table.view()", () => {
 			as: "SELECT * FROM user WHERE age >= 18",
 		}) {}
 
-		const ddl = generateTableDdl(AdultUsers);
+		const ddl = generateTableSchemaQl(AdultUsers);
 		expect(ddl).toBe(
 			"DEFINE TABLE adult_users TYPE NORMAL SCHEMAFULL AS SELECT * FROM user WHERE age >= 18;",
 		);
@@ -73,7 +72,7 @@ describe("Table.view()", () => {
 			},
 		}) {}
 
-		const ddl = generateTableDdl(AdultUsers);
+		const ddl = generateTableSchemaQl(AdultUsers);
 		expect(ddl).toBe(
 			"DEFINE TABLE adult_users TYPE NORMAL AS SELECT * FROM user PERMISSIONS FOR select true;",
 		);

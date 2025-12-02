@@ -4,7 +4,7 @@ import {
 	formatChanges,
 	type SchemaChange,
 } from "../src/diff/compare";
-import type { SchemaAST } from "../src/introspection/types";
+import type { SchemaAST } from "unreal-orm";
 
 // Helper to assert change exists and return it
 function getChange(changes: SchemaChange[], index: number): SchemaChange {

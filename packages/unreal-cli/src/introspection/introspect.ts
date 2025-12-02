@@ -5,12 +5,12 @@ import type {
 	IndexAST,
 	SchemaAST,
 	TableAST,
-} from "./types";
+} from "unreal-orm";
 import {
 	parseFieldDefinition,
 	parseIndexDefinition,
 	parseTableDefinition,
-} from "./parser";
+} from "unreal-orm";
 import type { DBInfo, TableInfo } from "./queryTypes";
 import { extractSuccessResult } from "./queryTypes";
 import { addWarning, checkFeatureSupport } from "./warnings";
@@ -27,12 +27,20 @@ export async function introspect(db: Surreal): Promise<SchemaAST> {
 	// Check for unsupported database-level features
 	if (dbInfo.analyzers && Object.keys(dbInfo.analyzers).length > 0) {
 		for (const analyzerName of Object.keys(dbInfo.analyzers)) {
-			checkFeatureSupport("analyzer", analyzerName, dbInfo.analyzers[analyzerName] || "");
+			checkFeatureSupport(
+				"analyzer",
+				analyzerName,
+				dbInfo.analyzers[analyzerName] || "",
+			);
 		}
 	}
 	if (dbInfo.functions && Object.keys(dbInfo.functions).length > 0) {
 		for (const funcName of Object.keys(dbInfo.functions)) {
-			checkFeatureSupport("function", funcName, dbInfo.functions[funcName] || "");
+			checkFeatureSupport(
+				"function",
+				funcName,
+				dbInfo.functions[funcName] || "",
+			);
 		}
 	}
 	if (dbInfo.params && Object.keys(dbInfo.params).length > 0) {
@@ -45,13 +53,15 @@ export async function introspect(db: Surreal): Promise<SchemaAST> {
 
 	// 2. Iterate over tables
 	for (const tableName of Object.keys(tablesMap)) {
-		// The value in dbInfo.tables is just "DEFINE TABLE ...". 
+		// The value in dbInfo.tables is just "DEFINE TABLE ...".
 		// We need to fetch FIELDS, INDEXES, EVENTS for each table using INFO FOR TABLE.
-		
+
 		// Run INFO FOR TABLE
 		let tableInfo: TableInfo;
 		try {
-			const [tableResult] = await db.query(`INFO FOR TABLE ${tableName}`).collect();
+			const [tableResult] = await db
+				.query(`INFO FOR TABLE ${tableName}`)
+				.collect();
 			tableInfo = extractSuccessResult<TableInfo>(
 				tableResult,
 				`Failed to get info for table ${tableName}`,
@@ -63,8 +73,8 @@ export async function introspect(db: Surreal): Promise<SchemaAST> {
 			);
 			continue;
 		}
-		
-		// Parse Table Definition from the DB info (not from tableInfo) 
+
+		// Parse Table Definition from the DB info (not from tableInfo)
 		// Wait, INFO FOR TABLE returns structure:
 		// { events: {}, fields: {}, indexes: {}, tables: {} }
 		// Actually it returns definitions map.
@@ -75,21 +85,21 @@ export async function introspect(db: Surreal): Promise<SchemaAST> {
 		//   fields: { "name": "DEFINE FIELD..." },
 		//   indexes: { "name": "DEFINE INDEX..." },
 		//   lives: {},
-		//   tables: {} 
+		//   tables: {}
 		// }
-		// But it doesn't return the TABLE definition itself in the result root usually, 
+		// But it doesn't return the TABLE definition itself in the result root usually,
 		// we have to rely on the INFO FOR DB result for the table definition string?
 		// Yes, dbInfo.tables[tableName] contains "DEFINE TABLE ..."
-		
+
 		const tableDdl = tablesMap[tableName];
 		if (!tableDdl) {
 			console.warn(`No DDL found for table ${tableName}`);
 			continue;
 		}
-		
+
 		// Check for unsupported table features
 		checkFeatureSupport("table", tableName, tableDdl);
-		
+
 		const partialTable = parseTableDefinition(tableDdl);
 
 		// Parse Fields
@@ -100,11 +110,14 @@ export async function introspect(db: Surreal): Promise<SchemaAST> {
 			if (fieldDdl) {
 				// Check for unsupported field features
 				checkFeatureSupport("field", fieldName, fieldDdl);
-				
+
 				try {
 					fields.push(parseFieldDefinition(fieldDdl));
 				} catch (e) {
-					console.warn(`Failed to parse field ${fieldName} on table ${tableName}`, e);
+					console.warn(
+						`Failed to parse field ${fieldName} on table ${tableName}`,
+						e,
+					);
 				}
 			}
 		}
@@ -117,12 +130,15 @@ export async function introspect(db: Surreal): Promise<SchemaAST> {
 			if (indexDdl) {
 				// Check for unsupported index features
 				const supported = checkFeatureSupport("index", indexName, indexDdl);
-				
+
 				if (supported) {
 					try {
 						indexes.push(parseIndexDefinition(indexDdl));
 					} catch (e) {
-						console.warn(`Failed to parse index ${indexName} on table ${tableName}`, e);
+						console.warn(
+							`Failed to parse index ${indexName} on table ${tableName}`,
+							e,
+						);
 					}
 				}
 			}

@@ -5,9 +5,9 @@ import { introspect } from "../introspection/introspect";
 import { displayWarnings, clearWarnings } from "../introspection/warnings";
 import { loadConfig, resolveSchemaDir } from "../utils/config";
 import { promptFileReview } from "../utils/prompts";
-import type { SchemaAST } from "../introspection/types";
+import type { SchemaAST, SchemaChange } from "unreal-orm";
+import { compareSchemas } from "unreal-orm";
 import { extractSchemaFromRuntime } from "../diff/parseTypeScript";
-import { compareSchemas, type SchemaChange } from "../diff/compare";
 import { generateSqlForChange } from "../diff/generateMigration";
 import { ui } from "../utils/ui";
 

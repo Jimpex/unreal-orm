@@ -1,10 +1,10 @@
 import { promises as fs } from "node:fs";
-import type { SchemaAST, TableAST } from "./types";
+import type { SchemaAST, TableAST } from "unreal-orm";
 import {
 	parseTableDefinition,
 	parseFieldDefinition,
 	parseIndexDefinition,
-} from "./parser";
+} from "unreal-orm";
 
 /** Default empty permissions */
 const emptyPermissions = {};

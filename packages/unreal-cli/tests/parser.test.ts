@@ -3,7 +3,7 @@ import {
 	parseFieldDefinition,
 	parseTableDefinition,
 	parseIndexDefinition,
-} from "../src/introspection/parser";
+} from "unreal-orm";
 
 describe("parseFieldDefinition", () => {
 	test("parses basic string field", () => {

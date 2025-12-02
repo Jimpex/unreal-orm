@@ -3,9 +3,9 @@ import type {
 	TableAST,
 	FieldAST,
 	IndexAST,
-} from "../introspection/types";
-import type { SchemaChange } from "../diff/compare";
-import { compareSchemas } from "../diff/compare";
+	SchemaChange,
+} from "unreal-orm";
+import { compareSchemas } from "unreal-orm";
 
 /**
  * Result of a smart merge operation

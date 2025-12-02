@@ -1,10 +1,10 @@
-import type { SchemaChange } from "./compare";
 import type {
 	SchemaAST,
 	TableAST,
 	FieldAST,
 	IndexAST,
-} from "../introspection/types";
+	SchemaChange,
+} from "unreal-orm";
 
 /**
  * Generates SurrealQL migration statements from schema changes.

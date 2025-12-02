@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { smartMergeTableCode } from "../../src/codegen/smartMerge";
-import type { TableAST } from "../../src/introspection/types";
+import type { TableAST } from "unreal-orm";
 
 describe("Smart Merge", () => {
 	const baseCodeTable: TableAST = {

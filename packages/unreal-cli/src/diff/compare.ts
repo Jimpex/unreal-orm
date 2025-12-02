@@ -3,8 +3,14 @@ import type {
 	TableAST,
 	FieldAST,
 	IndexAST,
-} from "../introspection/types";
+	ChangeType as OrmChangeType,
+	SchemaChange as OrmSchemaChange,
+} from "unreal-orm";
+import { compareSchemas as ormCompareSchemas } from "unreal-orm";
 import chalk from "chalk";
+
+// Re-export ORM types for convenience
+export type { OrmChangeType as ChangeType, OrmSchemaChange as SchemaChange };
 
 /**
  * Normalizes a type string for comparison.
@@ -28,28 +34,11 @@ function normalizeFieldName(name: string): string {
 	return name.replace(/\[\*\]/g, ".*");
 }
 
-export type ChangeType =
-	| "table_added"
-	| "table_removed"
-	| "table_type_changed"
-	| "field_added"
-	| "field_removed"
-	| "field_type_changed"
-	| "field_default_changed"
-	| "field_assertion_changed"
-	| "index_added"
-	| "index_removed"
-	| "index_modified";
+// Note: ChangeType and SchemaChange are now imported from unreal-orm
+// The local types are removed to avoid duplication
 
-export interface SchemaChange {
-	type: ChangeType;
-	table: string;
-	field?: string;
-	index?: string;
-	oldValue?: unknown;
-	newValue?: unknown;
-	description: string;
-}
+type ChangeType = OrmChangeType;
+type SchemaChange = OrmSchemaChange & { description: string };
 
 /**
  * Compares two SchemaAST objects and returns structured changes.

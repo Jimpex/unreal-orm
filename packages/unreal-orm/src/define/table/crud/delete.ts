@@ -7,14 +7,24 @@ import type {
 	SurrealLike,
 } from "../types/model";
 import type { FieldDefinition } from "../../field/types";
+import { getDatabase, isSurrealLike } from "../../../config";
 
 /**
  * A factory function that generates the instance `delete` method for a model.
  * This method is responsible for deleting the current record from the database.
  *
+ * Supports two calling patterns:
+ * - `user.delete(db)` - explicit database instance
+ * - `user.delete()` - uses configured default database
+ *
  * @example
  * ```ts
- * const user = await User.select(db, 'user:123');
+ * const user = await User.select({ from: 'user:123', only: true });
+ *
+ * // With configured db
+ * await user.delete();
+ *
+ * // With explicit db
  * await user.delete(db);
  * ```
  *
@@ -28,8 +38,11 @@ export function getDeleteMethod<
 
 	return async function (
 		this: ModelInstance<TableData>,
-		db: SurrealLike,
+		dbArg?: SurrealLike,
 	): Promise<void> {
+		// Resolve db based on calling pattern
+		const db = dbArg ?? (await getDatabase());
+
 		const ModelClass = this.constructor as ModelStatic<
 			ModelInstance<TableData>,
 			TFields,
@@ -43,9 +56,17 @@ export function getDeleteMethod<
  * A factory function that generates the static `delete` method for a model.
  * This method is responsible for deleting a record from the database by its ID.
  *
+ * Supports two calling patterns:
+ * - `User.delete(db, id)` - explicit database instance
+ * - `User.delete(id)` - uses configured default database
+ *
  * @example
  * ```ts
- * await User.delete(db, 'user:123');
+ * // With configured db
+ * await User.delete(recordId);
+ *
+ * // With explicit db
+ * await User.delete(db, recordId);
  * ```
  *
  * @returns The static `delete` method implementation.
@@ -60,11 +81,23 @@ export function getStaticDeleteMethod<
 			TFields,
 			TableDefineOptions<TFields>
 		>,
-	>(this: T, db: Surreal, id: RecordId): Promise<void> {
-		if (!db) {
-			throw new Error(
-				"SurrealDB instance must be provided to delete a record.",
-			);
+	>(
+		this: T,
+		dbOrId: SurrealLike | RecordId,
+		maybeId?: RecordId,
+	): Promise<void> {
+		// Resolve db and id based on calling pattern
+		let db: SurrealLike;
+		let id: RecordId;
+
+		if (isSurrealLike(dbOrId)) {
+			// Pattern: delete(db, id)
+			db = dbOrId;
+			id = maybeId as RecordId;
+		} else {
+			// Pattern: delete(id) - use configured default
+			db = await getDatabase();
+			id = dbOrId;
 		}
 
 		await db.delete(id);

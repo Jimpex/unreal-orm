@@ -3,7 +3,7 @@ import {
 	generateSurqlFromAST,
 	generateMigrationSurql,
 } from "../src/diff/generateSurql";
-import type { SchemaAST } from "../src/introspection/types";
+import type { SchemaAST } from "unreal-orm";
 
 describe("generateSurqlFromAST", () => {
 	test("generates DEFINE TABLE statement for normal table", () => {

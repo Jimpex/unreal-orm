@@ -12,6 +12,7 @@ import type {
 	UpdateMode,
 	JsonPatchOperation,
 } from "../types/query";
+import { getDatabase, isSurrealLike } from "../../../config";
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -63,23 +64,28 @@ async function executeUpdate<T>(
  * a required mode property. All update operations must specify whether they
  * are doing a full replacement or partial merge.
  *
+ * Supports two calling patterns:
+ * - `user.update(db, options)` - explicit database instance
+ * - `user.update(options)` - uses configured default database
+ *
  * @example
  * ```ts
- * const user = await User.select(db, 'user:123');
- * // Full content replacement
- * const updatedUser = await user.update(db, {
+ * const user = await User.select({ from: 'user:123', only: true });
+ *
+ * // Full content replacement (with configured db)
+ * const updatedUser = await user.update({
  *   data: { name: 'Jane Doe', age: 31 },
  *   mode: 'content'
  * });
  *
- * // Partial merge
+ * // Partial merge (with explicit db)
  * const updatedUser = await user.update(db, {
  *   data: { age: 32 },
  *   mode: 'merge'
  * });
  *
  * // JSON Patch operations
- * const updatedUser = await user.update(db, {
+ * const updatedUser = await user.update({
  *   data: [{ op: 'replace', path: '/age', value: 32 }],
  *   mode: 'patch'
  * });
@@ -95,9 +101,23 @@ export function getUpdateMethod<
 
 	return async function update(
 		this: ModelInstance<TableData>,
-		db: SurrealLike,
-		options: UpdateOptions<TableData>,
+		dbOrOptions: SurrealLike | UpdateOptions<TableData>,
+		maybeOptions?: UpdateOptions<TableData>,
 	): Promise<ModelInstance<TableData>> {
+		// Resolve db and options based on calling pattern
+		let db: SurrealLike;
+		let options: UpdateOptions<TableData>;
+
+		if (isSurrealLike(dbOrOptions)) {
+			// Pattern: update(db, options)
+			db = dbOrOptions;
+			options = maybeOptions as UpdateOptions<TableData>;
+		} else {
+			// Pattern: update(options) - use configured default
+			db = await getDatabase();
+			options = dbOrOptions;
+		}
+
 		const ModelClass = this.constructor as ModelStatic<
 			ModelInstance<TableData>,
 			TFields,
@@ -124,22 +144,26 @@ export function getUpdateMethod<
  * a required mode property. All update operations must specify whether they
  * are doing a full replacement or partial merge.
  *
+ * Supports two calling patterns:
+ * - `User.update(db, id, options)` - explicit database instance
+ * - `User.update(id, options)` - uses configured default database
+ *
  * @example
  * ```ts
- * // Full content replacement (UPDATE)
- * const updatedUser = await User.update(db, 'user:123', {
+ * // Full content replacement (with configured db)
+ * const updatedUser = await User.update(recordId, {
  *   data: { name: 'Jane Doe', age: 31 },
  *   mode: 'content'
  * });
  *
- * // Partial merge (MERGE/PATCH)
- * const updatedUser = await User.update(db, 'user:123', {
+ * // Partial merge (with explicit db)
+ * const updatedUser = await User.update(db, recordId, {
  *   data: { age: 32 },
  *   mode: 'merge'
  * });
  *
  * // With additional options
- * const updatedUser = await User.update(db, 'user:123', {
+ * const updatedUser = await User.update(recordId, {
  *   data: { status: 'active' },
  *   mode: 'merge',
  *   output: 'diff',
@@ -155,7 +179,6 @@ export function getStaticUpdateMethod<
 >() {
 	type TableData = InferShapeFromFields<TFields>;
 
-	// Create overloaded function signatures
 	async function update<
 		T extends ModelStatic<
 			ModelInstance<InferShapeFromFields<TFields>>,
@@ -164,41 +187,25 @@ export function getStaticUpdateMethod<
 		>,
 	>(
 		this: T,
-		db: SurrealLike,
-		id: RecordId,
-		options: {
-			data: Partial<TableData>;
-			mode: "content" | "merge" | "replace";
-		},
-	): Promise<InstanceType<T>>;
-	async function update<
-		T extends ModelStatic<
-			ModelInstance<InferShapeFromFields<TFields>>,
-			TFields,
-			TableDefineOptions<TFields>
-		>,
-	>(
-		this: T,
-		db: SurrealLike,
-		id: RecordId,
-		options: { data: JsonPatchOperation[]; mode: "patch" },
-	): Promise<InstanceType<T>>;
-	async function update<
-		T extends ModelStatic<
-			ModelInstance<InferShapeFromFields<TFields>>,
-			TFields,
-			TableDefineOptions<TFields>
-		>,
-	>(
-		this: T,
-		db: SurrealLike,
-		id: RecordId,
-		options: UpdateOptions<TableData>,
+		dbOrId: SurrealLike | RecordId,
+		idOrOptions: RecordId | UpdateOptions<TableData>,
+		maybeOptions?: UpdateOptions<TableData>,
 	): Promise<InstanceType<T>> {
-		if (!db) {
-			throw new Error(
-				"SurrealDB instance must be provided to update a record.",
-			);
+		// Resolve db, id, and options based on calling pattern
+		let db: SurrealLike;
+		let id: RecordId;
+		let options: UpdateOptions<TableData>;
+
+		if (isSurrealLike(dbOrId)) {
+			// Pattern: update(db, id, options)
+			db = dbOrId;
+			id = idOrOptions as RecordId;
+			options = maybeOptions as UpdateOptions<TableData>;
+		} else {
+			// Pattern: update(id, options) - use configured default
+			db = await getDatabase();
+			id = dbOrId;
+			options = idOrOptions as UpdateOptions<TableData>;
 		}
 
 		// Execute the update using the builder pattern

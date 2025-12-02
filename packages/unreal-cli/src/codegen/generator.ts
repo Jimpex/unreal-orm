@@ -1,9 +1,4 @@
-import type {
-	FieldAST,
-	IndexAST,
-	SchemaAST,
-	TableAST,
-} from "../introspection/types";
+import type { FieldAST, IndexAST, SchemaAST, TableAST } from "unreal-orm";
 
 /**
  * Generates TypeScript code from a schema AST.

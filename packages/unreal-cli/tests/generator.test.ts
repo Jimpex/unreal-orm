@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { generateCode } from "../src/codegen/generator";
-import type { SchemaAST, FieldAST, TableAST } from "../src/introspection/types";
+import type { SchemaAST, FieldAST, TableAST } from "unreal-orm";
 
 // Helper to create minimal FieldAST with required fields
 function field(overrides: Partial<FieldAST>): FieldAST {

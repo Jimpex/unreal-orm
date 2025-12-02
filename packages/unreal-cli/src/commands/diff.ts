@@ -6,8 +6,9 @@ import { generateCode } from "../codegen/generator";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { extractSchemaFromRuntime } from "../diff/parseTypeScript";
-import { compareSchemas, formatChanges } from "../diff/compare";
-import type { SchemaAST } from "../introspection/types";
+import { formatChanges } from "../diff/compare";
+import type { SchemaAST } from "unreal-orm";
+import { compareSchemas } from "unreal-orm";
 import { ui } from "../utils/ui";
 
 interface FileDiff {

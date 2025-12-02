@@ -1,19 +1,22 @@
-// Schema generator functions for Unreal-ORM
+/**
+ * Schema generator functions for Unreal-ORM.
+ *
+ * This module provides the public API for generating and applying SurrealQL schemas
+ * from runtime model classes. It uses the AST system internally for DDL generation.
+ *
+ * @module
+ */
 import type { Surreal } from "surrealdb";
 import type { Definable } from "../define/types";
 import type { AnyModelClass } from "../define/table/types/model";
-import type { IndexDefinition } from "../define/index/types";
-import { generateTableDdl } from "./ddl/table";
-import { generateFieldsDdl } from "./ddl/field";
-import { generateIndexDdl } from "./ddl/index";
+import {
+	extractSchemaFromDefinables,
+	extractTableFromModel,
+} from "./ast/extractor";
+import { generateSurqlFromAST } from "./ast/generator";
 
-/**
- * Specifies the method for applying a schema definition when a table already exists.
- * - `IF NOT EXISTS`: The `DEFINE` statement will only be executed if the table does not already exist.
- * - `OVERWRITE`: The existing table will be overwritten with the new definition. **Warning: This is a destructive operation.**
- * - `error`: (Default) An error will be thrown if the table already exists.
- */
-export type SchemaApplicationMethod = "IF NOT EXISTS" | "OVERWRITE" | "error";
+// Re-export SchemaApplicationMethod from AST generator for backward compatibility
+export type { SchemaApplicationMethod } from "./ast/generator";
 
 /**
  * Generates the full SurrealQL schema for a single table model.
@@ -26,13 +29,11 @@ export type SchemaApplicationMethod = "IF NOT EXISTS" | "OVERWRITE" | "error";
  */
 export function generateTableSchemaQl(
 	modelClass: AnyModelClass,
-	method: SchemaApplicationMethod = "error",
+	method: "IF NOT EXISTS" | "OVERWRITE" | "error" = "error",
 ): string {
-	const tableDdl = generateTableDdl(modelClass, method);
-	const fieldsDdl = generateFieldsDdl(modelClass, method);
-	const allStatements = [tableDdl, ...fieldsDdl];
-
-	return allStatements.join("\n");
+	// Convert model to AST and generate DDL
+	const tableAST = extractTableFromModel(modelClass);
+	return generateSurqlFromAST({ tables: [tableAST] }, method).trim();
 }
 
 /**
@@ -44,26 +45,11 @@ export function generateTableSchemaQl(
  */
 export function generateFullSchemaQl(
 	definables: Definable[],
-	method: SchemaApplicationMethod = "error",
+	method: "IF NOT EXISTS" | "OVERWRITE" | "error" = "error",
 ): string {
-	const modelClasses = definables.filter(
-		(d): d is AnyModelClass => !("_type" in d),
-	);
-	const indexes = definables.filter(
-		(d): d is IndexDefinition => "_type" in d && d._type === "index",
-	);
-
-	const tableSchemas = modelClasses
-		.map((mc) => generateTableSchemaQl(mc, method))
-		.join("\n\n");
-
-	const indexSchemas = indexes.map((idx) => generateIndexDdl(idx, method)).join("\n");
-
-	const schema = [tableSchemas, indexSchemas].filter(Boolean).join("\n\n");
-	// TODO: Debug logging
-	// console.debug("[ORM DEBUG]:\n", schema);
-
-	return schema;
+	// Convert all definables to AST and generate DDL
+	const schema = extractSchemaFromDefinables(definables);
+	return generateSurqlFromAST(schema, method);
 }
 
 /**
@@ -76,7 +62,7 @@ export function generateFullSchemaQl(
 export async function applySchema(
 	db: Surreal,
 	definables: Definable[],
-	method: SchemaApplicationMethod = "error",
+	method: "IF NOT EXISTS" | "OVERWRITE" | "error" = "error",
 ): Promise<void> {
 	const schemaQl = generateFullSchemaQl(definables, method);
 	if (schemaQl.trim() !== "") {

@@ -3,7 +3,11 @@ import type {
 	TableAST,
 	FieldAST,
 	IndexAST,
-} from "../introspection/types";
+	SchemaApplicationMethod,
+} from "unreal-orm";
+
+// Re-export for CLI consumers
+export type { SchemaApplicationMethod };
 
 /**
  * Generates SurrealQL DEFINE statements from SchemaAST.
@@ -11,8 +15,6 @@ import type {
  *
  * Reference: packages/unreal-orm/src/schema/ddl/
  */
-
-export type SchemaApplicationMethod = "IF NOT EXISTS" | "OVERWRITE" | "error";
 
 /**
  * Generates a complete SurrealQL schema from SchemaAST.
