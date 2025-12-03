@@ -8,283 +8,186 @@
 [![npm version](https://badge.fury.io/js/unreal-orm.svg)](https://www.npmjs.com/package/unreal-orm)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 [![npm downloads](https://img.shields.io/npm/dm/unreal-orm)](https://www.npmjs.com/package/unreal-orm)
-![npm bundle size](https://img.shields.io/bundlephobia/min/unreal-orm)
 ![TypeScript](https://img.shields.io/badge/TypeScript-blue?logo=typescript)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Ko--fi-ff5f5f?logo=ko-fi&logoColor=white)](https://ko-fi.com/jimpex)
 
 </div>
 
 <div align="center">
   <a href="https://unreal-orm.jimpex.dev"><b>Documentation</b></a> •
-  <a href="https://unreal-orm.jimpex.dev/guides/unreal-orm-tutorial"><b>Hands-on Tutorial</b></a> •
-  <a href="https://github.com/Jimpex/unreal-orm"><b>GitHub</b></a> •
-  <a href="https://github.com/Jimpex/unreal-orm/discussions"><b>GitHub Discussions</b></a> •
-  <a href="https://ko-fi.com/jimpex"><b>Buy Me a Coffee</b></a>
+  <a href="https://unreal-orm.jimpex.dev/guides/unreal-orm-tutorial"><b>Tutorial</b></a> •
+  <a href="https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha"><b>Migration Guide</b></a> •
+  <a href="https://github.com/Jimpex/unreal-orm/discussions"><b>Discussions</b></a>
 </div>
 
-<br><br>
+<br>
 
-# What's UnrealORM?
+# UnrealORM
 
-UnrealORM is a modern, type-safe ORM for SurrealDB that gives you native SurrealDB power, full TypeScript safety, and zero abstraction—no decorators, no magic, just classes and functions. Designed for developers who want direct control, advanced schema features, and a frictionless experience.
+A modern, type-safe ORM for SurrealDB. Native SurrealDB power, full TypeScript safety, zero abstraction—no decorators, no magic, just classes and functions.
 
-**Why UnrealORM?**
-I created this package because I wanted something like it for my own projects. Building UnrealORM gave me the perfect excuse to spend more time crafting an even better, reusable solution for the community.
+UnrealORM builds on top of the official `surrealdb` package, providing a TypeScript ORM experience while preserving full access to SurrealDB's native features. Define your schema once in code, and the ORM handles type inference, DDL generation, and schema synchronization.
 
-> **Note:** This is UnrealORM 1.0.0 alpha 1, built to support SurrealDB's 2.0 alpha SDK. While the API is stabilizing, please be aware that some changes may still occur before the final 1.0 release.
+> **Note:** UnrealORM 1.0.0 alpha supports SurrealDB 2.0 alpha SDK. See the [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha) for upgrade instructions and new features like transactions, enhanced update API, and implicit database support.
 
-## Core Philosophy
-
-UnrealORM aims to provide a powerful and intuitive way to interact with SurrealDB in TypeScript projects. Our goal is to leverage TypeScript's type safety and developer ergonomics without abstracting away the underlying power and flexibility of SurrealDB. We believe in a "native first" approach, ensuring that you can always access SurrealDB's full feature set.
-
-## Key Features
-
-- **Native First**: Exposes SurrealDB's native features and SurrealQL directly. No heavy abstractions.
-- **Type Safety**: Comprehensive TypeScript types for SurrealDB features, tables, fields, and query results.
-- **Modern JavaScript**: Designed with ESNext features and module systems in mind.
-- **Schema Definition**: Intuitive API for defining tables, fields, indexes, and relationships that map directly to SurrealDB's schema capabilities.
-- **Query Building (Lightweight)**: Supports direct SurrealQL with type-safe parameters.
-- **Developer Experience**: Aims to make working with SurrealDB in TypeScript a pleasant and productive experience.
-- **SurrealDB Feature Support**: For a detailed breakdown of supported SurrealDB 2.x schema features, please see our [CAPABILITIES.md](https://unreal-orm.jimpex.dev/package/capabilities/) document.
-
-## New Features in UnrealORM 1.0.0 alpha
-
-🔧 **SurrealDB SDK 2 Alpha Support**: Updated to use SurrealDB JavaScript SDK 2 alpha, providing compatibility with both SurrealDB v2 and v3.
-
-🚀 **Client-side Transactions Support**: Execute atomic operations across multiple records and tables.
-
-> **Note:** Client-side transactions are only supported in SurrealDB v3 (alpha).
-
-```ts
-// Start a transaction
-const tx = await db.beginTransaction();
-
-try {
-  // Create user and post in the same transaction
-  const user = await User.create(tx, {
-    name: "Alice",
-    email: "alice@example.com",
-  });
-  const post = await Post.create(tx, { title: "Hello World", author: user.id });
-
-  // Commit if everything succeeds
-  await tx.commit();
-} catch (error) {
-  // Rollback on any error
-  await tx.cancel();
-  throw error;
-}
-```
-
-🎯 **Enhanced Update API**: Explicit update modes for better control and type safety.
-
-```ts
-// Full content replacement
-await user.update(db, {
-  data: { name: "Jane", email: "jane@example.com" },
-  mode: "content",
-});
-
-// Partial merge (replaces old .merge() method)
-await user.update(db, {
-  data: { name: "Jane" },
-  mode: "merge",
-});
-
-// JSON Patch operations
-await user.update(db, {
-  data: [{ op: "replace", path: "/name", value: "Jane" }],
-  mode: "patch",
-});
-```
-
-✨ **Surql and Expressions**: Functional expressions and surql templates
-
-```ts
-import { surql, and, eq, gte } from "surrealdb";
-
-// Field validation with functional expressions
-age: Field.number({ assert: and(gte(18), lte(120)) }),
-
-// Dynamic queries
-const age = 18;
-const users = await User.select(db, {
-  // using Expr api
-  where: and(eq("active", true), gte("age", age)),
-  // using surql template
-  where: surql`active = true AND age >= ${age}`,
-  // or both!
-  where: surql`${eq("active", true)} AND age >= ${age}`,
-});
-```
-
-📖 **Migration Guide**: Upgrading to UnrealORM 1.0.0 alpha? See our [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha) for detailed upgrade instructions.
-
-🛠️ **CLI Tools**: New `@unreal-orm/cli` package for schema management:
+## Quick Start
 
 ```bash
-bun add -g @unreal-orm/cli # or bunx @unreal-orm/cli init
+bunx @unreal-orm/cli init
 
-unreal init          # Initialize project
-unreal pull          # Generate TypeScript from database
-unreal push          # Apply schema to database
-unreal diff          # Compare code vs database
+# Or with other package managers
+npx @unreal-orm/cli init
+pnpm dlx @unreal-orm/cli init
+yarn dlx @unreal-orm/cli init
 ```
 
-## unreal-orm vs. surrealdb package
+This will:
 
-A direct comparison between unreal-orm and the official [surrealdb](https://www.npmjs.com/package/surrealdb) Node.js driver:
+- Set up your project structure (`unreal/` folder)
+- Configure database connection (`surreal.ts`)
+- Install dependencies (`unreal-orm`, `surrealdb`, `@unreal-orm/cli`)
+- Optionally generate sample tables or import from existing database
 
-|                           | **unreal-orm**                                       | **surrealdb package**                          |
-| ------------------------- | ---------------------------------------------------- | ---------------------------------------------- |
-| **Type Safety**           | ✅ Strong TypeScript types for models/queries        | ⚠️ Partial (manual, not enforced)              |
-| **Schema Sync**           | ✅ Models and schema stay in sync                    | ❌ No schema management                        |
-| **Model Logic**           | ✅ Add type-safe instance/static methods to models   | ❌ No model abstraction                        |
-| **Migrations**            | ✅ Easy schema DDL/apply from code                   | ❌ Manual DDL, risk of drift                   |
-| **Relations**             | ✅ Fully typed, hydrated relations                   | ⚠️ Supported, manual type-safety               |
-| **Query Ergonomics**      | ✅ Type-safe, object-oriented, and SurrealQL support | ⚠️ Raw SurrealQL or data objects—not type-safe |
-| **Raw SurrealQL Support** | ✅ Use raw SurrealQL when needed                     | ✅ Full SurrealQL access                       |
-| **Error Handling**        | ✅ Native SurrealDB errors, no ORM wrappers          | ✅ Native SurrealDB errors                     |
-
-> UnrealORM builds on top of the official surrealdb package, providing a modern TypeScript ORM experience while preserving full access to SurrealDB's native features.
-
-## Installation
-
-Install `unreal-orm` using your favorite package manager:
+<details>
+<summary>Manual installation</summary>
 
 ```bash
+# Using bun
+bun add unreal-orm@alpha surrealdb@alpha
+bun add -D @unreal-orm/cli@alpha
+
 # Using pnpm
-pnpm add unreal-orm@alpha surrealdb typescript
+pnpm add unreal-orm@alpha surrealdb@alpha
+pnpm add -D @unreal-orm/cli@alpha
 
 # Using npm
-npm install unreal-orm@alpha surrealdb typescript
+npm install unreal-orm@alpha surrealdb@alpha
+npm install -D @unreal-orm/cli@alpha
 
 # Using yarn
-yarn add unreal-orm@alpha surrealdb typescript
-
-# Using bun
-bun add unreal-orm@alpha surrealdb typescript
+yarn add unreal-orm@alpha surrealdb@alpha
+yarn add -D @unreal-orm/cli@alpha
 ```
 
-_Note: `surrealdb` and `typescript` are peer dependencies._
+</details>
 
-## Quick Blog API in 30 seconds
+## Features
+
+- **Type-safe models** — Define tables as classes with full TypeScript inference for fields, queries, and results
+- **Schema sync** — Generate DDL from code with `applySchema()`, or generate code from database with `unreal pull`
+- **Relations** — Typed record links with automatic hydration via `fetch`
+- **Native SurrealQL** — Use `surql` templates and functional expressions directly in queries and field definitions
+- **Indexes** — Define unique, composite, and search indexes with full type safety
+- **Custom methods** — Add instance and static methods to your models
+- **CLI tools** — `init`, `pull`, `push`, `diff`, `mermaid` for schema management
+
+## Example
 
 ```ts
 import { Surreal, surql } from "surrealdb";
-import { surrealdbNodeEngines } from "@surrealdb/node";
 import Table, { Field, Index, applySchema } from "unreal-orm";
 
-// Define a User model
+// Define a User model with validation and custom methods
 class User extends Table.normal({
   name: "user",
   fields: {
     name: Field.string(),
-    email: Field.string({
-      assert: surql`$value CONTAINS "@"`,
-      default: surql`"unknown@example.com"`,
-    }),
+    email: Field.string({ assert: surql`$value CONTAINS "@"` }),
+    createdAt: Field.datetime({ default: surql`time::now()` }),
   },
 }) {
-  // Add custom methods directly to the class
   getDisplayName() {
     return `${this.name} <${this.email}>`;
   }
 }
 
-// Define a Post model with a relation to User
-class Post extends Table.normal({
-  name: "post",
-  fields: {
-    title: Field.string({ default: surql`"Untitled"` }),
-    content: Field.string(),
-    author: Field.record(() => User), // Link to the User table
-  },
-}) {}
-
-// Define a unique index on the user's email
-const UserEmailIndex = Index.define(() => User, {
-  name: "user_email_idx",
+// Define a unique index
+const idx_user_email = Index.define(() => User, {
+  name: "idx_user_email",
   fields: ["email"],
   unique: true,
 });
 
+// Define a Post with a relation to User
+class Post extends Table.normal({
+  name: "post",
+  fields: {
+    title: Field.string(),
+    content: Field.string(),
+    author: Field.record(() => User),
+  },
+}) {}
+
 async function main() {
-  const db = new Surreal({ engines: surrealdbNodeEngines() });
-  await db.connect("mem://");
-  await db.use({ namespace: "demo", database: "demo" });
+  const db = new Surreal();
+  await db.connect("ws://localhost:8000");
+  await db.signin({ username: "root", password: "root" });
+  await db.use({ namespace: "test", database: "test" });
 
-  // Generate and apply schema for all models and indexes
-  await applySchema(db, [User, Post, UserEmailIndex]);
+  // Apply schema to database
+  await applySchema(db, [User, idx_user_email, Post]);
 
-  // Create a user and a post
-  const alice = await User.create(db, {
+  // Create records
+  const user = await User.create(db, {
     name: "Alice",
     email: "alice@example.com",
   });
   const post = await Post.create(db, {
-    title: "Getting Started",
-    content: "This is how you use Unreal-ORM!",
-    author: alice.id, // Link the post to Alice
+    title: "Hello",
+    content: "World",
+    author: user.id,
   });
 
-  // Fetch the post and its author in one query
-  const fetchedPost = await Post.select(db, {
+  // Query with hydrated relations
+  const result = await Post.select(db, {
     from: post.id,
     only: true,
-    fetch: ["author"], // Hydrate the 'author' field
+    fetch: ["author"],
   });
+  console.log(result.author.getDisplayName()); // "Alice <alice@example.com>"
 
-  // Use the hydrated, type-safe data
-  console.log(`Post: "${fetchedPost?.title}"`);
-  console.log(`Author: ${fetchedPost?.author.getDisplayName()}`);
+  // Update with explicit mode
+  await user.update(db, { data: { name: "Alice Smith" }, mode: "merge" });
 
   await db.close();
 }
-
-main();
 ```
 
-▶️ For a full step-by-step build (users, posts, comments, relations) read the [Hands-on Tutorial](https://unreal-orm.jimpex.dev/guides/unreal-orm-tutorial).
+See the [Hands-on Tutorial](https://unreal-orm.jimpex.dev/guides/unreal-orm-tutorial) for a complete walkthrough building a blog API with users, posts, comments, and relations.
 
-> See [Capabilities](https://unreal-orm.jimpex.dev/getting-started/capabilities/) for all supported field options, validation, and SurrealDB mappings.
+## CLI
+
+The CLI helps manage schema synchronization between your code and database:
+
+```bash
+unreal init     # Initialize project with connection and sample tables
+unreal pull     # Generate TypeScript models from database schema
+unreal push     # Apply TypeScript schema to database
+unreal diff     # Compare code vs database schema
+unreal mermaid  # Generate ERD diagram
+```
+
+After `init`, the CLI is installed as a dev dependency and can be run via `bunx unreal` or `npx unreal`.
 
 ## Documentation
 
-For more detailed information, API reference, and advanced usage, visit the [UnrealORM documentation](https://unreal-orm.jimpex.dev/).
+- [Getting Started](https://unreal-orm.jimpex.dev/getting-started/readme/) — Installation and setup
+- [Hands-on Tutorial](https://unreal-orm.jimpex.dev/guides/unreal-orm-tutorial) — Build a blog API step-by-step
+- [Capabilities](https://unreal-orm.jimpex.dev/getting-started/capabilities/) — Supported SurrealDB features
+- [API Reference](https://unreal-orm.jimpex.dev/api/) — Full API documentation
+- [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha) — Upgrading from 0.x
 
-- [Getting Started](https://unreal-orm.jimpex.dev/getting-started/readme/)
-- [Capabilities](https://unreal-orm.jimpex.dev/getting-started/capabilities/)
-- [Contributing Guide](https://unreal-orm.jimpex.dev/contributing/guide/)
-- [Design Principles](https://unreal-orm.jimpex.dev/contributing/design-principles/)
-- [API Reference](https://unreal-orm.jimpex.dev/api/)
+## Community
 
-## Contributing
+- 💬 [GitHub Discussions](https://github.com/Jimpex/unreal-orm/discussions) — Questions & ideas
+- 🐛 [Issues](https://github.com/Jimpex/unreal-orm/issues) — Bug reports
+- 🤝 [Contributing](https://unreal-orm.jimpex.dev/contributing/guide/) — How to contribute
+- ⭐ [Star on GitHub](https://github.com/jimpex/unreal-orm) — Show support
+- ☕ [Ko-fi](https://ko-fi.com/jimpex) — Buy me a coffee
 
-We welcome contributions of all kinds!  
-Please read our [Contributing Guide](https://unreal-orm.jimpex.dev/contributing/guide/) for how to get started, coding standards, and guidelines.
+## Author
 
-If you have questions, ideas, or want to discuss improvements, join our [GitHub Discussions](https://github.com/Jimpex/unreal-orm/discussions).
-
-## Author & Support
-
-unreal-orm is created and maintained by [Jimpex](https://jimpex.dev/).
-
-If you find this project useful, please consider:
-
-- ⭐ Starring the repository on [GitHub](https://github.com/jimpex/unreal-orm)
-- ☕ Supporting the development via [Ko-fi](https://ko-fi.com/jimpex)
-
-Your support helps keep this project active and improving!
-
-## Community & Help
-
-- 💬 **Questions or Ideas?** Join the conversation on our [GitHub Discussions](https://github.com/Jimpex/unreal-orm/discussions)
-- 🐛 **Found a bug?** [Open an issue](https://github.com/Jimpex/unreal-orm/issues)
-- 🤝 **Want to contribute?** See our [Contributing Guidelines](https://github.com/Jimpex/unreal-orm/blob/main/CONTRIBUTING.md)
-- 💡 **Feature requests and feedback are welcome!**
-- 📣 **Share your story or project!** Post in [Discussions](https://github.com/Jimpex/unreal-orm/discussions), ping @jimpex on SurrealDB's Discord, or email: contact@jimpex.dev
+UnrealORM is created and maintained by [Jimpex](https://jimpex.dev/).
 
 ## License
 
-This project is licensed under the [ISC License](LICENSE).
+[ISC License](LICENSE)

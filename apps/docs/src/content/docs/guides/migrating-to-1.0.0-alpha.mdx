@@ -28,7 +28,7 @@ Extra fields (fields not defined in your schema) are now assigned directly to mo
 **Before (pre-1.0):**
 
 ```ts
-const user = await User.select(db, { fetch: ["*"] });
+const user = await User.select(db, { only: true, limit: 1 });
 // Extra fields were in $dynamic
 console.log(user.$dynamic.someExtraField);
 ```
@@ -36,7 +36,7 @@ console.log(user.$dynamic.someExtraField);
 **After (1.0.0 alpha):**
 
 ```ts
-const user = await User.select(db, { fetch: ["*"] });
+const user = await User.select(db, { only: true, limit: 1 });
 // Extra fields are now directly on the instance
 console.log(user.someExtraField);
 ```
@@ -155,12 +155,20 @@ Field.string({
 UnrealORM 1.0.0 alpha introduces a new CLI package for schema management:
 
 ```bash
-# Install the CLI
-npm install -g @unreal-orm/cli
+# Initialize a new project (recommended starting point)
+bunx @unreal-orm/cli init
 
-# Or use with npx
-npx @unreal-orm/cli
+# Or with other package managers
+npx @unreal-orm/cli init
+pnpm dlx @unreal-orm/cli init
+yarn dlx @unreal-orm/cli init
 ```
+
+The `init` command will:
+- Configure your database connection
+- Set up the project structure (`unreal/` folder)
+- Install dependencies (`unreal-orm`, `surrealdb`, `@unreal-orm/cli`)
+- Optionally generate sample tables or import from existing database
 
 ### Available Commands
 
@@ -176,16 +184,12 @@ npx @unreal-orm/cli
 
 ```bash
 # Initialize a new project
-unreal init
+bunx @unreal-orm/cli init
 
-# Pull schema from existing database
-unreal pull --url http://localhost:8000 -u root -p root -n test -d test
-
-# Push local schema to database
-unreal push
-
-# View schema differences
-unreal diff
+# After init, use the CLI directly
+unreal pull    # Generate TypeScript from database
+unreal push    # Apply schema to database
+unreal diff    # Compare code vs database
 ```
 
 ### Smart Merge
@@ -198,17 +202,82 @@ The `pull` command now features intelligent merging that preserves your customiz
 
 See the [CLI README](https://github.com/Jimpex/unreal-orm/tree/main/packages/unreal-cli) for full documentation.
 
+## New: Implicit Database Support
+
+UnrealORM 1.0.0 alpha introduces optional implicit database connections. Configure your database once, then call CRUD methods without passing `db` explicitly.
+
+### Configuration
+
+Run `unreal init` to set up your project:
+
+```bash
+bunx @unreal-orm/cli init
+```
+
+This creates:
+- `unreal/surreal.ts` - Database connection with `Unreal.configure()` call
+- `unreal.config.json` - Project configuration
+
+The generated `surreal.ts` automatically configures the ORM when imported. Just add this import to your app's entry point:
+
+```ts
+// In your main.ts, index.ts, or app entry point
+import "./unreal/surreal";
+```
+
+### Usage
+
+All CRUD methods now support two calling patterns:
+
+```ts
+// Pattern 1: Explicit db (always works)
+const users = await User.select(db, { limit: 10 });
+const user = await User.create(db, { name: "John" });
+await user.update(db, { data: { name: "Jane" }, mode: "merge" });
+await user.delete(db);
+
+// Pattern 2: Implicit db (uses configured default)
+const users = await User.select({ limit: 10 });
+const user = await User.create({ name: "John" });
+await user.update({ data: { name: "Jane" }, mode: "merge" });
+await user.delete();
+```
+
+### Supported Methods
+
+| Method | Explicit | Implicit |
+| ------ | -------- | -------- |
+| `Model.select(db, options)` | ✓ | `Model.select(options)` |
+| `Model.create(db, data)` | ✓ | `Model.create(data)` |
+| `Model.update(db, id, options)` | ✓ | `Model.update(id, options)` |
+| `Model.delete(db, id)` | ✓ | `Model.delete(id)` |
+| `instance.update(db, options)` | ✓ | `instance.update(options)` |
+| `instance.delete(db)` | ✓ | `instance.delete()` |
+
+<Aside type="tip" title="Best Practice">
+  Use explicit `db` for multiple database connections, client-side transactions, or when you need fine-grained session control. Use implicit `db` for simpler applications or scripts where a single database connection is sufficient.
+</Aside>
+
 ## Step-by-Step Migration
 
 ### 1. Update Dependencies
 
+The easiest way is to run the init command which handles everything:
+
+```bash
+bunx @unreal-orm/cli init
+```
+
+Or manually update:
+
 ```bash
 # Update SurrealDB to 2.0 alpha
-npm install surrealdb@alpha @surrealdb/node@alpha
+bun add surrealdb@alpha
+bun add @surrealdb/node@alpha  # if using embedded mode
 
-# Update UnrealORM and CLI
-npm install unreal-orm@alpha
-npm install -g @unreal-orm/cli
+# Update UnrealORM and install CLI
+bun add unreal-orm@alpha
+bun add -D @unreal-orm/cli@alpha
 ```
 
 ### 2. Update Update Method Calls
@@ -471,7 +540,7 @@ if (!db.isFeatureSupported(Features.Transactions)) {
 
 - [ ] Update SurrealDB to 2.0 alpha
 - [ ] Update UnrealORM to 1.0.0 alpha
-- [ ] Install CLI: `npm install -g @unreal-orm/cli`
+- [ ] Run `bunx @unreal-orm/cli init` or install CLI manually
 - [ ] Replace `.$dynamic.field` with `.field` (direct property access)
 - [ ] Replace all `.merge()` calls with `.update({ mode: 'merge' })`
 - [ ] Update all `.update()` calls to use new signature
@@ -481,6 +550,7 @@ if (!db.isFeatureSupported(Features.Transactions)) {
 - [ ] Test all CRUD operations
 - [ ] Verify type safety with TypeScript compiler
 - [ ] Use `unreal diff` to verify schema sync
+- [ ] (Optional) Run `unreal init` to enable implicit database support
 
 ---
 

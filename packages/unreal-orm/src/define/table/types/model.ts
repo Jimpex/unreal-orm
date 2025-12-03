@@ -124,8 +124,37 @@ export declare class BaseTable<TData extends Record<string, unknown>> {
 	 */
 	constructor(data: TData);
 
+	// ============================================================================
+	// UPDATE - Implicit DB overloads (instance methods)
+	// ============================================================================
+
 	/**
-	 * Updates the current record instance using content, merge, or replace mode.
+	 * Updates the current record instance using content, merge, or replace mode (implicit db).
+	 * @param options - Update options including data and mode.
+	 * @returns A promise that resolves to the updated model instance.
+	 * @example
+	 * ```ts
+	 * await user.update({ data: { name: 'Jane' }, mode: 'merge' });
+	 * ```
+	 */
+	update(options: {
+		data: Partial<TData>;
+		mode: "content" | "merge" | "replace";
+	}): Promise<this>;
+
+	/**
+	 * Updates the current record instance using JSON Patch operations (implicit db).
+	 * @param options - Update options including patch operations and mode.
+	 * @returns A promise that resolves to the updated model instance.
+	 */
+	update(options: { data: JsonPatchOperation[]; mode: "patch" }): Promise<this>;
+
+	// ============================================================================
+	// UPDATE - Explicit DB overloads (instance methods)
+	// ============================================================================
+
+	/**
+	 * Updates the current record instance using content, merge, or replace mode (explicit db).
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param options - Update options including data and mode.
 	 * @returns A promise that resolves to the updated model instance.
@@ -144,7 +173,7 @@ export declare class BaseTable<TData extends Record<string, unknown>> {
 	): Promise<this>;
 
 	/**
-	 * Updates the current record instance using JSON Patch operations.
+	 * Updates the current record instance using JSON Patch operations (explicit db).
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param options - Update options including patch operations and mode.
 	 * @returns A promise that resolves to the updated model instance.
@@ -162,8 +191,22 @@ export declare class BaseTable<TData extends Record<string, unknown>> {
 		options: { data: JsonPatchOperation[]; mode: "patch" },
 	): Promise<this>;
 
+	// ============================================================================
+	// DELETE - Implicit and Explicit DB overloads (instance methods)
+	// ============================================================================
+
 	/**
-	 * Deletes the current record instance from the database.
+	 * Deletes the current record instance from the database (implicit db).
+	 * @returns A promise that resolves when the record is deleted.
+	 * @example
+	 * ```ts
+	 * await user.delete();
+	 * ```
+	 */
+	delete(): Promise<void>;
+
+	/**
+	 * Deletes the current record instance from the database (explicit db).
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @returns A promise that resolves when the record is deleted.
 	 * @example
@@ -209,7 +252,22 @@ export type ModelStatic<
 	getTableName(): string;
 
 	/**
-	 * Creates a new record in the database.
+	 * Creates a new record in the database (implicit db).
+	 * Uses the globally configured database connection.
+	 * @param data - The data to create the record with.
+	 * @returns A promise that resolves to the created model instance.
+	 * @example
+	 * ```ts
+	 * const user = await User.create({ name: 'John', email: 'john@example.com' });
+	 * ```
+	 */
+	create<T extends ModelStatic<TInstance, TFields, TOptions>>(
+		this: T,
+		data: CreateData<TFields>,
+	): Promise<InstanceType<T>>;
+
+	/**
+	 * Creates a new record in the database (explicit db).
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param data - The data to create the record with.
 	 * @returns A promise that resolves to the created model instance.
@@ -224,8 +282,90 @@ export type ModelStatic<
 		data: CreateData<TFields>,
 	): Promise<InstanceType<T>>;
 
+	// ============================================================================
+	// SELECT - Implicit DB overloads (uses configured default database)
+	// ============================================================================
+
 	/**
-	 * Selects records with GROUP BY aggregation.
+	 * Selects all full model instances from the table (implicit db).
+	 * @returns A promise that resolves to an array of all model instances.
+	 * @example
+	 * ```ts
+	 * const allUsers = await User.select();
+	 * ```
+	 */
+	select(this: ModelStatic<TInstance, TFields, TOptions>): Promise<TInstance[]>;
+
+	/**
+	 * Selects records with GROUP BY aggregation (implicit db).
+	 */
+	select<
+		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
+	>(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		options: QueryOptions & { groupBy: string[] },
+	): Promise<Record<string, unknown>[]>;
+
+	/**
+	 * Selects a single record with specific field projection (implicit db).
+	 */
+	select<
+		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
+	>(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		options: QueryOptions & { select: string[]; only: true },
+	): Promise<Partial<InferShapeFromFields<TFields>> | undefined>;
+
+	/**
+	 * Selects multiple records with specific field projection (implicit db).
+	 */
+	select<
+		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
+	>(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		options: QueryOptions & { select: string[] },
+	): Promise<Partial<InferShapeFromFields<TFields>>[]>;
+
+	/**
+	 * Selects a single full model instance (implicit db).
+	 */
+	select<
+		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
+	>(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		options: QueryOptions & { only: true; select?: undefined },
+	): Promise<TInstance | undefined>;
+
+	/**
+	 * Selects multiple full model instances with options (implicit db).
+	 */
+	select<
+		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
+	>(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		options: QueryOptions & { select?: undefined },
+	): Promise<TInstance[]>;
+
+	// ============================================================================
+	// SELECT - Explicit DB overloads
+	// ============================================================================
+
+	/**
+	 * Selects all full model instances from the table (explicit db).
+	 * @param db - A SurrealDB connection or transaction object.
+	 * @returns A promise that resolves to an array of all model instances.
+	 * @example
+	 * ```ts
+	 * const allUsers = await User.select(db);
+	 * ```
+	 */
+	select(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		db: SurrealLike,
+	): Promise<TInstance[]>;
+
+	/**
+	 * Selects records with GROUP BY aggregation (explicit db).
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param options - Query options including groupBy clause.
 	 * @returns A promise that resolves to aggregated results.
@@ -243,7 +383,7 @@ export type ModelStatic<
 	): Promise<Record<string, unknown>[]>;
 
 	/**
-	 * Selects a single record with specific field projection.
+	 * Selects a single record with specific field projection (explicit db).
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param options - Query options including select fields and only: true.
 	 * @returns A promise that resolves to the projected record or undefined.
@@ -261,7 +401,7 @@ export type ModelStatic<
 	): Promise<Partial<InferShapeFromFields<TFields>> | undefined>;
 
 	/**
-	 * Selects multiple records with specific field projection.
+	 * Selects multiple records with specific field projection (explicit db).
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param options - Query options including select fields.
 	 * @returns A promise that resolves to an array of projected records.
@@ -279,7 +419,7 @@ export type ModelStatic<
 	): Promise<Partial<InferShapeFromFields<TFields>>[]>;
 
 	/**
-	 * Selects a single full model instance.
+	 * Selects a single full model instance (explicit db).
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param options - Query options with only: true.
 	 * @returns A promise that resolves to the model instance or undefined.
@@ -297,7 +437,7 @@ export type ModelStatic<
 	): Promise<TInstance | undefined>;
 
 	/**
-	 * Selects multiple full model instances with options.
+	 * Selects multiple full model instances with options (explicit db).
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param options - Query options (no field projection).
 	 * @returns A promise that resolves to an array of model instances.
@@ -314,22 +454,43 @@ export type ModelStatic<
 		options: QueryOptions & { select?: undefined },
 	): Promise<TInstance[]>;
 
-	/**
-	 * Selects all full model instances from the table.
-	 * @param db - A SurrealDB connection or transaction object.
-	 * @returns A promise that resolves to an array of all model instances.
-	 * @example
-	 * ```ts
-	 * const allUsers = await User.select(db);
-	 * ```
-	 */
-	select(
-		this: ModelStatic<TInstance, TFields, TOptions>,
-		db: SurrealLike,
-	): Promise<TInstance[]>;
+	// ============================================================================
+	// UPDATE - Implicit DB overloads
+	// ============================================================================
 
 	/**
-	 * Updates a record using content, merge, or replace mode.
+	 * Updates a record using content, merge, or replace mode (implicit db).
+	 * @param id - The record ID to update.
+	 * @param options - Update options including data and mode.
+	 * @returns A promise that resolves to the updated model instance.
+	 */
+	update<T extends ModelStatic<TInstance, TFields, TOptions>>(
+		this: T,
+		id: RecordId,
+		options: {
+			data: Partial<InferShapeFromFields<TFields>>;
+			mode: "content" | "merge" | "replace";
+		},
+	): Promise<InstanceType<T>>;
+
+	/**
+	 * Updates a record using JSON Patch operations (implicit db).
+	 * @param id - The record ID to update.
+	 * @param options - Update options including patch operations and mode.
+	 * @returns A promise that resolves to the updated model instance.
+	 */
+	update<T extends ModelStatic<TInstance, TFields, TOptions>>(
+		this: T,
+		id: RecordId,
+		options: { data: JsonPatchOperation[]; mode: "patch" },
+	): Promise<InstanceType<T>>;
+
+	// ============================================================================
+	// UPDATE - Explicit DB overloads
+	// ============================================================================
+
+	/**
+	 * Updates a record using content, merge, or replace mode (explicit db).
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param id - The record ID to update.
 	 * @param options - Update options including data and mode.
@@ -358,8 +519,9 @@ export type ModelStatic<
 			mode: "content" | "merge" | "replace";
 		},
 	): Promise<InstanceType<T>>;
+
 	/**
-	 * Updates a record using JSON Patch operations.
+	 * Updates a record using JSON Patch operations (explicit db).
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param id - The record ID to update.
 	 * @param options - Update options including patch operations and mode.
@@ -379,8 +541,30 @@ export type ModelStatic<
 		options: { data: JsonPatchOperation[]; mode: "patch" },
 	): Promise<InstanceType<T>>;
 
+	// ============================================================================
+	// DELETE - Implicit DB overload
+	// ============================================================================
+
 	/**
-	 * Deletes a record from the database.
+	 * Deletes a record from the database (implicit db).
+	 * @param id - The record ID to delete.
+	 * @returns A promise that resolves when the record is deleted.
+	 * @example
+	 * ```ts
+	 * await User.delete('user:123');
+	 * ```
+	 */
+	delete<T extends ModelStatic<TInstance, TFields, TOptions>>(
+		this: T,
+		id: RecordId,
+	): Promise<void>;
+
+	// ============================================================================
+	// DELETE - Explicit DB overload
+	// ============================================================================
+
+	/**
+	 * Deletes a record from the database (explicit db).
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param id - The record ID to delete.
 	 * @returns A promise that resolves when the record is deleted.

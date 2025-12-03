@@ -1,5 +1,5 @@
 import type { Surreal, BoundQuery, Expr } from "surrealdb";
-import { RecordId, Table, surql } from "surrealdb";
+import { RecordId, surql } from "surrealdb";
 import type {
 	ModelStatic,
 	InferShapeFromFields,
@@ -14,44 +14,6 @@ import { getDatabase, isSurrealLike } from "../../../config";
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
-
-/**
- * Builds the SELECT and FROM clauses of a SurrealDB query.
- * Handles RecordId interpolation, ONLY clause, and field selection.
- */
-function buildSelectFromClause<TTable>(
-	opts: SelectQueryOptions<TTable>,
-	tableName: string,
-): {
-	selectParts: string[];
-	fromValue: Table | RecordId | BoundQuery | Expr;
-	isDirectIdQuery: boolean;
-} {
-	const selectFields =
-		opts.select && opts.select.length > 0
-			? (opts.select as string[]).join(", ")
-			: "*";
-
-	let fromValue: Table | RecordId | BoundQuery | Expr;
-	let isDirectIdQuery = false;
-
-	if (opts.from) {
-		if (opts.from instanceof RecordId) {
-			fromValue = opts.from;
-			isDirectIdQuery = true;
-		} else {
-			fromValue = opts.from;
-		}
-	} else {
-		fromValue = new Table(tableName);
-	}
-
-	const selectParts = [
-		`SELECT ${selectFields}`,
-		`FROM${opts.only ? " ONLY" : ""}`,
-	];
-	return { selectParts, fromValue, isDirectIdQuery };
-}
 
 /**
  * Builds the ORDER BY clause from OrderByClause objects.
@@ -72,19 +34,18 @@ function buildOrderByClause(orderBy: OrderByClause[]): string {
 }
 
 /**
- * Builds the complete SurrealDB query as a BoundQuery object from query options.
+ * Builds the complete SurrealDB query string and bindings from query options.
  * Assembles all clauses in the correct order: SELECT, FROM, WITH, WHERE, SPLIT, GROUP BY, ORDER BY, LIMIT, START, FETCH, TIMEOUT, PARALLEL, TEMPFILES, EXPLAIN.
+ * Returns raw query string and bindings to avoid BoundQuery module resolution issues.
  */
 function buildQuery<TTable>(
 	opts: SelectQueryOptions<TTable>,
 	tableName: string,
-): { query: BoundQuery; isDirectIdQuery: boolean } {
-	// SELECT and FROM clauses
-	const { selectParts, fromValue, isDirectIdQuery } = buildSelectFromClause(
-		opts,
-		tableName,
-	);
-
+): {
+	queryString: string;
+	bindings: Record<string, unknown>;
+	isDirectIdQuery: boolean;
+} {
 	// Build the base SurrealQL string
 	const onlyClause = opts.only ? " ONLY" : "";
 	const selectFields =
@@ -93,39 +54,51 @@ function buildQuery<TTable>(
 			: "*";
 	let sqlString = `SELECT ${selectFields} FROM${onlyClause}`;
 	const bindings: Record<string, unknown> = {};
+	let isDirectIdQuery = false;
 
-	// Add table/record to bindings and update SQL
-	if (
-		fromValue &&
-		typeof fromValue === "object" &&
-		"query" in fromValue &&
-		"bindings" in fromValue
-	) {
-		// BoundQuery FROM clause - use directly
-		sqlString += ` ${fromValue.query}`;
-		// Merge FROM bindings
-		Object.assign(bindings, fromValue.bindings);
-	} else if (fromValue instanceof Table) {
-		// Table FROM clause - bind as parameter
-		const tableKey = `table_${Date.now()}`;
-		sqlString += ` $${tableKey}`;
-		bindings[tableKey] = fromValue;
-	} else if (fromValue instanceof RecordId) {
-		// RecordId FROM clause - bind as parameter
-		const tableKey = `table_${Date.now()}`;
-		sqlString += ` $${tableKey}`;
-		bindings[tableKey] = fromValue;
-	} else if (fromValue && typeof fromValue === "object") {
-		// Expr FROM clause - convert to BoundQuery using surql template
-		const fromQuery = surql`${fromValue as Expr}`;
-		sqlString += ` ${fromQuery.query}`;
-		// Merge FROM bindings
-		Object.assign(bindings, fromQuery.bindings);
+	// Handle FROM clause - use type::table() for string table names to avoid module issues
+	if (opts.from) {
+		// Check if it's a RecordId-like object (has tb and id properties)
+		if (
+			opts.from &&
+			typeof opts.from === "object" &&
+			"tb" in opts.from &&
+			"id" in opts.from
+		) {
+			// RecordId - bind directly
+			isDirectIdQuery = true;
+			const recordKey = `record_${Date.now()}`;
+			sqlString += ` $${recordKey}`;
+			bindings[recordKey] = opts.from;
+		} else if (
+			opts.from &&
+			typeof opts.from === "object" &&
+			"query" in opts.from &&
+			"bindings" in opts.from
+		) {
+			// BoundQuery FROM clause - use directly
+			const boundQuery = opts.from as {
+				query: string;
+				bindings: Record<string, unknown>;
+			};
+			sqlString += ` ${boundQuery.query}`;
+			Object.assign(bindings, boundQuery.bindings);
+		} else if (typeof opts.from === "string") {
+			// String table name - use type::table()
+			const tableKey = `table_${Date.now()}`;
+			sqlString += ` type::table($${tableKey})`;
+			bindings[tableKey] = opts.from;
+		} else {
+			// Other (Expr, etc.) - convert to BoundQuery using surql template
+			const fromQuery = surql`${opts.from as Expr}`;
+			sqlString += ` ${fromQuery.query}`;
+			Object.assign(bindings, fromQuery.bindings);
+		}
 	} else {
-		// Fallback - bind as parameter
+		// Default: use the model's table name with type::table()
 		const tableKey = `table_${Date.now()}`;
-		sqlString += ` $${tableKey}`;
-		bindings[tableKey] = fromValue;
+		sqlString += ` type::table($${tableKey})`;
+		bindings[tableKey] = tableName;
 	}
 
 	// WITH clause (after FROM)
@@ -219,36 +192,41 @@ function buildQuery<TTable>(
 		sqlString += " EXPLAIN";
 	}
 
-	// Create BoundQuery from SurrealQL string and bindings
-	let query = surql``;
-	query = query.append(sqlString, bindings);
-
-	return { query, isDirectIdQuery };
+	// Return raw query string and bindings to avoid BoundQuery module resolution issues
+	return { queryString: sqlString, bindings, isDirectIdQuery };
 }
 
 /**
  * Executes a SurrealDB query and processes the results.
  * Returns either raw data (for projections/grouping) or hydrated model instances.
+ * Uses string query with bindings to avoid BoundQuery module resolution issues.
  */
 async function executeAndProcessQuery<T, ModelInstanceType, TTable>(
 	db: SurrealLike,
-	query: BoundQuery,
+	queryString: string,
+	bindings: Record<string, unknown>,
 	opts: SelectQueryOptions<TTable>,
 	ModelClass: new (data: T) => ModelInstanceType,
 ): Promise<unknown> {
 	const shouldReturnRawData =
 		!!opts.groupBy || !!opts.select || !!opts.explain || !!opts.split;
 
+	// Use string query with bindings, then collect results
+	const queryBuilder = (db as unknown as Surreal).query(queryString, bindings);
+	const result = (await queryBuilder.collect()) as unknown as unknown[];
+
 	if (opts.only) {
-		// Single record query
-		const [queryResult] = await db.query<T[]>(query).collect();
+		// Single record query with ONLY - returns single object, not array
+		// Result structure: [singleRecord] where singleRecord is the object directly
+		const queryResult = result[0] as T | undefined;
 		return shouldReturnRawData
 			? queryResult
 			: queryResult && new ModelClass(queryResult);
 	}
 
-	// Multiple records query
-	const [queryResults] = await db.query<T[][]>(query).collect();
+	// Multiple records query - returns array of records
+	// Result structure: [recordsArray] where recordsArray is T[]
+	const queryResults = result[0] as T[] | undefined;
 
 	return shouldReturnRawData
 		? queryResults
@@ -342,14 +320,14 @@ export function getSelectMethod<
 
 		const tableName = this.getTableName();
 
-		// Build the complete query
-		const { query } = buildQuery(opts, tableName);
+		// Build the complete query string and bindings
+		const { queryString, bindings } = buildQuery(opts, tableName);
 
 		// Execute query and process results
 		return executeAndProcessQuery<
 			InferShapeFromFields<(typeof this)["_fields"]>,
 			InstanceType<typeof this>,
 			InferShapeFromFields<(typeof this)["_fields"]>
-		>(db, query, opts, this);
+		>(db, queryString, bindings, opts, this);
 	};
 }

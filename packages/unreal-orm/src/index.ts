@@ -7,6 +7,22 @@
 // #region Main API
 
 /**
+ * Unified namespace for ORM configuration, schema utilities, and database access.
+ * Provides a clean API surface for common operations.
+ *
+ * @example
+ * ```ts
+ * import { Unreal, Table, Field } from "unreal-orm";
+ *
+ * Unreal.configure({ getDatabase });
+ * await Unreal.applySchema(db, [User, Post]);
+ * ```
+ *
+ * @see {@link ./unreal.ts}
+ */
+export { Unreal } from "./unreal";
+
+/**
  * The primary interface for defining database tables and their associated models.
  * @see {@link ./define/table/index.ts}
  */

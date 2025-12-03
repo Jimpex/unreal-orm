@@ -354,20 +354,20 @@ export const initCommand = new Command("init")
 		// === Dependency Installation ===
 		const detectedPkgManager = detectPackageManager();
 		const deps = ["unreal-orm@alpha", "surrealdb@alpha"];
+		const devDeps = ["@unreal-orm/cli@alpha"];
 		if (connectionMode === "memory" || connectionMode === "file") {
 			deps.push("@surrealdb/node@alpha");
 		}
-		// Note: dotenv is optional - Bun and many frameworks auto-load .env files
 
 		// Determine if we should install
 		let shouldInstall = options.install;
 		if (shouldInstall === undefined) {
-			// Not specified via flag, prompt user
+			const allDeps = [...deps, ...devDeps.map((d) => `${d} (dev)`)];
 			const { install } = await prompts(
 				{
 					type: "confirm",
 					name: "install",
-					message: `Install dependencies? (${deps.join(", ")})`,
+					message: `Install dependencies? (${allDeps.join(", ")})`,
 					initial: true,
 				},
 				{ onCancel },
@@ -379,7 +379,6 @@ export const initCommand = new Command("init")
 			// Determine package manager
 			let pkgManager: string = options.pm ?? "";
 			if (!pkgManager) {
-				// Prompt with auto-selected detected manager
 				const pmChoices = [
 					{ title: "npm", value: "npm" },
 					{ title: "yarn", value: "yarn" },
@@ -403,14 +402,24 @@ export const initCommand = new Command("init")
 				pkgManager = pm ?? detectedPkgManager;
 			}
 
-			const cmd = getInstallCommand(pkgManager, deps);
+			// Install production dependencies
+			const cmd = getInstallCommand(pkgManager, deps, false);
 			ui.newline();
 			ui.info(`Running: ${cmd}...`);
 			try {
 				execSync(cmd, { stdio: "inherit" });
-				ui.success("Dependencies installed");
 			} catch (e) {
 				ui.error("Failed to install dependencies");
+			}
+
+			// Install dev dependencies (CLI)
+			const devCmd = getInstallCommand(pkgManager, devDeps, true);
+			ui.info(`Running: ${devCmd}...`);
+			try {
+				execSync(devCmd, { stdio: "inherit" });
+				ui.success("Dependencies installed");
+			} catch (e) {
+				ui.error("Failed to install dev dependencies");
 			}
 		}
 
@@ -479,22 +488,116 @@ export const initCommand = new Command("init")
 			ui.info("Run 'unreal pull --file <path>' to import schema");
 		}
 
+		// === Entry point integration ===
+		ui.newline();
+		const entryPointResponse = await prompts(
+			{
+				type: "confirm",
+				name: "addImport",
+				message: "Add import to your entry point? (e.g., index.ts, main.ts)",
+				initial: true,
+			},
+			{ onCancel },
+		);
+
+		if (entryPointResponse.addImport) {
+			// Try to detect common entry points
+			const commonEntryPoints = [
+				"src/index.ts",
+				"src/main.ts",
+				"src/app.ts",
+				"index.ts",
+				"main.ts",
+				"app.ts",
+			];
+
+			let detectedEntry: string | null = null;
+			for (const entry of commonEntryPoints) {
+				const entryPath = path.join(process.cwd(), entry);
+				const exists = await fs
+					.access(entryPath)
+					.then(() => true)
+					.catch(() => false);
+				if (exists) {
+					detectedEntry = entry;
+					break;
+				}
+			}
+
+			const entryResponse = await prompts(
+				{
+					type: "text",
+					name: "entryPoint",
+					message: "Entry point file:",
+					initial: detectedEntry || "src/index.ts",
+				},
+				{ onCancel },
+			);
+
+			const entryPoint = entryResponse.entryPoint;
+			if (entryPoint) {
+				const entryPath = path.join(process.cwd(), entryPoint);
+				const entryExists = await fs
+					.access(entryPath)
+					.then(() => true)
+					.catch(() => false);
+
+				// Calculate relative import path
+				const entryDir = path.dirname(entryPath);
+				let relativePath = path.relative(entryDir, unrealDir);
+				if (!relativePath.startsWith(".")) {
+					relativePath = `./${relativePath}`;
+				}
+				// Normalize to forward slashes for imports
+				relativePath = relativePath.replace(/\\/g, "/");
+				const importLine = `// Initialize database connection and configure ORM (must be first import)
+import "${relativePath}/surreal";`;
+
+				if (entryExists) {
+					// Read existing file and check if import already exists
+					const content = await fs.readFile(entryPath, "utf-8");
+					if (content.includes("/surreal")) {
+						ui.warn("Entry point already imports surreal.ts, skipping");
+					} else {
+						// Add import at the top of the file
+						const newContent = `${importLine}\n${content}`;
+						await fs.writeFile(entryPath, newContent);
+						ui.success(`Added import to ${entryPoint}`);
+					}
+				} else {
+					// Create new entry point file
+					const newContent = `${importLine}\n\n// Your app code here\nconsole.log("Hello from UnrealORM!");\n`;
+					await fs.mkdir(path.dirname(entryPath), { recursive: true });
+					await fs.writeFile(entryPath, newContent);
+					ui.success(`Created ${entryPoint} with import`);
+				}
+			}
+		}
+
 		// === Final completion message ===
 		ui.header("UnrealORM setup complete!", "You are ready to build!");
 
 		console.log(ui.dim("Project structure:"));
 		console.log(ui.dim("  unreal.config.json  - Path configuration"));
 		console.log(ui.dim(`  ${unrealPath}/`));
-		console.log(ui.dim("    surreal.ts        - Database client (editable)"));
+		console.log(
+			ui.dim("    surreal.ts        - Database connection & ORM config"),
+		);
 		console.log(ui.dim("    tables/           - Table definitions"));
 
 		ui.newline();
-		console.log(ui.dim("Next steps:"));
-		console.log(ui.dim("  • Run 'unreal pull' to import schema from database"));
+		console.log(ui.dim("Quick start:"));
 		console.log(
-			ui.dim("  • Run 'unreal push' to apply local schema to database"),
+			ui.dim(`  1. Import "${unrealPath}/surreal" in your entry point`),
 		);
-		console.log(ui.dim("  • Run 'unreal diff' to compare schemas"));
+		console.log(ui.dim("  2. Define tables in tables/ directory"));
+		console.log(ui.dim("  3. Use models: await User.select({ limit: 10 })"));
+
+		ui.newline();
+		console.log(ui.dim("CLI commands:"));
+		console.log(ui.dim("  • unreal pull  - Import schema from database"));
+		console.log(ui.dim("  • unreal push  - Apply local schema to database"));
+		console.log(ui.dim("  • unreal diff  - Compare schemas"));
 		ui.newline();
 
 		// Star prompt
@@ -514,17 +617,18 @@ function detectPackageManager() {
 	return "npm";
 }
 
-function getInstallCommand(manager: string, deps: string[]) {
+function getInstallCommand(manager: string, deps: string[], isDev: boolean) {
 	const depStr = deps.join(" ");
+	const devFlag = isDev ? " -D" : "";
 	switch (manager) {
 		case "bun":
-			return `bun add ${depStr}`;
+			return `bun add${devFlag} ${depStr}`;
 		case "pnpm":
-			return `pnpm add ${depStr}`;
+			return `pnpm add${devFlag} ${depStr}`;
 		case "yarn":
-			return `yarn add ${depStr}`;
+			return `yarn add${devFlag} ${depStr}`;
 		default:
-			return `npm install ${depStr}`;
+			return `npm install${isDev ? " --save-dev" : ""} ${depStr}`;
 	}
 }
 
@@ -593,9 +697,11 @@ function generateSurrealClient(mode: string): string {
 
 	// Imports
 	const imports = isEmbedded
-		? `import { createRemoteEngines, Surreal } from "surrealdb";
+		? `import { Unreal } from "unreal-orm";
+import { createRemoteEngines, Surreal } from "surrealdb";
 import { createNodeEngines } from "@surrealdb/node";`
-		: `import { Surreal } from "surrealdb";`;
+		: `import { Unreal } from "unreal-orm";
+import { Surreal } from "surrealdb";`;
 
 	// Env var declarations
 	const envDeclarations = envVars
@@ -635,67 +741,103 @@ import { createNodeEngines } from "@surrealdb/node";`
 	const urlRef = isEmbedded ? "SURREAL_URL!" : "SURREAL_URL";
 
 	return `/**
- * SurrealDB Client (${modeLabel} Mode)
- * 
- * This file is generated by UnrealORM but you can customize it.
- * Provides a singleton database connection with lazy initialization.
- * 
- * IMPORTANT: The following functions must be exported for CLI compatibility:
- * - getDatabase(): Returns the database instance
- * - connect(): Establishes the connection
- * - close(): Closes the connection
- * 
- * Required Environment Variables:
-${envVars.map((v) => ` * - ${v}${v === "SURREAL_URL" ? `: Connection URL (e.g., ${urlExample})` : ""}`).join("\n")}
- * 
- * Note: The CLI automatically loads .env files. For your own app, ensure env
- * vars are available (Bun/Vite/Next.js auto-load them, or use dotenv).
+ * SurrealDB Client Configuration (${modeLabel} Mode)
+ *
+ * This file manages your database connection and configures the ORM.
+ * Generated by UnrealORM CLI - feel free to customize.
+ *
+ * ## Setup
+ *
+ * 1. Import this file once in your app's entry point:
+ *    \`\`\`ts
+ *    import "./unreal/surreal";
+ *    \`\`\`
+ *
+ * 2. Use ORM models anywhere in your app:
+ *    \`\`\`ts
+ *    import { User } from "./unreal/tables/User";
+ *    const users = await User.select({ limit: 10 });
+ *    \`\`\`
+ *
+ * ## Direct Database Access
+ *
+ * For raw queries or operations not covered by the ORM:
+ * \`\`\`ts
+ * import { getDatabase } from "./unreal/surreal";
+ *
+ * const db = await getDatabase();
+ * const result = await db.query("SELECT * FROM user WHERE active = true");
+ * \`\`\`
+ *
+ * ## Required Environment Variables
+ *
+${envVars.map((v) => ` * - \`${v}\`${v === "SURREAL_URL" ? ` - Connection URL (e.g., ${urlExample})` : ""}`).join("\n")}
+ *
+ * Note: Bun, Vite, and Next.js auto-load .env files.
+ * For Node.js, use \`dotenv\` or set variables manually.
  */
 
 ${imports}
 
-// Configuration from environment variables (required)
+// =============================================================================
+// Environment Configuration
+// =============================================================================
+
 ${envDeclarations}
 
 if (!${envCheck}) {
 	throw new Error(
-		"Missing required environment variables: ${envList}"
+		"Missing required SurrealDB environment variables: ${envList}\\n" +
+		"Make sure your .env file exists and contains these variables."
 	);
 }
+
+// =============================================================================
+// Database Connection
+// =============================================================================
 
 let db: Surreal | null = null;
 let connectionPromise: Promise<Surreal> | null = null;
 
 /**
  * Get the database instance, connecting if necessary.
- * This is the recommended way to access the database.
+ *
+ * This is the recommended way to access the database for direct queries.
+ * The connection is lazy-initialized on first call and cached.
+ *
+ * @example
+ * \`\`\`ts
+ * const db = await getDatabase();
+ * const result = await db.query(surql\`SELECT * FROM user\`);
+ * \`\`\`
  */
 export async function getDatabase(): Promise<Surreal> {
 	if (db) return db;
-	
-	// Prevent multiple simultaneous connection attempts
 	if (connectionPromise) return connectionPromise;
-	
 	connectionPromise = connect();
 	return connectionPromise;
 }
 
 /**
- * Connect to the database.
- * Prefer using getDatabase() for automatic connection management.
+ * Establish the database connection.
+ *
+ * Prefer using \`getDatabase()\` which handles caching automatically.
+ * Use this directly only if you need to force a new connection.
  */
 export async function connect(): Promise<Surreal> {
 	if (db) return db;
-	
+
 	${surrealInit}
-	
+
 	await db.connect(${urlRef}, ${connectOptions});
-	
+
 	return db;
 }
 
 /**
  * Close the database connection.
+ *
+ * Call this when shutting down your application gracefully.
  */
 export async function close(): Promise<void> {
 	if (db) {
@@ -705,6 +847,13 @@ export async function close(): Promise<void> {
 	}
 }
 
-export default { getDatabase, connect, close };
+// =============================================================================
+// ORM Configuration
+// =============================================================================
+
+// Configure the ORM to use this database connection.
+// This enables implicit database usage in model methods:
+//   await User.select({ limit: 10 })  // No need to pass db
+Unreal.configure({ getDatabase });
 `;
 }

@@ -111,10 +111,19 @@ export function getUpdateMethod<
 		if (isSurrealLike(dbOrOptions)) {
 			// Pattern: update(db, options)
 			db = dbOrOptions;
-			options = maybeOptions as UpdateOptions<TableData>;
+			if (maybeOptions === undefined) {
+				throw new Error(
+					"update(db, options) requires options as second argument. " +
+						"Did you mean to use update(options) with a configured database?",
+				);
+			}
+			options = maybeOptions;
 		} else {
 			// Pattern: update(options) - use configured default
 			db = await getDatabase();
+			if (dbOrOptions === undefined || dbOrOptions === null) {
+				throw new Error("update(options) requires options object");
+			}
 			options = dbOrOptions;
 		}
 
@@ -199,12 +208,32 @@ export function getStaticUpdateMethod<
 		if (isSurrealLike(dbOrId)) {
 			// Pattern: update(db, id, options)
 			db = dbOrId;
+			if (!(idOrOptions instanceof Object && "tb" in idOrOptions)) {
+				throw new Error(
+					"update(db, id, options) requires RecordId as second argument",
+				);
+			}
 			id = idOrOptions as RecordId;
-			options = maybeOptions as UpdateOptions<TableData>;
+			if (maybeOptions === undefined) {
+				throw new Error(
+					"update(db, id, options) requires options as third argument",
+				);
+			}
+			options = maybeOptions;
 		} else {
 			// Pattern: update(id, options) - use configured default
 			db = await getDatabase();
 			id = dbOrId;
+			if (idOrOptions === undefined || idOrOptions === null) {
+				throw new Error(
+					"update(id, options) requires options as second argument",
+				);
+			}
+			if (!("mode" in idOrOptions)) {
+				throw new Error(
+					"update(id, options) second argument must be UpdateOptions with 'mode' property",
+				);
+			}
 			options = idOrOptions as UpdateOptions<TableData>;
 		}
 

@@ -39,7 +39,6 @@ export function getCreateMethod<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 >() {
 	type TableData = InferShapeFromFields<TFields>;
-	type CreateInputData = InferShapeFromFields<TFields>;
 
 	// Type for relation table data with required in/out RecordId fields
 	type RelationCreateData = {
@@ -66,10 +65,19 @@ export function getCreateMethod<
 		if (isSurrealLike(dbOrData)) {
 			// Pattern: create(db, data)
 			db = dbOrData;
-			data = maybeData as CreateData<TFields>;
+			if (maybeData === undefined) {
+				throw new Error(
+					"create(db, data) requires data as second argument. " +
+						"Did you mean to use create(data) with a configured database?",
+				);
+			}
+			data = maybeData;
 		} else {
 			// Pattern: create(data) - use configured default
 			db = await getDatabase();
+			if (dbOrData === undefined || dbOrData === null) {
+				throw new Error("create(data) requires data object");
+			}
 			data = dbOrData;
 		}
 
@@ -98,11 +106,23 @@ export function getCreateMethod<
 				relationData,
 			);
 		} else {
-			// For normal tables, use the new create builder pattern
-			const createdRecords = await db
-				.create(new Table(this.getTableName()))
-				.content(data as CreateInputData);
-			createdRecord = createdRecords[0] as { [key: string]: unknown };
+			// For normal tables, use query-based create to avoid Table class module issues
+			// The SurrealDB SDK's builder API (db.create().content()) doesn't work across
+			// different package versions due to class identity checks on Table/BoundQuery
+			const tableName = this.getTableName();
+			const queryStr = "CREATE type::table($table) CONTENT $data RETURN AFTER";
+			const bindings = { table: tableName, data };
+
+			// Call query with string and bindings, then collect results
+			const queryBuilder = (db as unknown as Surreal).query(queryStr, bindings);
+			const result = (await queryBuilder.collect()) as unknown as [
+				Record<string, unknown>[],
+			];
+			const record = result[0]?.[0];
+			if (!record) {
+				throw new Error(`Failed to create record in table ${tableName}`);
+			}
+			createdRecord = record;
 		}
 		const instance = new this(createdRecord as TableData) as InstanceType<T>;
 

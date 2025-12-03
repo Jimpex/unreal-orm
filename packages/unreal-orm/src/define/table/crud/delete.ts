@@ -93,10 +93,19 @@ export function getStaticDeleteMethod<
 		if (isSurrealLike(dbOrId)) {
 			// Pattern: delete(db, id)
 			db = dbOrId;
-			id = maybeId as RecordId;
+			if (maybeId === undefined) {
+				throw new Error(
+					"delete(db, id) requires RecordId as second argument. " +
+						"Did you mean to use delete(id) with a configured database?",
+				);
+			}
+			id = maybeId;
 		} else {
 			// Pattern: delete(id) - use configured default
 			db = await getDatabase();
+			if (dbOrId === undefined || dbOrId === null) {
+				throw new Error("delete(id) requires RecordId argument");
+			}
 			id = dbOrId;
 		}
 

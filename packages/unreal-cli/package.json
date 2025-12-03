@@ -13,7 +13,8 @@
 	},
 	"scripts": {
 		"build": "bun build ./src/index.ts --outdir ./dist --target node --format esm --packages external --minify",
-		"prepublishOnly": "bun run build"
+		"prepublishOnly": "bun run build",
+		"publish:flow": "bun run build && bun publish"
 	},
 	"dependencies": {
 		"@commander-js/extra-typings": "^14.0.0",

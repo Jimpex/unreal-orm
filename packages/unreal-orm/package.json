@@ -6,6 +6,7 @@
 		"tag": "alpha"
 	},
 	"description": "UnrealORM is a modern, type-safe ORM for SurrealDB that gives you native SurrealDB power, full TypeScript safety, and zero abstraction—no decorators, no magic, just classes and functions. Designed for developers who want direct control, advanced schema features, and a frictionless experience.",
+	"type": "module",
 	"main": "dist/index.js",
 	"module": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -19,7 +20,7 @@
 	},
 	"scripts": {
 		"test": "bun test",
-		"build": "tsc --project tsconfig.json",
+		"build": "bun build ./src/index.ts --outdir ./dist --target node --format esm --packages external && tsc --emitDeclarationOnly --project tsconfig.json",
 		"prepublishOnly": "bun run test && bun run build",
 		"publish:flow": "bun run test && bun run build && bun publish"
 	},

@@ -2,15 +2,45 @@
 
 Command-line interface for UnrealORM - a TypeScript ORM for SurrealDB.
 
-## Installation
+## Quick Start
+
+The fastest way to get started with UnrealORM:
 
 ```bash
-# Install globally
-npm install -g @unreal-orm/cli
+# Using bunx (recommended)
+bunx @unreal-orm/cli init
 
-# Or use with npx/bunx
-npx @unreal-orm/cli
-bunx @unreal-orm/cli
+# Or with other package managers
+npx @unreal-orm/cli init
+pnpm dlx @unreal-orm/cli init
+yarn dlx @unreal-orm/cli init
+```
+
+This interactive command will:
+
+- Configure your database connection
+- Set up the project structure (`unreal/` folder)
+- Install dependencies (`unreal-orm`, `surrealdb`, `@unreal-orm/cli`)
+- Optionally generate sample tables or import from existing database
+
+## Installation
+
+After running `init`, the CLI is installed as a dev dependency. You can then use it via:
+
+```bash
+# Using package.json scripts (recommended)
+bun unreal pull
+npm run unreal pull
+
+# Or directly
+bunx unreal pull
+npx unreal pull
+```
+
+For global installation (optional):
+
+```bash
+npm install -g @unreal-orm/cli
 ```
 
 ## Commands
