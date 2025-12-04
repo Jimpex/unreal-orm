@@ -153,7 +153,7 @@ async function loadFromSurrealTs(surrealPath: string): Promise<Surreal> {
 		// This ensures CLI works regardless of runtime environment
 		try {
 			const dotenv = await import("dotenv");
-			dotenv.config();
+			dotenv.config({ quiet: true });
 		} catch {
 			// dotenv not installed - env vars must be set by environment
 		}

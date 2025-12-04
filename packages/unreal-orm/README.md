@@ -164,6 +164,7 @@ unreal pull     # Generate TypeScript models from database schema
 unreal push     # Apply TypeScript schema to database
 unreal diff     # Compare code vs database schema
 unreal mermaid  # Generate ERD diagram
+unreal view     # Interactive TUI for browsing/editing records
 ```
 
 After `init`, the CLI is installed as a dev dependency and can be run via `bunx unreal` or `npx unreal`.

@@ -1,0 +1,6 @@
+/* Custom styles for UnrealORM docs */
+
+/* Fix banner overflow issue from theme */
+.sl-banner {
+	margin-left: auto;
+}

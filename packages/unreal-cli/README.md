@@ -181,6 +181,47 @@ Options:
 - Detects added, removed, and modified tables/fields/indexes
 - Shows field-level details with `--detailed` flag
 
+### `view`
+
+Interactive TUI for browsing and editing database records.
+
+```bash
+unreal view [options]
+
+Options:
+  --url <url>                  Database URL (e.g., http://localhost:8000)
+  -u, --username <username>    Database username
+  -p, --password <password>    Database password
+  -n, --namespace <namespace>  Database namespace
+  -d, --database <database>    Database name
+  --auth-level <level>         Auth level: root, namespace, or database
+  --embedded <mode>            Use embedded mode (memory or file path)
+  --page-size <size>           Records per page (5-100, default: auto)
+  --timeout <seconds>          Query timeout in seconds (default: 3)
+  --concurrency <count>        Max concurrent count queries (default: 5)
+```
+
+**Features:**
+
+- Browse all tables with record counts
+- Navigate and view records with pagination
+- Edit record fields with multi-line text editor
+- Add/remove fields, delete records
+- Batch editing with change preview before saving
+- Filter tables by name
+
+**Keyboard shortcuts:**
+
+- `↑/↓` or `j/k` - Navigate
+- `Enter` - Select/Edit
+- `e` - Edit field
+- `+` - Add field
+- `-` - Remove field
+- `s` - Save changes
+- `d` - Delete record
+- `b` or `Esc` - Go back
+- `q` - Quit
+
 ### `mermaid`
 
 Generate Mermaid ERD diagrams from your schema.

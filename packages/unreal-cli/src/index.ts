@@ -7,6 +7,7 @@ import { diffCommand } from "./commands/diff";
 import { mermaidCommand } from "./commands/mermaid";
 import { githubCommand } from "./commands/github";
 import { docsCommand } from "./commands/docs";
+import { viewCommand } from "./commands/view";
 import { CLI_VERSION, checkForUpdates } from "./utils/version";
 
 const program = new Command()
@@ -24,6 +25,7 @@ program.addCommand(pushCommand);
 program.addCommand(diffCommand);
 program.addCommand(mermaidCommand);
 program.addCommand(docsCommand);
+program.addCommand(viewCommand);
 program.addCommand(githubCommand);
 
 program.parse();

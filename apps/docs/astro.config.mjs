@@ -25,6 +25,7 @@ export default defineConfig({
         }),
       ],
       title: "unreal-orm",
+      customCss: ["./src/styles/custom.css"],
       logo: {
         dark: "./src/assets/unreal-orm-logo-white.svg",
         light: "./src/assets/unreal-orm-logo-black.svg",
@@ -49,6 +50,10 @@ export default defineConfig({
         {
           label: "Guides",
           autogenerate: { directory: "guides" },
+        },
+        {
+          label: "CLI Reference",
+          autogenerate: { directory: "cli" },
         },
         {
           label: "Contributing",

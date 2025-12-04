@@ -21,6 +21,7 @@ pnpm-debug.log*
 .DS_Store
 
 src/content/docs/api
+src/content/docs/cli
 src/content/docs/package
 src/content/docs/getting-started/readme.md
 
