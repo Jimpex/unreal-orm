@@ -13,14 +13,13 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js",
-			"require": "./dist/index.js"
+			"import": "./dist/index.js"
 		},
 		"./schema.json": "./unreal.schema.json"
 	},
 	"scripts": {
 		"test": "bun test",
-		"build": "bun build ./src/index.ts --outdir ./dist --target node --format esm --packages external && tsc --emitDeclarationOnly --project tsconfig.json",
+		"build": "unbuild",
 		"prepublishOnly": "bun run test && bun run build",
 		"publish:flow": "bun run test && bun run build && bun publish"
 	},
@@ -39,7 +38,8 @@
 		"@surrealdb/node": "2.3.4",
 		"@types/bun": "^1.2.16",
 		"@types/node": "^22.15.29",
-		"surrealdb": "^2.0.0-alpha.14"
+		"surrealdb": "^2.0.0-alpha.14",
+		"unbuild": "^3.6.1"
 	},
 	"peerDependencies": {
 		"surrealdb": "^2.0.0-alpha.14",
