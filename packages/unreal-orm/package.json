@@ -1,9 +1,9 @@
 {
 	"name": "unreal-orm",
-	"version": "1.0.0-alpha.3",
+	"version": "1.0.0-alpha.4",
 	"publishConfig": {
 		"access": "public",
-		"tag": "alpha"
+		"tag": "latest"
 	},
 	"description": "UnrealORM is a modern, type-safe ORM for SurrealDB that gives you native SurrealDB power, full TypeScript safety, and zero abstraction—no decorators, no magic, just classes and functions. Designed for developers who want direct control, advanced schema features, and a frictionless experience.",
 	"type": "module",
