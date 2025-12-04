@@ -52,20 +52,20 @@ This will:
 
 ```bash
 # Using bun
-bun add unreal-orm@alpha surrealdb@alpha
-bun add -D @unreal-orm/cli@alpha
+bun add unreal-orm@latest surrealdb@alpha
+bun add -D @unreal-orm/cli@latest
 
 # Using pnpm
-pnpm add unreal-orm@alpha surrealdb@alpha
-pnpm add -D @unreal-orm/cli@alpha
+pnpm add unreal-orm@latest surrealdb@alpha
+pnpm add -D @unreal-orm/cli@latest
 
 # Using npm
-npm install unreal-orm@alpha surrealdb@alpha
-npm install -D @unreal-orm/cli@alpha
+npm install unreal-orm@latest surrealdb@alpha
+npm install -D @unreal-orm/cli@latest
 
 # Using yarn
-yarn add unreal-orm@alpha surrealdb@alpha
-yarn add -D @unreal-orm/cli@alpha
+yarn add unreal-orm@latest surrealdb@alpha
+yarn add -D @unreal-orm/cli@latest
 ```
 
 </details>

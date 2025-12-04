@@ -353,8 +353,8 @@ export const initCommand = new Command("init")
 
 		// === Dependency Installation ===
 		const detectedPkgManager = detectPackageManager();
-		const deps = ["unreal-orm@alpha", "surrealdb@alpha"];
-		const devDeps = ["@unreal-orm/cli@alpha"];
+		const deps = ["unreal-orm@latest", "surrealdb@alpha"];
+		const devDeps = ["@unreal-orm/cli"];
 		if (connectionMode === "memory" || connectionMode === "file") {
 			deps.push("@surrealdb/node@alpha");
 		}
