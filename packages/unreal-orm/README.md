@@ -27,7 +27,7 @@ A modern, type-safe ORM for SurrealDB. Native SurrealDB power, full TypeScript s
 
 UnrealORM builds on top of the official `surrealdb` package, providing a TypeScript ORM experience while preserving full access to SurrealDB's native features. Define your schema once in code, and the ORM handles type inference, DDL generation, and schema synchronization.
 
-> **Note:** UnrealORM 1.0.0 alpha supports SurrealDB 2.0 alpha SDK. See the [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha) for upgrade instructions and new features like transactions, enhanced update API, and implicit database support.
+> **Note:** UnrealORM 1.0.0-alpha.x requires SurrealDB's 2.0 (alpha) JS SDK. If you're using 1.x of their SDK, install [unreal-orm@0.6.0](https://www.npmjs.com/package/unreal-orm/v/0.6.0) instead. To upgrade, see the [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha).
 
 ## Quick Start
 

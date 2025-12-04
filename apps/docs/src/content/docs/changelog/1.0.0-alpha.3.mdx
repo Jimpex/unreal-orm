@@ -1,0 +1,165 @@
+---
+title: v1.0.0-alpha.3
+description: Changelog for Unreal ORM v1.0.0-alpha.3
+lastUpdated: 2025-12-03
+sidebar_label: 1.0.0-alpha.3
+sidebar_position: 7
+tags:
+  - release
+  - changelog
+  - alpha
+toc: true
+feedback: true
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This alpha release marks the **first public release of `@unreal-orm/cli`** — a complete CLI toolkit for schema management. It also introduces implicit database support and significant DX improvements.
+
+## 🚀 Introducing @unreal-orm/cli
+
+The new CLI package provides powerful tools for managing your SurrealDB schema:
+
+```bash
+# Quick start
+bunx @unreal-orm/cli init
+
+# Or with other package managers
+npx @unreal-orm/cli init
+```
+
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `unreal init` | Initialize project with connection and sample tables |
+| `unreal pull` | Generate TypeScript models from database schema |
+| `unreal push` | Apply TypeScript schema to database |
+| `unreal diff` | Compare code vs database schema |
+| `unreal mermaid` | Generate ERD diagrams |
+| `unreal view` | Interactive TUI for browsing/editing records |
+| `unreal docs` | Open documentation |
+| `unreal github` | Open GitHub repository |
+
+## ✨ Features
+
+### Interactive Database Viewer
+
+New `unreal view` command provides a TUI for browsing and editing database records directly from the terminal.
+
+```bash
+unreal view
+```
+
+**Capabilities:**
+- **Table list** with concurrent count fetching
+- **Records view** with pagination and row selection
+- **Record detail view** with batch editing
+- **Multi-line text editor** with cursor movement and optimized rendering
+- Configurable `--timeout` and `--concurrency` options
+
+**Keyboard shortcuts:**
+- `↑/↓` or `j/k` — Navigate
+- `Enter` — Select/Edit
+- `e` — Edit field
+- `+` — Add field, `-` — Remove field
+- `s` — Save changes
+- `d` — Delete record
+- `b` or `Esc` — Go back
+- `q` — Quit
+
+### Implicit Database Support
+
+All CRUD methods now support implicit database connections, reducing boilerplate:
+
+```typescript
+// Before: explicit db required
+const users = await User.select(db, { limit: 10 });
+const user = await User.create(db, { name: "John" });
+
+// After: implicit db (uses configured default)
+const users = await User.select({ limit: 10 });
+const user = await User.create({ name: "John" });
+```
+
+<Aside type="tip" title="Configuration">
+  Run `unreal init` to set up implicit database support. The generated `surreal.ts` automatically configures the ORM when imported.
+</Aside>
+
+### Enhanced Init Experience
+
+The `unreal init` command is now the primary entry point with improved DX:
+
+- **CLI as dev dependency** — Installed automatically for local usage
+- **Auto-inject surreal.ts import** — Optionally adds import to your app entry point
+- **Package manager detection** — Supports npm, yarn, pnpm, and bun
+
+### Auto-Generated CLI Documentation
+
+CLI reference documentation is now automatically generated from Commander.js definitions:
+
+- New **CLI Reference** section in docs sidebar
+- Individual pages for each command with options tables
+- Stays in sync with actual CLI implementation
+
+## 🔧 Improvements
+
+### Schema Architecture Refactor
+
+- **Centralized AST logic** — Schema AST, parser, and generator moved from `unreal-cli` to `unreal-orm`
+- **AST-based DDL generation** — Replaced legacy DDL generation with unified AST implementation
+- **Shared utilities** — CLI now uses schema utilities exported from ORM package
+
+### Build & Module Resolution
+
+- **ESM fixes** — Resolved runtime ESM errors using `bun build`
+- **Consistent release process** — Added `publish:flow` script to both packages
+
+### Documentation
+
+- **Galaxy theme** — Added starlight-theme-galaxy plugin for improved docs styling
+- **Updated migration guide** — Comprehensive CLI tools documentation
+- **Fixed banner overflow** — Custom CSS fix for theme styling issue
+
+## 💥 Breaking Changes
+
+### `$dynamic` Property Removed
+
+Extra fields (fields not defined in your schema) are now assigned directly to model instances.
+
+```typescript
+// Before
+console.log(user.$dynamic.someExtraField);
+
+// After
+console.log(user.someExtraField);
+```
+
+### Enhanced `from()` Method
+
+The `from` method now supports `surql` template literals and raw queries:
+
+```typescript
+import { surql } from "surrealdb";
+
+// Record ID (still works)
+const user = await User.from(db, "user:123");
+
+// SurrealQL query (new)
+const users = await User.from(db, surql`SELECT * FROM user WHERE age > 18`);
+
+// Raw query string (new)
+const users = await User.from(db, { raw: "SELECT * FROM user WHERE active = true" });
+```
+
+## 📦 Package Updates
+
+| Package | Version |
+|---------|---------|
+| `unreal-orm` | 1.0.0-alpha.3 |
+| `@unreal-orm/cli` | 1.0.0-alpha.3 |
+
+## 🔗 Links
+
+- [Migration Guide](/guides/migrating-to-1.0.0-alpha/)
+- [CLI Reference](/cli/)

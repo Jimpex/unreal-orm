@@ -1,11 +1,11 @@
 {
 	"name": "@unreal-orm/cli",
-	"version": "1.0.0-alpha.2",
+	"version": "1.0.0-alpha.3",
 	"description": "CLI tools for UnrealORM - schema introspection, diffing, and migrations for SurrealDB",
 	"type": "module",
 	"main": "dist/index.js",
 	"bin": {
-		"unreal": "./dist/index.js"
+		"unreal": "dist/index.js"
 	},
 	"publishConfig": {
 		"access": "public",
