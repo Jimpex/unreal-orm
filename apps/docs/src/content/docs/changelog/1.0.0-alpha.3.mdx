@@ -1,6 +1,6 @@
 ---
-title: v1.0.0-alpha.3 & v1.0.0-alpha.4
-description: Changelog for Unreal ORM v1.0.0-alpha.3 & v1.0.0-alpha.4
+title: v1.0.0-alpha.3 – alpha.5
+description: Changelog for Unreal ORM v1.0.0-alpha.3 through v1.0.0-alpha.5
 lastUpdated: 2025-12-03
 sidebar_label: 1.0.0-alpha.3
 sidebar_position: 7
@@ -156,11 +156,17 @@ const users = await User.from(db, { raw: "SELECT * FROM user WHERE active = true
 
 | Package | Version |
 |---------|---------|
-| `unreal-orm` | 1.0.0-alpha.3 → 1.0.0-alpha.4 |
-| `@unreal-orm/cli` | 1.0.0-alpha.3 → 1.0.0-alpha.4 |
+| `unreal-orm` | 1.0.0-alpha.3 → 1.0.0-alpha.5 |
+| `@unreal-orm/cli` | 1.0.0-alpha.3 → 1.0.0-alpha.5 |
+
+### 1.0.0-alpha.5 (Patch)
+
+- **fix(cli)**: Update `init` command to install packages with `@latest` tag
+- **docs**: update docs to use `@latest` tag
 
 ### 1.0.0-alpha.4 (Patch)
 
+- **chore**: Switch publish tag from `alpha` to `latest`
 - **fix(orm)**: Switch build from `bun build` to `unbuild` to fix Node.js ESM resolution errors when using `bunx @unreal-orm/cli`
 
 ## 🔗 Links
