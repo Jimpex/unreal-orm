@@ -431,9 +431,8 @@ describe("generateCode", () => {
 		const files = generateCode(schema);
 		const code = files.get("Product.ts");
 
-		expect(code).toContain(
-			"variants: Field.array(Field.object({} /* Schema not inferred */))",
-		);
+		expect(code).toContain("variants: Field.array(Field.object({}))");
+		expect(code).not.toContain("/* Schema not inferred */");
 	});
 
 	test("handles object containing arrays", () => {

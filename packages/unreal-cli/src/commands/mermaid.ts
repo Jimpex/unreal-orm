@@ -5,6 +5,7 @@ import { loadConfig, resolveSchemaDir } from "../utils/config";
 import { extractSchemaFromRuntime } from "../diff/parseTypeScript";
 import { introspect } from "../introspection/introspect";
 import { parseSurqlFile } from "../introspection/parseSurql";
+import { displayWarnings, clearWarnings } from "../introspection/warnings";
 import { resolveConnection } from "../utils/connect";
 import { promptText, promptSelect } from "../utils/prompts";
 import type { SchemaAST, TableAST, FieldAST } from "unreal-orm";
@@ -37,6 +38,7 @@ export const mermaidCommand = new Command("mermaid")
 	.option("--embedded <mode>", "Use embedded mode (memory or file path)")
 	.action(async (options) => {
 		ui.header("Mermaid ERD Generator", "Visualize your schema");
+		clearWarnings();
 
 		const spinner = ui.spin("Loading configuration...");
 
@@ -183,6 +185,9 @@ export const mermaidCommand = new Command("mermaid")
 					"Tip: Preview with VS Code Mermaid extension,\n     https://mermiko.com, or https://mermaid.live",
 				);
 			}
+
+			// Display any warnings from parsing
+			displayWarnings();
 		} catch (error) {
 			spinner.fail("Failed to generate diagram");
 			ui.error(error instanceof Error ? error.message : String(error));

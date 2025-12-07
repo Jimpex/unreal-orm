@@ -146,13 +146,15 @@ export function parseTableDefinition(ql: string): Partial<TableAST> {
 export function parseFieldDefinition(ql: string): FieldAST {
 	// Format: DEFINE FIELD name ON [TABLE] table TYPE type ...
 	// Support wildcards: field.* and array notation field[*] for nested schemas
+	// Support backtick-escaped names like `value` for reserved words
 	const nameMatch = ql.match(
-		/DEFINE\s+FIELD\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:OVERWRITE\s+)?([\w.*[\]]+)\s+ON\s+(?:TABLE\s+)?[\w.]+/i,
+		/DEFINE\s+FIELD\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:OVERWRITE\s+)?(`[^`]+`|[\w.*[\]]+)\s+ON\s+(?:TABLE\s+)?[\w.]+/i,
 	);
 	if (!nameMatch || !nameMatch[1]) {
 		throw new Error(`Could not parse field name from: ${ql}`);
 	}
-	const name: string = nameMatch[1];
+	// Remove backticks from escaped names
+	const name: string = nameMatch[1].replace(/^`|`$/g, "");
 
 	// Extract TYPE - must come after ON clause, capture until next keyword
 	const typeMatch = ql.match(
@@ -183,6 +185,9 @@ export function parseFieldDefinition(ql: string): FieldAST {
 	);
 	const assert = assertMatch?.[1] ? assertMatch[1].trim() : undefined;
 
+	// Extract READONLY
+	const readonly = /\bREADONLY\b/i.test(ql);
+
 	const permissions = parsePermissions(ql);
 
 	return {
@@ -192,6 +197,7 @@ export function parseFieldDefinition(ql: string): FieldAST {
 		default: defaultValue,
 		value,
 		assert,
+		readonly,
 		permissions,
 	};
 }

@@ -43,7 +43,19 @@ export const pullCommand = new Command()
 			config: unrealConfig,
 		});
 
+		// Check if any DB credentials were explicitly provided
+		const hasDbCredentials =
+			options.url ||
+			options.username ||
+			options.password ||
+			options.namespace ||
+			options.database ||
+			options.authLevel ||
+			options.embedded;
+
 		// Resolve database connection (handles CLI flags, config, or prompts)
+		// With -y flag and no credentials: use config automatically
+		// Without -y flag: prompt for config vs manual choice
 		const db = await resolveConnection({
 			cliOptions: {
 				url: options.url,
@@ -55,8 +67,8 @@ export const pullCommand = new Command()
 				embedded: options.embedded,
 			},
 			config: unrealConfig,
-			// Always prompt for config vs manual to allow pulling from external DBs
-			skipAutoConfig: true,
+			// Skip auto-config only when interactive (no -y) to allow pulling from external DBs
+			skipAutoConfig: !options.yes && !hasDbCredentials,
 		});
 
 		if (!db) {

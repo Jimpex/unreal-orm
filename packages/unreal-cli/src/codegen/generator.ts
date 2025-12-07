@@ -107,51 +107,103 @@ function generateTableCode(table: TableAST): string {
 interface FieldNode {
 	field?: FieldAST;
 	children: Map<string, FieldNode>;
+	arrayElement?: FieldNode; // For [*] array element definitions
+}
+
+/**
+ * Parses a field name into path segments, handling [*] notation.
+ * "variants" -> ["variants"]
+ * "variants[*]" -> ["variants", "[*]"]
+ * "variants[*].name" -> ["variants", "[*]", "name"]
+ * "offering.items[*].item" -> ["offering", "items", "[*]", "item"]
+ */
+function parseFieldPath(name: string): string[] {
+	const parts: string[] = [];
+	let current = "";
+
+	for (let i = 0; i < name.length; i++) {
+		const char = name[i];
+		if (char === ".") {
+			if (current) parts.push(current);
+			current = "";
+		} else if (char === "[" && name.slice(i, i + 3) === "[*]") {
+			if (current) parts.push(current);
+			parts.push("[*]");
+			current = "";
+			i += 2; // Skip past "*]"
+		} else {
+			current += char;
+		}
+	}
+	if (current) parts.push(current);
+
+	return parts;
 }
 
 function buildFieldTree(fields: FieldAST[]): FieldNode {
+	// Filter out wildcard fields (e.g., "family_members.*") as they're type constraints
+	const filteredFields = fields.filter((f) => !f.name.endsWith(".*"));
+
 	const root: FieldNode = { children: new Map() };
-	for (const field of fields) {
-		const parts = field.name.split(".");
+
+	for (const field of filteredFields) {
+		const parts = parseFieldPath(field.name);
 		let current = root;
-		for (const part of parts) {
-			if (!current.children.has(part)) {
-				const newNode: FieldNode = { children: new Map() };
-				current.children.set(part, newNode);
-				current = newNode;
-			} else {
-				// biome-ignore lint/style/noNonNullAssertion: Key exists check above
+
+		for (let i = 0; i < parts.length; i++) {
+			const part = parts[i];
+
+			if (part === "[*]") {
+				// This is an array element definition
+				if (!current.arrayElement) {
+					current.arrayElement = { children: new Map() };
+				}
+				current = current.arrayElement;
+			} else if (part) {
+				if (!current.children.has(part)) {
+					current.children.set(part, { children: new Map() });
+				}
+				// biome-ignore lint/style/noNonNullAssertion: Key exists from check above
 				current = current.children.get(part)!;
 			}
 		}
 		current.field = field;
 	}
+
 	return root;
 }
 
 /**
- * Generates field definitions code handling nested objects.
+ * Generates field definitions code handling nested objects and arrays.
  */
 function generateFieldsCode(fields: FieldAST[], indent: string): string {
-	// Filter out wildcard fields (e.g., "family_members.*") as they're type constraints, not actual fields
-	const filteredFields = fields.filter((f) => !f.name.endsWith(".*"));
-	const root = buildFieldTree(filteredFields);
+	const root = buildFieldTree(fields);
 	return generateFieldsTreeCode(root, indent);
 }
 
 function generateFieldsTreeCode(node: FieldNode, indent: string): string {
 	let code = "";
+
 	for (const [name, child] of node.children) {
-		// Check if it's an object (has children)
-		if (child.children.size > 0) {
+		// Check if this field has array element definitions
+		if (child.arrayElement && child.arrayElement.children.size > 0) {
+			// This is an array with a defined element schema
+			const options = child.field ? extractOptionsString(child.field) : "";
+			code += `${indent}${name}: Field.array(Field.object({\n`;
+			code += generateFieldsTreeCode(child.arrayElement, `${indent}  `);
+			code += `${indent}})${options ? `, ${options}` : ""}),\n`;
+		} else if (child.children.size > 0) {
+			// This is a nested object
 			const options = child.field ? extractOptionsString(child.field) : "";
 			code += `${indent}${name}: Field.object({\n`;
 			code += generateFieldsTreeCode(child, `${indent}  `);
 			code += `${indent}}${options ? `, ${options}` : ""}),\n`;
 		} else if (child.field) {
+			// Leaf field
 			code += `${indent}${name}: ${generateFieldType(child.field)},\n`;
 		}
 	}
+
 	return code;
 }
 
@@ -166,6 +218,9 @@ function extractOptionsString(field: FieldAST): string {
 	}
 	if (field.assert) {
 		options.push(`assert: surql\`${field.assert}\``);
+	}
+	if (field.readonly) {
+		options.push("readonly: true");
 	}
 
 	return options.length > 0 ? `{ ${options.join(", ")} }` : "";
@@ -200,7 +255,9 @@ function generateFieldType(field: FieldAST): string {
 			// Multiple non-none types: fall through to custom
 		}
 		// Complex union without none: use custom with comment
-		return `Field.custom('${type}'${optionsStr ? `, ${optionsStr}` : ""}) /* TODO: Specify union type */`;
+		// Escape single quotes in the type string for valid JS
+		const escapedType = type.replace(/'/g, "\\'");
+		return `Field.custom('${escapedType}'${optionsStr ? `, ${optionsStr}` : ""}) /* TODO: Specify union type */`;
 	}
 
 	return generateFieldTypeFromString(type, optionsStr || "");
@@ -262,9 +319,9 @@ function generateFieldTypeFromString(type: string, options: string): string {
 		return `Field.geometry('feature'${opt ? `, ${opt}` : ""})`;
 	}
 
-	// Handle object (complex, usually handled by tree builder, but if leaf is strictly 'object' type without children known?)
+	// Handle object (leaf object without nested field definitions)
 	if (type === "object") {
-		return `Field.object({} /* Schema not inferred */${opt ? `, ${opt}` : ""})`;
+		return `Field.object({}${opt ? `, ${opt}` : ""})`;
 	}
 
 	// Fallback to custom - user should specify the type

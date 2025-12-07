@@ -138,6 +138,23 @@ describe("parseFieldDefinition", () => {
 		expect(result.name).toBe("family_members.*");
 		expect(result.type).toBe("record<user>");
 	});
+
+	test("parses backtick-escaped field name (reserved word)", () => {
+		const ql =
+			"DEFINE FIELD `value` ON game_item TYPE option<int> PERMISSIONS FULL";
+		const result = parseFieldDefinition(ql);
+		expect(result.name).toBe("value");
+		expect(result.type).toBe("option<int>");
+	});
+
+	test("parses READONLY field", () => {
+		const ql =
+			"DEFINE FIELD createdAt ON user TYPE datetime DEFAULT time::now() READONLY PERMISSIONS FULL";
+		const result = parseFieldDefinition(ql);
+		expect(result.name).toBe("createdAt");
+		expect(result.type).toBe("datetime");
+		expect(result.default).toBe("time::now()");
+	});
 });
 
 describe("parseTableDefinition", () => {
