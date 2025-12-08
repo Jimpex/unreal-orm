@@ -1,9 +1,14 @@
+/**
+ * Tests for SurrealQL DDL parsing functions.
+ * These functions parse DEFINE statements into AST structures.
+ */
+
 import { describe, expect, test } from "bun:test";
 import {
 	parseFieldDefinition,
 	parseTableDefinition,
 	parseIndexDefinition,
-} from "unreal-orm";
+} from "../../src";
 
 describe("parseFieldDefinition", () => {
 	test("parses basic string field", () => {
