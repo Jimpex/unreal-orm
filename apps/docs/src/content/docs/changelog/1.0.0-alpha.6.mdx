@@ -1,0 +1,77 @@
+---
+title: v1.0.0-alpha.6
+description: Changelog for Unreal ORM v1.0.0-alpha.6
+lastUpdated: 2025-12-08
+sidebar_label: 1.0.0-alpha.6
+sidebar_position: 8
+tags:
+  - release
+  - changelog
+  - alpha
+toc: true
+feedback: true
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This release introduces powerful type-safe selection capabilities to the ORM and significantly improves the CLI's schema parsing robustness.
+
+## ✨ Features
+
+### Type-Safe Select (UnrealORM)
+
+The ORM now supports full type inference for specific field selections, including nested objects and computed fields.
+
+```typescript
+import { typed } from 'unreal-orm';
+import { surql } from 'surrealdb';
+
+// 1. Nested object selection with type inference
+const posts = await Post.select({
+  select: {
+    title: true,
+    author: { name: true, email: true }, // Auto-expands record links
+    metadata: { category: true }         // Deep object selection
+  }
+});
+// Result type: { title: string; author: { name: string; email: string }; metadata: { category: string } }[]
+
+// 2. Computed fields with typed<T>() helper
+const stats = await Post.select({
+  select: {
+    title: true,
+    commentCount: typed<number>(surql`count(<-comment)`)
+  }
+});
+// Result type: { title: string; commentCount: number }[]
+
+// 3. Type-safe OMIT
+const users = await User.select({
+  omit: { password: true, secret: true }
+});
+// Result type: Omit<User, 'password' | 'secret'>[]
+
+// 4. SELECT VALUE
+const names = await User.select({
+  value: 'name'
+});
+// Result type: string[]
+```
+
+### Improved Schema Parsing (UnrealCLI)
+
+The CLI's schema parser has been enhanced to better handle real-world schemas and edge cases:
+
+- **READONLY Support**: Correctly extracts `READONLY` attributes from field definitions.
+- **Robust Error Handling**: Added try-catch blocks with user-friendly warnings instead of crashing on parse errors.
+- **Unsupported Feature Reporting**: Explicitly warns about unsupported features like events, functions, and params instead of silently ignoring them.
+- **Mermaid Improvements**: Warnings are now displayed in the `mermaid` command output when parsing `.surql` files.
+- **Configuration Fix**: The `-y` flag now correctly defaults to using the config file unless explicit DB credentials are provided.
+- **Cleanup**: Removed the `/* Schema not inferred */` comment from empty `Field.object({})` definitions.
+
+## 📦 Package Updates
+
+| Package | Version |
+|---------|---------|
+| `unreal-orm` | 1.0.0-alpha.5 → 1.0.0-alpha.6 |
+| `@unreal-orm/cli` | 1.0.0-alpha.5 → 1.0.0-alpha.6 |
