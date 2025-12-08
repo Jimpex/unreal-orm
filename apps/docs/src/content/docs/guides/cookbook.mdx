@@ -81,6 +81,32 @@ await Post.select(db, {
 });
 ```
 
+## Type-Safe Select (Field Projection)
+
+Select specific fields with full type inference:
+
+```ts
+import { typed } from 'unreal-orm';
+
+// Select specific fields - return type is inferred
+const posts = await Post.select(db, {
+  select: { title: true, author: { name: true, email: true } },
+});
+// Type: { title: string; author: { name: string; email: string } }[]
+
+// Computed fields with typed() helper
+const posts = await Post.select(db, {
+  select: { title: true, commentCount: typed<number>(surql`count(<-comment)`) },
+});
+// Type: { title: string; commentCount: number }[]
+
+// Type-safe omit - exclude fields from result
+const users = await User.select(db, {
+  omit: { password: true },
+});
+// Type: Omit<User, 'password'>[]
+```
+
 ---
 
 📖 Continue exploring the [Tutorial](./unreal-orm-tutorial/) or deep-dive into the [API Reference](../api/).

@@ -137,6 +137,19 @@ export type {
 } from "./define/table/types/query";
 
 /**
+ * Type-safe field selection for SELECT queries.
+ */
+export { typed } from "./define/table/types/select";
+export type {
+	TypedExpr,
+	FieldSelect,
+	SelectOption,
+	OmitSelect,
+	InferSelectResult,
+	InferOmitResult,
+} from "./define/table/types/select";
+
+/**
  * Core types representing the static and instance side of a model,
  * and a utility type for inferring the data shape from field definitions.
  */

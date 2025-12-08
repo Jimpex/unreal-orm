@@ -9,11 +9,136 @@ import type {
 } from "../types/model";
 import type { SelectQueryOptions, OrderByClause } from "../types/query";
 import type { FieldDefinition } from "../../field/types";
+import type { TypedExpr, FieldSelect } from "../types/select";
 import { getDatabase, isSurrealLike } from "../../../config";
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
+
+/**
+ * Checks if a value is a TypedExpr (custom computed field).
+ * @internal
+ */
+function isTypedExpr(value: unknown): value is TypedExpr<unknown> {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		"expr" in value &&
+		value.expr !== undefined
+	);
+}
+
+/**
+ * Checks if a value is a BoundQuery.
+ * @internal
+ */
+function isBoundQuery(value: unknown): value is BoundQuery {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		"query" in value &&
+		"bindings" in value
+	);
+}
+
+/**
+ * Checks if a value is an Expr (has toJSON method but not query/bindings).
+ * @internal
+ */
+function isExpr(value: unknown): value is Expr {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		!isBoundQuery(value) &&
+		!isTypedExpr(value) &&
+		!Array.isArray(value)
+	);
+}
+
+/**
+ * Transforms a FieldSelect object into SurrealQL SELECT fields.
+ * Handles nested objects, records, and custom TypedExpr fields.
+ *
+ * @param select - The FieldSelect object
+ * @param prefix - Optional prefix for nested fields (e.g., "author")
+ * @returns Object with fields array and bindings
+ * @internal
+ *
+ * @example
+ * ```ts
+ * // { title: true, author: { name: true } }
+ * // → ["title", "author.{name}"]
+ *
+ * // { '*': true, commentCount: typed<number>(surql`count(<-comment)`) }
+ * // → ["*", "count(<-comment) AS commentCount"]
+ * ```
+ */
+function buildSelectFields(
+	select: Record<string, unknown>,
+	prefix = "",
+): { fields: string[]; bindings: Record<string, unknown> } {
+	const fields: string[] = [];
+	const bindings: Record<string, unknown> = {};
+
+	for (const [key, value] of Object.entries(select)) {
+		if (value === undefined) continue;
+
+		const fieldPath = prefix ? `${prefix}.${key}` : key;
+
+		if (key === "*") {
+			// Select all fields
+			fields.push(prefix ? `${prefix}.*` : "*");
+		} else if (value === true) {
+			// Select this field (or all of nested record/object)
+			fields.push(fieldPath);
+		} else if (isTypedExpr(value)) {
+			// Custom computed field with TypedExpr
+			const expr = value.expr;
+			if (isBoundQuery(expr)) {
+				fields.push(`${expr.query} AS ${key}`);
+				Object.assign(bindings, expr.bindings);
+			} else {
+				// Convert Expr to BoundQuery
+				const boundExpr = surql`${expr as Expr}`;
+				fields.push(`${boundExpr.query} AS ${key}`);
+				Object.assign(bindings, boundExpr.bindings);
+			}
+		} else if (typeof value === "object" && value !== null) {
+			// Nested object selection - use destructuring syntax
+			const nestedResult = buildSelectFields(
+				value as Record<string, unknown>,
+				"",
+			);
+
+			// Check if it's just simple field selections (all true values)
+			const nestedKeys = Object.keys(value);
+			const allSimple = nestedKeys.every(
+				(k) => (value as Record<string, unknown>)[k] === true && k !== "*",
+			);
+
+			if (allSimple && nestedKeys.length > 0) {
+				// Use SurrealDB destructuring syntax: field.{a, b, c}
+				fields.push(`${fieldPath}.{${nestedKeys.join(", ")}}`);
+			} else {
+				// Complex nested - prefix each field
+				for (const nestedField of nestedResult.fields) {
+					if (nestedField.includes(" AS ")) {
+						// Computed field - keep as is but update alias
+						fields.push(nestedField);
+					} else if (nestedField === "*") {
+						fields.push(`${fieldPath}.*`);
+					} else {
+						fields.push(`${fieldPath}.${nestedField}`);
+					}
+				}
+				Object.assign(bindings, nestedResult.bindings);
+			}
+		}
+	}
+
+	return { fields, bindings };
+}
 
 /**
  * Builds the ORDER BY clause from OrderByClause objects.
@@ -34,6 +159,95 @@ function buildOrderByClause(orderBy: OrderByClause[]): string {
 }
 
 /**
+ * Builds the SELECT clause from the various select option formats.
+ * @returns Object with selectClause string and any bindings from computed fields.
+ * @internal
+ */
+function buildSelectClause<TTable>(opts: SelectQueryOptions<TTable>): {
+	selectClause: string;
+	selectBindings: Record<string, unknown>;
+} {
+	// Handle value option (SELECT VALUE)
+	if (opts.value) {
+		return { selectClause: `VALUE ${String(opts.value)}`, selectBindings: {} };
+	}
+
+	// Handle omit option (SELECT * OMIT)
+	if (opts.omit) {
+		let omitFields: string;
+		if (Array.isArray(opts.omit)) {
+			// String array format
+			if (opts.omit.length === 0) {
+				return { selectClause: "*", selectBindings: {} };
+			}
+			omitFields = opts.omit.join(", ");
+		} else {
+			// Object format: { field: true }
+			const fields = Object.entries(opts.omit)
+				.filter(([, v]) => v === true)
+				.map(([k]) => k);
+			if (fields.length === 0) {
+				return { selectClause: "*", selectBindings: {} };
+			}
+			omitFields = fields.join(", ");
+		}
+		return { selectClause: `* OMIT ${omitFields}`, selectBindings: {} };
+	}
+
+	// No select option - select all
+	if (!opts.select) {
+		return { selectClause: "*", selectBindings: {} };
+	}
+
+	// String array - pass through
+	if (Array.isArray(opts.select)) {
+		return {
+			selectClause: opts.select.length > 0 ? opts.select.join(", ") : "*",
+			selectBindings: {},
+		};
+	}
+
+	// BoundQuery - raw SurrealQL (has query and bindings properties)
+	if (isBoundQuery(opts.select)) {
+		return {
+			selectClause: opts.select.query,
+			selectBindings: opts.select.bindings,
+		};
+	}
+
+	// Object (FieldSelect) - build from object
+	// Check this BEFORE Expr since plain objects would match isExpr
+	if (typeof opts.select === "object" && opts.select !== null) {
+		// Check if it looks like a FieldSelect (has keys that are true, objects, or TypedExpr)
+		const keys = Object.keys(opts.select);
+		const firstKey = keys[0];
+		if (keys.length > 0 && firstKey !== undefined) {
+			const firstValue = (opts.select as Record<string, unknown>)[firstKey];
+			// If first value is true, an object, or a TypedExpr, treat as FieldSelect
+			if (
+				firstValue === true ||
+				(typeof firstValue === "object" && firstValue !== null)
+			) {
+				const { fields, bindings } = buildSelectFields(
+					opts.select as Record<string, unknown>,
+				);
+				return {
+					selectClause: fields.length > 0 ? fields.join(", ") : "*",
+					selectBindings: bindings,
+				};
+			}
+		}
+	}
+
+	// Expr - convert to BoundQuery (fallback for Expr objects)
+	const boundExpr = surql`${opts.select as Expr}`;
+	return {
+		selectClause: boundExpr.query,
+		selectBindings: boundExpr.bindings,
+	};
+}
+
+/**
  * Builds the complete SurrealDB query string and bindings from query options.
  * Assembles all clauses in the correct order: SELECT, FROM, WITH, WHERE, SPLIT, GROUP BY, ORDER BY, LIMIT, START, FETCH, TIMEOUT, PARALLEL, TEMPFILES, EXPLAIN.
  * Returns raw query string and bindings to avoid BoundQuery module resolution issues.
@@ -46,14 +260,11 @@ function buildQuery<TTable>(
 	bindings: Record<string, unknown>;
 	isDirectIdQuery: boolean;
 } {
-	// Build the base SurrealQL string
+	// Build the SELECT clause
+	const { selectClause, selectBindings } = buildSelectClause(opts);
 	const onlyClause = opts.only ? " ONLY" : "";
-	const selectFields =
-		opts.select && opts.select.length > 0
-			? (opts.select as string[]).join(", ")
-			: "*";
-	let sqlString = `SELECT ${selectFields} FROM${onlyClause}`;
-	const bindings: Record<string, unknown> = {};
+	let sqlString = `SELECT ${selectClause} FROM${onlyClause}`;
+	const bindings: Record<string, unknown> = { ...selectBindings };
 	let isDirectIdQuery = false;
 
 	// Handle FROM clause - use type::table() for string table names to avoid module issues
@@ -209,7 +420,12 @@ async function executeAndProcessQuery<T, ModelInstanceType, TTable>(
 	ModelClass: new (data: T) => ModelInstanceType,
 ): Promise<unknown> {
 	const shouldReturnRawData =
-		!!opts.groupBy || !!opts.select || !!opts.explain || !!opts.split;
+		!!opts.groupBy ||
+		!!opts.select ||
+		!!opts.explain ||
+		!!opts.split ||
+		!!opts.value ||
+		!!opts.omit;
 
 	// Use string query with bindings, then collect results
 	const queryBuilder = (db as unknown as Surreal).query(queryString, bindings);

@@ -154,6 +154,39 @@ async function main() {
 
 See the [Hands-on Tutorial](https://unreal-orm.jimpex.dev/guides/unreal-orm-tutorial) for a complete walkthrough building a blog API with users, posts, comments, and relations.
 
+### Type-Safe Select
+
+Select specific fields with full type inference:
+
+```ts
+import { typed } from "unreal-orm";
+import { surql } from "surrealdb";
+
+// Nested object fields - types inferred from objectSchema
+const posts = await Post.select(db, {
+  select: { title: true, metadata: { category: true } },
+});
+// Type: { title: string; metadata: { category: string } }[]
+
+// Nested record fields - types inferred from linked table
+const posts = await Post.select(db, {
+  select: { title: true, author: { name: true, email: true } },
+});
+// Type: { title: string; author: { name: string; email: string } }[]
+
+// Computed fields with typed() helper
+const posts = await Post.select(db, {
+  select: { title: true, commentCount: typed<number>(surql`count(<-comment)`) },
+});
+// Type: { title: string; commentCount: number }[]
+
+// Type-safe omit - exclude fields from result
+const users = await User.select(db, {
+  omit: { password: true, secret: true },
+});
+// Type: Omit<User, 'password' | 'secret'>[]
+```
+
 ## CLI
 
 The CLI helps manage schema synchronization between your code and database:

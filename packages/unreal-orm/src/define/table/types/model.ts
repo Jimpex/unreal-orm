@@ -1,6 +1,13 @@
 import type { RecordId, Surreal, BoundQuery, Expr } from "surrealdb";
 import type { FieldDefinition } from "../../field/types";
 import type { SelectQueryOptions, JsonPatchOperation } from "./query";
+import type {
+	FieldSelect,
+	InferSelectResult,
+	SelectOption,
+	OmitSelect,
+	InferOmitResult,
+} from "./select";
 
 /**
  * A type that represents any SurrealDB-compatible object that can perform
@@ -73,20 +80,29 @@ export type InferFieldType<T extends FieldDefinition<unknown>> =
 	// Array fields
 	T extends { arrayElementType: infer E }
 		? Array<InferFieldType<E & FieldDefinition<unknown>>>
-		: // Object fields
-			T extends { objectSchema: infer S }
-			? { [K in keyof S]: InferFieldType<S[K] & FieldDefinition<unknown>> }
-			: // Record fields
-				T extends { recordTableThunk: () => infer M }
-				? M extends ModelStatic<
-						infer I,
-						Record<string, FieldDefinition<unknown>>,
-						TableDefineOptions<Record<string, FieldDefinition<unknown>>>
-					>
-					? T extends { recordReference: true }
-						? RecordId
-						: I
+		: // Record fields - check BEFORE object fields because Field.record sets objectSchema: undefined
+			// Extract instance type from recordTableThunk to handle cases where FieldDefinition<unknown> loses type info
+			T extends { recordTableThunk: () => infer M }
+			? M extends ModelStatic<infer I, infer _F, infer _O>
+				?
+						| I
+						| RecordId<
+								M extends { _tableName: infer TN } ? TN & string : string
+						  >
+				: // Fallback to FieldDefinition generic if ModelStatic doesn't match
+					T extends FieldDefinition<infer U>
+					? U
 					: never
+			: // Object fields - only match if objectSchema is a Record (not undefined)
+				T extends { objectSchema: infer S }
+				? S extends Record<string, FieldDefinition<unknown>>
+					? { [K in keyof S]: InferFieldType<S[K] & FieldDefinition<unknown>> }
+					: // objectSchema is undefined, fall through
+						T extends { isOptional: true }
+						? InferFieldType<Omit<T, "isOptional">> | undefined
+						: T extends FieldDefinition<infer U>
+							? U
+							: never
 				: // Option fields
 					T extends { isOptional: true }
 					? InferFieldType<Omit<T, "isOptional">> | undefined
@@ -299,51 +315,63 @@ export type ModelStatic<
 	/**
 	 * Selects records with GROUP BY aggregation (implicit db).
 	 */
-	select<
-		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
-	>(
+	select(
 		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: QueryOptions & { groupBy: string[] },
+		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields> & {
+			groupBy: string[];
+		},
 	): Promise<Record<string, unknown>[]>;
 
 	/**
-	 * Selects a single record with specific field projection (implicit db).
+	 * Selects records with VALUE clause - returns array of values (implicit db).
 	 */
-	select<
-		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
-	>(
+	select(
 		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: QueryOptions & { select: string[]; only: true },
-	): Promise<Partial<InferShapeFromFields<TFields>> | undefined>;
+		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields> & {
+			value: string;
+		},
+	): Promise<unknown[]>;
 
 	/**
-	 * Selects multiple records with specific field projection (implicit db).
+	 * Selects records with OMIT clause (implicit db).
 	 */
-	select<
-		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
-	>(
+	select(
 		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: QueryOptions & { select: string[] },
+		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields> & {
+			omit: string[];
+		},
 	): Promise<Partial<InferShapeFromFields<TFields>>[]>;
+
+	/**
+	 * Selects with type-safe field selection object (implicit db).
+	 * Returns inferred type based on selected fields.
+	 */
+	select<TSelect extends FieldSelect<TFields>>(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		options: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
+			"select"
+		> & {
+			select: TSelect;
+		},
+	): Promise<InferSelectResult<TFields, TSelect>[]>;
 
 	/**
 	 * Selects a single full model instance (implicit db).
 	 */
-	select<
-		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
-	>(
+	select(
 		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: QueryOptions & { only: true; select?: undefined },
+		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields> & {
+			only: true;
+		},
 	): Promise<TInstance | undefined>;
 
 	/**
 	 * Selects multiple full model instances with options (implicit db).
 	 */
-	select<
-		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
-	>(
+	select(
 		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: QueryOptions & { select?: undefined },
+		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
 	): Promise<TInstance[]>;
 
 	// ============================================================================
@@ -366,92 +394,105 @@ export type ModelStatic<
 
 	/**
 	 * Selects records with GROUP BY aggregation (explicit db).
-	 * @param db - A SurrealDB connection or transaction object.
-	 * @param options - Query options including groupBy clause.
-	 * @returns A promise that resolves to aggregated results.
-	 * @example
-	 * ```ts
-	 * const results = await User.select(db, { groupBy: ['role'], select: ['role', 'COUNT() as count'] });
-	 * ```
 	 */
-	select<
-		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
-	>(
+	select(
 		this: ModelStatic<TInstance, TFields, TOptions>,
 		db: SurrealLike,
-		options: QueryOptions & { groupBy: string[] },
+		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields> & {
+			groupBy: string[];
+		},
 	): Promise<Record<string, unknown>[]>;
 
 	/**
-	 * Selects a single record with specific field projection (explicit db).
-	 * @param db - A SurrealDB connection or transaction object.
-	 * @param options - Query options including select fields and only: true.
-	 * @returns A promise that resolves to the projected record or undefined.
-	 * @example
-	 * ```ts
-	 * const user = await User.select(db, { from: 'user:123', select: ['name', 'email'], only: true });
-	 * ```
+	 * Selects records with VALUE clause - returns array of values (explicit db).
 	 */
-	select<
-		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
-	>(
+	select(
 		this: ModelStatic<TInstance, TFields, TOptions>,
 		db: SurrealLike,
-		options: QueryOptions & { select: string[]; only: true },
-	): Promise<Partial<InferShapeFromFields<TFields>> | undefined>;
+		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields> & {
+			value: string;
+		},
+	): Promise<unknown[]>;
 
 	/**
-	 * Selects multiple records with specific field projection (explicit db).
-	 * @param db - A SurrealDB connection or transaction object.
-	 * @param options - Query options including select fields.
-	 * @returns A promise that resolves to an array of projected records.
+	 * Selects records with type-safe OMIT clause (explicit db).
+	 * Returns all fields except the omitted ones with proper type inference.
 	 * @example
 	 * ```ts
-	 * const users = await User.select(db, { select: ['name', 'email'] });
+	 * const users = await User.select(db, { omit: { password: true } });
+	 * // Type: Omit<User, 'password'>[]
 	 * ```
 	 */
-	select<
-		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
-	>(
+	select<TOmit extends OmitSelect<TFields>>(
 		this: ModelStatic<TInstance, TFields, TOptions>,
 		db: SurrealLike,
-		options: QueryOptions & { select: string[] },
+		options: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
+			"omit"
+		> & {
+			omit: TOmit;
+		},
+	): Promise<InferOmitResult<TFields, TOmit>[]>;
+
+	/**
+	 * Selects records with OMIT clause using string array (explicit db).
+	 * Less type-safe than object format.
+	 */
+	select(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		db: SurrealLike,
+		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields> & {
+			omit: string[];
+		},
 	): Promise<Partial<InferShapeFromFields<TFields>>[]>;
 
 	/**
-	 * Selects a single full model instance (explicit db).
-	 * @param db - A SurrealDB connection or transaction object.
-	 * @param options - Query options with only: true.
-	 * @returns A promise that resolves to the model instance or undefined.
+	 * Selects with type-safe field selection object (explicit db).
+	 * Returns inferred type based on selected fields.
 	 * @example
 	 * ```ts
-	 * const user = await User.select(db, { from: 'user:123', only: true });
+	 * // Object select with nested fields - type is inferred!
+	 * const posts = await Post.select(db, {
+	 *   select: { title: true, author: { name: true } }
+	 * });
+	 * // Type: { title: string; author: { name: string } }[]
+	 *
+	 * // With computed field
+	 * const posts = await Post.select(db, {
+	 *   select: { title: true, commentCount: typed<number>(surql`count(<-comment)`) }
+	 * });
+	 * // Type: { title: string; commentCount: number }[]
 	 * ```
 	 */
-	select<
-		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
-	>(
+	select<TSelect extends FieldSelect<TFields>>(
 		this: ModelStatic<TInstance, TFields, TOptions>,
 		db: SurrealLike,
-		options: QueryOptions & { only: true; select?: undefined },
+		options: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
+			"select"
+		> & {
+			select: TSelect;
+		},
+	): Promise<InferSelectResult<TFields, TSelect>[]>;
+
+	/**
+	 * Selects a single full model instance (explicit db).
+	 */
+	select(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		db: SurrealLike,
+		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields> & {
+			only: true;
+		},
 	): Promise<TInstance | undefined>;
 
 	/**
 	 * Selects multiple full model instances with options (explicit db).
-	 * @param db - A SurrealDB connection or transaction object.
-	 * @param options - Query options (no field projection).
-	 * @returns A promise that resolves to an array of model instances.
-	 * @example
-	 * ```ts
-	 * const users = await User.select(db, { limit: 10 });
-	 * ```
 	 */
-	select<
-		QueryOptions extends SelectQueryOptions<InferShapeFromFields<TFields>>,
-	>(
+	select(
 		this: ModelStatic<TInstance, TFields, TOptions>,
 		db: SurrealLike,
-		options: QueryOptions & { select?: undefined },
+		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
 	): Promise<TInstance[]>;
 
 	// ============================================================================

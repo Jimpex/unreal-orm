@@ -47,10 +47,10 @@ export interface RecordFieldOptions extends FieldOptions {
 	/**
 	 * If true, marks this field as a `REFERENCE`.
 	 * This allows the linked record to define a `references` field to see incoming links.
-	 * 
+	 *
 	 * **EXPERIMENTAL**: Requires the `record_references` experimental capability to be enabled.
 	 * Enable with `--allow-experimental record_references` when starting SurrealDB.
-	 * 
+	 *
 	 * @since SurrealDB v2.2.0
 	 */
 	reference?: boolean | ReferenceOptions;
@@ -347,7 +347,9 @@ export const Field = {
 	object<TSchema extends Record<string, FieldDefinition<unknown>>>(
 		schema: TSchema,
 		options: ObjectFieldOptions = {},
-	): FieldDefinition<InferShapeFromFields<TSchema>> {
+	): FieldDefinition<InferShapeFromFields<TSchema>> & {
+		objectSchema: TSchema;
+	} {
 		return {
 			...options,
 			type: "object",
@@ -371,7 +373,9 @@ export const Field = {
 	record<TModel extends AnyModelClass>(
 		tableClassThunk: () => TModel,
 		options: RecordFieldOptions = {},
-	): FieldDefinition<InstanceType<TModel> | RecordId<TModel["_tableName"]>> {
+	): FieldDefinition<InstanceType<TModel> | RecordId<TModel["_tableName"]>> & {
+		recordTableThunk: () => TModel;
+	} {
 		const isReference = !!options.reference;
 		const referenceOptions =
 			typeof options.reference === "object" ? options.reference : {};

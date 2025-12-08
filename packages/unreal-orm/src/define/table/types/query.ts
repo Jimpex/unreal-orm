@@ -1,4 +1,6 @@
 import type { RecordId, Table, BoundQuery, Expr } from "surrealdb";
+import type { FieldDefinition } from "../../field/types";
+import type { SelectOption, OmitSelect, TypedExpr } from "./select";
 
 /**
  * Defines a single clause for an `ORDER BY` statement.
@@ -17,21 +19,93 @@ export interface OrderByClause {
 
 /**
  * Defines the options available for a `SELECT` query.
+ *
  * @template TTable The data shape of the table being queried.
+ * @template TFields The field definitions of the table (for type-safe select).
+ *
  * @example
  * ```ts
- * // Find all active users, order by name, and fetch their posts
- * const activeUsers = await User.find({
- *   where: surql`isActive = true`,
- *   orderBy: [{ field: 'name', order: 'ASC' }],
- *   fetch: ['posts'],
- *   limit: 50
+ * // Type-safe field selection
+ * const posts = await Post.select({
+ *   select: {
+ *     title: true,
+ *     author: { name: true, email: true },
+ *   },
+ * });
+ * // Type: { title: string; author: { name: string; email: string } }[]
+ *
+ * // With custom computed field
+ * const posts = await Post.select({
+ *   select: {
+ *     title: true,
+ *     commentCount: typed<number>(surql`count(<-comment)`),
+ *   },
+ * });
+ *
+ * // String array (pass-through)
+ * const posts = await Post.select({
+ *   select: ['title', 'author.name'],
+ * });
+ *
+ * // Raw SurrealQL
+ * const posts = await Post.select({
+ *   select: surql`title, count(<-comment) AS commentCount`,
  * });
  * ```
  */
-export interface SelectQueryOptions<TTable> {
-	/** An array of fields to select. If omitted, all fields (`*`) are selected. */
-	select?: (keyof TTable | string)[];
+export interface SelectQueryOptions<
+	TTable,
+	TFields extends Record<string, FieldDefinition<unknown>> = Record<
+		string,
+		FieldDefinition<unknown>
+	>,
+> {
+	/**
+	 * Fields to select. Supports multiple formats:
+	 * - Object: Type-safe field selection with nested support
+	 * - String array: Pass-through field names
+	 * - BoundQuery/Expr: Raw SurrealQL
+	 *
+	 * If omitted, all fields (`*`) are selected.
+	 */
+	select?: SelectOption<TFields>;
+
+	/**
+	 * Fields to omit from the result (native OMIT clause).
+	 * Cannot be used together with `select`.
+	 *
+	 * Supports two formats:
+	 * - Object: Type-safe `{ field: true }` format with inferred return type
+	 * - String array: Pass-through field names (less type-safe)
+	 *
+	 * @example
+	 * ```ts
+	 * // Type-safe omit (recommended)
+	 * const users = await User.select({ omit: { password: true } });
+	 * // → SELECT * OMIT password FROM user
+	 * // Type: Omit<User, 'password'>[]
+	 *
+	 * // String array (less type-safe)
+	 * const users = await User.select({ omit: ['password'] });
+	 * // → SELECT * OMIT password FROM user
+	 * ```
+	 */
+	omit?: OmitSelect<TFields> | string[];
+
+	/**
+	 * Select a single field's values (native SELECT VALUE).
+	 * Returns an array of values instead of objects.
+	 * Cannot be used together with `select`.
+	 *
+	 * @example
+	 * ```ts
+	 * const names = await User.select({ value: 'name' });
+	 * // → SELECT VALUE name FROM user
+	 * // Type: string[]
+	 * ```
+	 */
+	value?: string;
+
 	/** The table or record ID to select from. Defaults to the model's table. Supports Table, RecordId, BoundQuery, or raw Expr for advanced use cases. */
 	from?: Table | RecordId | BoundQuery | Expr;
 	/** If true, returns only the first record from the result set. */
@@ -41,9 +115,9 @@ export interface SelectQueryOptions<TTable> {
 	/** The `WHERE` clause for the query. Use surql templates or SurrealDB expressions for type-safe parameter binding. */
 	where?: BoundQuery | Expr;
 	/** An array of fields to split the results by. */
-	split?: (keyof TTable | string)[];
+	split?: string[];
 	/** An array of fields to group the results by. */
-	groupBy?: (keyof TTable | string)[];
+	groupBy?: string[];
 	/** An array of `OrderByClause` objects to sort the results. */
 	orderBy?: OrderByClause[];
 	/** The maximum number of records to return. */

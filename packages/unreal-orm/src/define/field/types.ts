@@ -91,8 +91,10 @@ export interface FieldDefinition<T = unknown> extends FieldOptions {
 	recordTableThunk?: () => ModelStatic<
 		// biome-ignore lint/suspicious/noExplicitAny: Using `any` in the thunk is a temporary workaround to break the circular dependency between models.
 		any,
-		Record<string, FieldDefinition<unknown>>,
-		TableDefineOptions<Record<string, FieldDefinition<unknown>>>
+		// biome-ignore lint/suspicious/noExplicitAny: Need any to preserve specific field types for inference
+		any,
+		// biome-ignore lint/suspicious/noExplicitAny: Need any
+		any
 	>;
 	/** @deprecated This property is not used and will be removed. */
 	recordReference?: boolean;
