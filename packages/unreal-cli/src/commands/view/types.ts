@@ -13,6 +13,8 @@ export interface ViewState {
 	timeout: number;
 	/** Max concurrent count queries */
 	concurrency: number;
+	/** Skip fetching table record counts */
+	skipCount: boolean;
 }
 
 export type PendingChange =

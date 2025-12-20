@@ -122,11 +122,13 @@ export type { FieldDefinition, FieldOptions } from "./define/field/types";
 export type { IndexDefinition } from "./define/index/types";
 
 /**
- * Types for constructing and executing `SELECT`, `UPDATE`, and `COUNT` queries.
+ * Types for constructing and executing `SELECT`, `INSERT`, `UPDATE`, and `COUNT` queries.
  */
 export type {
 	OrderByClause,
 	SelectQueryOptions,
+	InsertQueryOptions,
+	ReturnType,
 	UpdateOptions,
 	UpdateMode,
 	StandardUpdateOptions,

@@ -42,6 +42,7 @@ export const viewCommand = new Command("view")
 		"--concurrency <count>",
 		`Max concurrent count queries (default: ${DEFAULT_CONCURRENCY})`,
 	)
+	.option("--no-count", "Skip fetching table record counts")
 	.action(async (options) => {
 		ui.header("Database Viewer", "Interactive table browser");
 
@@ -93,6 +94,7 @@ export const viewCommand = new Command("view")
 			terminalHeight,
 			timeout,
 			concurrency,
+			skipCount: !options.count,
 		};
 
 		// Enter alternate screen buffer and hide cursor

@@ -299,6 +299,100 @@ export type ModelStatic<
 	): Promise<InstanceType<T>>;
 
 	// ============================================================================
+	// INSERT - Implicit DB overloads (uses configured default database)
+	// ============================================================================
+
+	/**
+	 * Inserts a single record using INSERT statement (implicit db).
+	 * @param options - Insert options including data to insert.
+	 * @returns A promise that resolves to the inserted model instance.
+	 * @example
+	 * ```ts
+	 * const user = await User.insert({
+	 *   data: { name: 'John', email: 'john@example.com' },
+	 * });
+	 * ```
+	 */
+	insert<T extends ModelStatic<TInstance, TFields, TOptions>>(
+		this: T,
+		options: import("./query").InsertQueryOptions<
+			InferShapeFromFields<TFields>,
+			CreateData<TFields>
+		>,
+	): Promise<InstanceType<T>>;
+
+	/**
+	 * Bulk inserts multiple records using INSERT statement (implicit db).
+	 * @param options - Insert options including array of data to insert.
+	 * @returns A promise that resolves to an array of inserted model instances.
+	 * @example
+	 * ```ts
+	 * const users = await User.insert({
+	 *   data: [
+	 *     { name: 'John', email: 'john@example.com' },
+	 *     { name: 'Jane', email: 'jane@example.com' },
+	 *   ],
+	 * });
+	 * ```
+	 */
+	insert<T extends ModelStatic<TInstance, TFields, TOptions>>(
+		this: T,
+		options: import("./query").InsertQueryOptions<
+			InferShapeFromFields<TFields>,
+			CreateData<TFields>[]
+		>,
+	): Promise<InstanceType<T>[]>;
+
+	// ============================================================================
+	// INSERT - Explicit DB overloads
+	// ============================================================================
+
+	/**
+	 * Inserts a single record using INSERT statement (explicit db).
+	 * @param db - A SurrealDB connection or transaction object.
+	 * @param options - Insert options including data to insert.
+	 * @returns A promise that resolves to the inserted model instance.
+	 * @example
+	 * ```ts
+	 * const user = await User.insert(db, {
+	 *   data: { name: 'John', email: 'john@example.com' },
+	 * });
+	 * ```
+	 */
+	insert<T extends ModelStatic<TInstance, TFields, TOptions>>(
+		this: T,
+		db: SurrealLike,
+		options: import("./query").InsertQueryOptions<
+			InferShapeFromFields<TFields>,
+			CreateData<TFields>
+		>,
+	): Promise<InstanceType<T>>;
+
+	/**
+	 * Bulk inserts multiple records using INSERT statement (explicit db).
+	 * @param db - A SurrealDB connection or transaction object.
+	 * @param options - Insert options including array of data to insert.
+	 * @returns A promise that resolves to an array of inserted model instances.
+	 * @example
+	 * ```ts
+	 * const users = await User.insert(db, {
+	 *   data: [
+	 *     { name: 'John', email: 'john@example.com' },
+	 *     { name: 'Jane', email: 'jane@example.com' },
+	 *   ],
+	 * });
+	 * ```
+	 */
+	insert<T extends ModelStatic<TInstance, TFields, TOptions>>(
+		this: T,
+		db: SurrealLike,
+		options: import("./query").InsertQueryOptions<
+			InferShapeFromFields<TFields>,
+			CreateData<TFields>[]
+		>,
+	): Promise<InstanceType<T>[]>;
+
+	// ============================================================================
 	// SELECT - Implicit DB overloads (uses configured default database)
 	// ============================================================================
 

@@ -82,14 +82,16 @@ export async function tableListView(state: ViewState): Promise<void> {
 		loading = false;
 		render();
 
-		// Fetch counts concurrently
-		await fetchCountsConcurrently(
-			state.db,
-			tables,
-			state.timeout,
-			state.concurrency,
-			render,
-		);
+		// Fetch counts concurrently (unless skipped)
+		if (!state.skipCount) {
+			await fetchCountsConcurrently(
+				state.db,
+				tables,
+				state.timeout,
+				state.concurrency,
+				render,
+			);
+		}
 	};
 
 	const render = (full = false) => {

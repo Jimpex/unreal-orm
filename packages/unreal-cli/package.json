@@ -48,5 +48,5 @@
 		"url": "https://github.com/jimpex/unreal-orm/issues"
 	},
 	"homepage": "https://unreal-orm.jimpex.dev",
-	"files": ["dist", "README.md", "LICENSE"]
+	"files": ["dist", "package.json", "README.md", "LICENSE"]
 }

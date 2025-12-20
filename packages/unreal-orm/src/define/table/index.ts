@@ -14,6 +14,7 @@ import type {
 import { createBaseModel } from "./base";
 import { getCreateMethod } from "./crud/create";
 import { getDeleteMethod, getStaticDeleteMethod } from "./crud/delete";
+import { getInsertMethod } from "./crud/insert";
 import { getSelectMethod } from "./crud/select";
 import { getUpdateMethod, getStaticUpdateMethod } from "./crud/update";
 
@@ -22,6 +23,7 @@ function defineTable<TFields extends Record<string, FieldDefinition<unknown>>>(
 ) {
 	const staticMethods = {
 		create: getCreateMethod<TFields>(),
+		insert: getInsertMethod<TFields>(),
 		select: getSelectMethod<TFields>(),
 		update: getStaticUpdateMethod<TFields>(),
 		delete: getStaticDeleteMethod<TFields>(),

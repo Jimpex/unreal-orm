@@ -220,3 +220,182 @@ export interface CountQueryOptions<TTable> {
 	/** The timeout for the query, specified in a duration string (e.g. "1m"). */
 	timeout?: string;
 }
+
+// ============================================================================
+// INSERT QUERY OPTIONS
+// ============================================================================
+
+/**
+ * Extends the table data type with an optional `id` field for INSERT operations.
+ * This allows specifying a custom record ID when inserting data.
+ *
+ * @template TData The base data type (typically CreateData<TFields>).
+ *
+ * @example
+ * ```ts
+ * // InsertData allows specifying id even if not in the schema
+ * await User.insert({
+ *   data: { id: 'user:123', name: 'John', email: 'john@example.com' },
+ * });
+ * ```
+ */
+export type InsertData<TData> = TData & { id?: RecordId };
+
+/**
+ * Defines the RETURN clause options for INSERT/UPDATE statements.
+ * - `"NONE"` - Return nothing
+ * - `"BEFORE"` - Return the record before the operation (for INSERT, same as NONE)
+ * - `"AFTER"` - Return the record after the operation (default)
+ * - `"DIFF"` - Return the changeset diff
+ * - `string[]` - Return specific fields
+ * - `{ value: string }` - Return VALUE of a single field
+ * - `BoundQuery` - Native SurrealQL expression (e.g., `surql`id, name, count(<-comment)``)`
+ * - `Expr` - SurrealDB expression
+ */
+export type ReturnType =
+	| "NONE"
+	| "none"
+	| "BEFORE"
+	| "before"
+	| "AFTER"
+	| "after"
+	| "DIFF"
+	| "diff"
+	| string[]
+	| { value: string }
+	| BoundQuery
+	| Expr;
+
+/**
+ * Defines the options available for an `INSERT` query.
+ *
+ * @template TTable The data shape of the table being inserted into.
+ * @template TData The type of data to insert (single object or array).
+ *
+ * @example
+ * ```ts
+ * // Single insert
+ * const user = await User.insert({
+ *   data: { name: 'John', email: 'john@example.com' },
+ * });
+ *
+ * // Bulk insert
+ * const users = await User.insert({
+ *   data: [
+ *     { name: 'John', email: 'john@example.com' },
+ *     { name: 'Jane', email: 'jane@example.com' },
+ *   ],
+ * });
+ *
+ * // With IGNORE (skip duplicates silently)
+ * const users = await User.insert({
+ *   data: { name: 'John', email: 'john@example.com' },
+ *   ignore: true,
+ * });
+ *
+ * // With ON DUPLICATE KEY UPDATE
+ * const users = await User.insert({
+ *   data: { name: 'John', email: 'john@example.com' },
+ *   onDuplicate: surql`visits += 1`,
+ * });
+ *
+ * // With custom RETURN clause
+ * const names = await User.insert({
+ *   data: { name: 'John', email: 'john@example.com' },
+ *   return: { value: 'name' },
+ * });
+ * ```
+ */
+export interface InsertQueryOptions<TTable, TData = TTable | TTable[]> {
+	/**
+	 * The data to insert. Can be a single object or an array of objects.
+	 * Optionally includes an `id` field for specifying custom record IDs.
+	 *
+	 * @example
+	 * ```ts
+	 * // Single record
+	 * { data: { name: 'John', email: 'john@example.com' } }
+	 *
+	 * // With custom ID
+	 * { data: { id: 'user:john', name: 'John', email: 'john@example.com' } }
+	 *
+	 * // Multiple records
+	 * { data: [
+	 *   { name: 'John', email: 'john@example.com' },
+	 *   { name: 'Jane', email: 'jane@example.com' },
+	 * ]}
+	 * ```
+	 */
+	data: TData extends unknown[]
+		? (TData[number] & { id?: RecordId })[]
+		: TData & { id?: RecordId };
+
+	/**
+	 * If true, uses INSERT RELATION syntax for relation tables.
+	 * Automatically set for relation tables defined with Table.relation().
+	 */
+	relation?: boolean;
+
+	/**
+	 * If true, silently ignores duplicate record IDs instead of throwing an error.
+	 * Equivalent to `INSERT IGNORE INTO`.
+	 *
+	 * @example
+	 * ```ts
+	 * // Will not throw error if user:123 already exists
+	 * await User.insert({
+	 *   data: { id: 'user:123', name: 'John' },
+	 *   ignore: true,
+	 * });
+	 * ```
+	 */
+	ignore?: boolean;
+
+	/**
+	 * Specifies what to return from the INSERT operation.
+	 *
+	 * @example
+	 * ```ts
+	 * // Return nothing
+	 * await User.insert({ data, return: 'NONE' });
+	 *
+	 * // Return specific fields
+	 * await User.insert({ data, return: ['id', 'name'] });
+	 *
+	 * // Return single field value
+	 * const names = await User.insert({ data, return: { value: 'name' } });
+	 * ```
+	 */
+	return?: ReturnType;
+
+	/**
+	 * Specifies how to update existing records when a duplicate ID or unique index
+	 * violation occurs. Can be:
+	 * - Object: `{ field: value }` pairs to update
+	 * - BoundQuery: Raw SurrealQL for complex updates
+	 *
+	 * Use `$input.field` to reference the attempted insert data.
+	 *
+	 * @example
+	 * ```ts
+	 * // Simple field updates
+	 * await User.insert({
+	 *   data: { name: 'John', email: 'john@example.com' },
+	 *   onDuplicate: { updatedAt: new Date() },
+	 * });
+	 *
+	 * // Increment/decrement with raw query
+	 * await User.insert({
+	 *   data: { name: 'John', email: 'john@example.com' },
+	 *   onDuplicate: surql`visits += 1, lastSeen = time::now()`,
+	 * });
+	 *
+	 * // Reference input data
+	 * await User.insert({
+	 *   data: { name: 'John', email: 'john@example.com' },
+	 *   onDuplicate: surql`name = $input.name, updatedAt = time::now()`,
+	 * });
+	 * ```
+	 */
+	onDuplicate?: Partial<TTable> | BoundQuery | Expr;
+}

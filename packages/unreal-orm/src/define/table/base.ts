@@ -7,6 +7,7 @@ import type {
 } from "./types/model";
 import type { FieldDefinition } from "../field/types";
 import type { getCreateMethod } from "./crud/create";
+import type { getInsertMethod } from "./crud/insert";
 import type { getSelectMethod } from "./crud/select";
 import type { getUpdateMethod, getStaticUpdateMethod } from "./crud/update";
 import type { getDeleteMethod, getStaticDeleteMethod } from "./crud/delete";
@@ -31,6 +32,7 @@ export function createBaseModel<
 	options: TableDefineOptions<TFields>,
 	staticMethods: {
 		create: ReturnType<typeof getCreateMethod<TFields>>;
+		insert: ReturnType<typeof getInsertMethod<TFields>>;
 		select: ReturnType<typeof getSelectMethod<TFields>>;
 		update: ReturnType<typeof getStaticUpdateMethod<TFields>>;
 		delete: ReturnType<typeof getStaticDeleteMethod<TFields>>;
@@ -64,6 +66,7 @@ export function createBaseModel<
 		}
 
 		static create = staticMethods.create;
+		static insert = staticMethods.insert;
 		static select = staticMethods.select;
 		static update = staticMethods.update;
 		static delete = staticMethods.delete;

@@ -7,10 +7,19 @@ const require = createRequire(import.meta.url);
 /** Get CLI version from package.json */
 function getCliVersion(): string {
 	try {
-		const pkg = require("../../package.json") as { version: string };
+		// Try resolving via package name first (works when installed from npm)
+		const pkgPath = require.resolve("@unreal-orm/cli/package.json");
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		const pkg = require(pkgPath) as { version: string };
 		return pkg.version;
 	} catch {
-		return "unknown";
+		try {
+			// Fallback: try relative path (works during development)
+			const pkg = require("../../package.json") as { version: string };
+			return pkg.version;
+		} catch {
+			return "unknown";
+		}
 	}
 }
 
@@ -40,7 +49,7 @@ interface VersionCheckResult {
  */
 async function fetchLatestVersion(
 	packageName: string,
-	tag: "latest" | "alpha" | "beta" = "alpha",
+	tag: "latest" | "alpha" | "beta" = "latest",
 ): Promise<string | null> {
 	try {
 		const response = await fetch(`${NPM_REGISTRY}/${packageName}`);
@@ -59,7 +68,7 @@ async function fetchLatestVersion(
 async function checkPackageVersion(
 	packageName: string,
 	currentVersion: string,
-	tag: "latest" | "alpha" | "beta" = "alpha",
+	tag: "latest" | "alpha" | "beta" = "latest",
 ): Promise<VersionCheckResult | null> {
 	const latest = await fetchLatestVersion(packageName, tag);
 	if (!latest) return null;
@@ -100,11 +109,11 @@ export async function checkForUpdates(): Promise<void> {
 
 	try {
 		const [cliCheck, ormCheck] = await Promise.all([
-			checkPackageVersion("@unreal-orm/cli", CLI_VERSION, "alpha"),
+			checkPackageVersion("@unreal-orm/cli", CLI_VERSION, "latest"),
 			(async () => {
 				const installed = getInstalledOrmVersion();
 				if (!installed) return null;
-				return checkPackageVersion("unreal-orm", installed, "alpha");
+				return checkPackageVersion("unreal-orm", installed, "latest");
 			})(),
 		]);
 
