@@ -1,0 +1,91 @@
+---
+title: v1.0.0-alpha.7
+description: Changelog for Unreal ORM v1.0.0-alpha.7
+lastUpdated: 2025-12-20
+sidebar_label: 1.0.0-alpha.7
+sidebar_position: 9
+tags:
+  - release
+  - changelog
+  - alpha
+toc: true
+feedback: true
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This release introduces the new `insert()` method with full SurrealDB INSERT statement support, and improves CLI reliability.
+
+## ✨ Features
+
+### INSERT Statement Support
+
+A new type-safe `insert()` method that provides full access to SurrealDB's INSERT statement capabilities:
+
+```typescript
+import { surql } from 'surrealdb';
+
+// Single insert (explicit db)
+const user = await User.insert(db, {
+  data: { name: 'John', email: 'john@example.com' },
+});
+
+// Bulk insert (implicit db)
+const users = await User.insert({
+  data: [
+    { name: 'John', email: 'john@example.com' },
+    { name: 'Jane', email: 'jane@example.com' },
+  ],
+});
+
+// With custom ID (must be RecordId type)
+const user = await User.insert(db, {
+  data: { id: new RecordId('user', 'john'), name: 'John' },
+});
+
+// INSERT IGNORE - silently skip duplicates
+await User.insert(db, {
+  data: { id: existingId, name: 'John' },
+  ignore: true,
+});
+
+// ON DUPLICATE KEY UPDATE with native SurrealQL
+await User.insert(db, {
+  data: { id: existingId, name: 'John', visits: 0 },
+  onDuplicate: surql`visits += 1, lastSeen = time::now()`,
+});
+
+// Custom RETURN clause with native SurrealQL
+const result = await User.insert(db, {
+  data: { name: 'John', email: 'john@example.com' },
+  return: surql`id, name, email`,
+});
+
+// Insert relation (auto-detected for relation tables)
+await Follows.insert(db, {
+  data: { in: userId, out: targetId, createdAt: new Date() },
+});
+```
+
+<Aside type="tip" title="Native First">
+  Following our design principles, the `return` and `onDuplicate` options accept native SurrealQL expressions via `surql` template literals, giving you full control over the query.
+</Aside>
+
+## 🔧 Improvements
+
+### CLI Improvements
+
+- **`--no-count` Option**: Added `--no-count` flag to the `view` command to skip fetching table record counts, improving performance for large databases.
+- **Version Detection**: Improved CLI version detection to work correctly when installed globally from npm.
+- **Version Check**: Changed default npm dist-tag from `alpha` to `latest` for update checks.
+
+## 🐛 Bug Fixes
+
+- Fixed CLI package.json not being included in published package, which caused version detection to fail.
+
+## 📦 Package Updates
+
+| Package | Version |
+|---------|---------|
+| `unreal-orm` | 1.0.0-alpha.6 → 1.0.0-alpha.7 |
+| `@unreal-orm/cli` | 1.0.0-alpha.6 → 1.0.0-alpha.7 |
