@@ -1,0 +1,121 @@
+---
+title: v1.0.0-alpha.8
+description: Changelog for Unreal ORM v1.0.0-alpha.8
+lastUpdated: 2025-02-24
+sidebar_label: 1.0.0-alpha.8
+sidebar_position: 10
+tags:
+  - release
+  - changelog
+  - alpha
+toc: true
+feedback: true
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This release introduces a unified `--log-level` flag for the CLI, upgrades SurrealDB dependencies to `surrealdb@2.0.0` and `@surrealdb/node@3.0.1`, fixes query binding collisions, and deprecates the `PARALLEL` clause.
+
+## ✨ Features
+
+### CLI: `--log-level` Flag
+
+A new `--log-level` option is available on every command, giving you full control over CLI output verbosity:
+
+```bash
+# Suppress all output except errors (great for CI/automation)
+unreal push --log-level silent --embedded memory -y
+
+# Default behavior — spinners, headers, success messages
+unreal pull --log-level normal
+
+# Timestamped step-by-step debug logging
+unreal diff --log-level debug
+```
+
+| Level | Behavior |
+|-------|----------|
+| `silent` | Only errors and warnings (via stderr) |
+| `normal` | Default — spinners, headers, success messages |
+| `debug` | Timestamped `[DEBUG +Nms]` logs at each step |
+
+The `--log-level` option appears in every command's `--help` output and is processed automatically before command execution.
+
+### Query `DEBUG` Option
+
+Added a `DEBUG` option to `select()`, `count()`, and `insert()` queries that logs the generated SurrealQL and bindings:
+
+```typescript
+const users = await User.select(db, {
+  where: eq("city", "NY"),
+  DEBUG: true, // Logs query string and bindings to console
+});
+```
+
+### `SurrealLike` Type: Transaction Support
+
+Updated the `SurrealLike` type to make `connect` and `close` optional, ensuring transaction objects can be used wherever a database instance is expected.
+
+## 🔧 Improvements
+
+### CLI Improvements
+
+- **Debug Instrumentation**: Added `debug()` calls throughout `push`, `pull`, `diff`, `mermaid`, and `connect` commands for step-by-step visibility when using `--log-level debug`.
+- **Silent Mode**: In silent mode, the update check is skipped entirely, spinners are replaced with no-op stubs, and `printer.log()` is suppressed.
+- **Process Exit Fix**: Added `process.exit(0)` to the `postAction` hook to prevent the CLI from hanging when `@surrealdb/node` native engine holds event loop handles after `db.close()`.
+- **Test Output Suppression**: All E2E test shell invocations now use Bun's `.quiet()` method, keeping test runner output clean while still capturing stdout/stderr for assertions.
+
+### Query Binding Key Uniqueness
+
+Replaced `Date.now()` with an incrementing counter for query binding keys (`record_0`, `table_1`, `limit_2`, etc.). This prevents key collisions when multiple bindings are generated within the same millisecond.
+
+### Test Improvements
+
+- Reduced redundant test setup logging with a `hasLoggedSetup` guard in `dbTestUtils.ts`.
+- Removed stray `console.log` in the CRUD integration tests.
+- Added `DELETE person` cleanup in transaction tests to avoid stale data.
+
+## 💥 Breaking Changes
+
+### Array Length Semantics
+
+In SurrealDB v3, `array<string, 5>` now means the array must contain **exactly 5 elements**, not "up to 5" as in v2. To reflect this, `Field.array()` now accepts a `length` option (replacing the deprecated `max`):
+
+```typescript
+// New: use `length` (recommended)
+tags: Field.array(Field.string(), { length: 5 })
+
+// Deprecated: `max` still works but is misleading for v3
+tags: Field.array(Field.string(), { max: 5 })
+```
+
+Both generate the same `array<string, 5>` DDL — the database version determines interpretation.
+
+## ⚠️ Deprecations
+
+### `PARALLEL` Clause
+
+The `parallel` option on `select()` and `count()` queries is now deprecated. SurrealDB 2.2+ no longer supports the `PARALLEL` clause — the option is retained for backwards compatibility but is silently ignored. Related debug tests have been removed.
+
+## 📦 Dependency Updates
+
+| Package | Change |
+|---------|--------|
+| `surrealdb` | `^2.0.0-alpha.14` → `^2.0.0` |
+| `@surrealdb/node` | `2.3.4` → `^3.0.1` |
+
+<Aside type="caution" title="Breaking: SurrealDB version upgrade">
+  This release upgrades the SurrealDB peer dependency to `^2.0.0` and `@surrealdb/node` to `^3.0.1`. Update your SurrealDB dependencies to use the new versions. The `init` command now installs these versions by default.
+</Aside>
+
+## 🏗️ Infrastructure
+
+- **Package Manager**: Migrated workspace from Bun to pnpm (`pnpm-workspace.yaml`) to resolve monorepo dependency resolution issues.
+- **Workspace Config**: Switched from wildcard workspace globs to explicit package paths.
+
+## 📦 Package Updates
+
+| Package | Version |
+|---------|---------|
+| `unreal-orm` | 1.0.0-alpha.7 → 1.0.0-alpha.8 |
+| `@unreal-orm/cli` | 1.0.0-alpha.7 → 1.0.0-alpha.8 |

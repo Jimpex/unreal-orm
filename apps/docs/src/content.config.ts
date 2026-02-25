@@ -14,7 +14,7 @@ export const collections = {
 					})
 					.default({
 						content:
-							'🚀 This documentation is for <strong>unreal-orm 1.0.0 alpha</strong> which requires <strong>SurrealDB 2.0 beta SDK</strong>. For use with version 1.x, see <a href="https://www.npmjs.com/package/unreal-orm">here</a>.',
+							'🚀 This documentation is for <strong>unreal-orm 1.0.0 alpha</strong> which requires <strong>SurrealDB 2.0 SDK</strong>. For use with version 1.x, see <a href="https://www.npmjs.com/package/unreal-orm">here</a>.',
 					}),
 			}),
 		}),
