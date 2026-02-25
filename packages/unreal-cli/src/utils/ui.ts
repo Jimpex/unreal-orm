@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import ora, { type Ora } from "ora";
 import { printer } from "./printer";
+import { isSilent } from "./logLevel";
 
 // Symbols
 const SYMBOLS = {
@@ -27,6 +28,51 @@ const THEME = {
 	url: chalk.underline.cyan,
 };
 
+/** Silent spinner stub for quiet mode */
+const silentSpinner: Ora = {
+	succeed: () => silentSpinner,
+	fail: () => silentSpinner,
+	stop: () => silentSpinner,
+	start: () => silentSpinner,
+	warn: () => silentSpinner,
+	info: () => silentSpinner,
+	clear: () => silentSpinner,
+	render: () => silentSpinner,
+	frame: () => "",
+	// Required Ora properties
+	get isSpinning() {
+		return false;
+	},
+	get text() {
+		return "";
+	},
+	set text(_v: string) {},
+	get color() {
+		return "cyan" as const;
+	},
+	set color(_v: string) {},
+	get indent() {
+		return 0;
+	},
+	set indent(_v: number) {},
+	get spinner() {
+		return { interval: 0, frames: [] };
+	},
+	set spinner(_v: string | object) {},
+	get interval() {
+		return 0;
+	},
+	get prefixText() {
+		return "";
+	},
+	set prefixText(_v: string) {},
+	get suffixText() {
+		return "";
+	},
+	set suffixText(_v: string) {},
+	[Symbol.dispose]: () => {},
+} as unknown as Ora;
+
 /**
  * Centralized UI styling utility for UnrealORM CLI
  */
@@ -35,6 +81,7 @@ export const ui = {
 	 * Display a consistent header/banner
 	 */
 	header(title: string, subtitle?: string): void {
+		if (isSilent()) return;
 		console.log("");
 		console.log(THEME.primary.bold(` ${title} `));
 		if (subtitle) {
@@ -47,6 +94,7 @@ export const ui = {
 	 * Display a section divider
 	 */
 	divider(): void {
+		if (isSilent()) return;
 		console.log(THEME.dim(SYMBOLS.line.repeat(60)));
 	},
 
@@ -54,6 +102,7 @@ export const ui = {
 	 * Display a success message
 	 */
 	success(message: string): void {
+		if (isSilent()) return;
 		console.log(THEME.success(`${SYMBOLS.success}  ${message}`));
 	},
 
@@ -61,6 +110,13 @@ export const ui = {
 	 * Display an error message
 	 */
 	error(message: string, error?: unknown): void {
+		if (isSilent()) {
+			console.error(message);
+			if (error) {
+				console.error(error instanceof Error ? error.message : String(error));
+			}
+			return;
+		}
 		console.log(THEME.error(`${SYMBOLS.error}  ${message}`));
 		if (error) {
 			if (error instanceof Error) {
@@ -75,6 +131,10 @@ export const ui = {
 	 * Display a warning message
 	 */
 	warn(message: string): void {
+		if (isSilent()) {
+			console.warn(message);
+			return;
+		}
 		console.log(THEME.warning(`${SYMBOLS.warning}  ${message}`));
 	},
 
@@ -82,6 +142,7 @@ export const ui = {
 	 * Display an info message
 	 */
 	info(message: string): void {
+		if (isSilent()) return;
 		console.log(THEME.info(`${SYMBOLS.info}  ${message}`));
 	},
 
@@ -89,6 +150,7 @@ export const ui = {
 	 * Display a step/process message
 	 */
 	step(message: string, detail?: string): void {
+		if (isSilent()) return;
 		console.log(
 			THEME.secondary(`${SYMBOLS.step}  ${message}`) +
 				(detail ? THEME.dim(` ${detail}`) : ""),
@@ -99,6 +161,7 @@ export const ui = {
 	 * Start a spinner
 	 */
 	spin(text: string): Ora {
+		if (isSilent()) return silentSpinner;
 		return ora({
 			text,
 			color: "cyan",
@@ -131,6 +194,7 @@ export const ui = {
 	 * Dim text
 	 */
 	dim(text: string): string {
+		if (isSilent()) return "";
 		return THEME.dim(text);
 	},
 
@@ -145,6 +209,7 @@ export const ui = {
 	 * New line
 	 */
 	newline(): void {
+		if (isSilent()) return;
 		console.log("");
 	},
 

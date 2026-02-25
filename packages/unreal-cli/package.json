@@ -30,10 +30,11 @@
 	"devDependencies": {
 		"@types/bun": "latest",
 		"@types/diff": "^8.0.0",
-		"@types/prompts": "^2.4.9"
+		"@types/prompts": "^2.4.9",
+		"@surrealdb/node": "^3.0.1"
 	},
 	"peerDependencies": {
-		"surrealdb": "^2.0.0-alpha.14",
+		"surrealdb": "^2.0.0",
 		"typescript": "^5"
 	},
 	"keywords": ["surrealdb", "orm", "cli", "schema", "migrations", "unreal-orm"],

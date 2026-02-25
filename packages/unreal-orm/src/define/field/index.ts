@@ -23,7 +23,16 @@ import type {
  * Options for defining an array field.
  */
 export interface ArrayFieldOptions<T> extends FieldOptions {
-	/** The maximum number of elements allowed in the array. */
+	/**
+	 * The exact number of elements required in the array.
+	 * In SurrealDB v3, `array<T, N>` means exactly N elements.
+	 * In SurrealDB v2, it means up to N elements.
+	 */
+	length?: number;
+	/**
+	 * @deprecated Use `length` instead. In SurrealDB v3, the size parameter
+	 * enforces an exact element count, not a maximum.
+	 */
 	max?: number;
 }
 
@@ -292,20 +301,24 @@ export const Field = {
 		element: TElementDef,
 		options: ArrayFieldOptions<InferFieldType<TElementDef>> = {},
 	): FieldDefinition<Set<InferFieldType<TElementDef>>> {
+		if (options.length !== undefined && options.max !== undefined) {
+			throw new Error(
+				"Cannot specify both 'length' and 'max' on a set field. Use 'length' instead.",
+			);
+		}
+		const size = options.length ?? options.max;
 		return {
 			...options,
 			get type() {
-				return options.max
-					? `set<${element.type}, ${options.max}>`
-					: `set<${element.type}>`;
+				return size ? `set<${element.type}, ${size}>` : `set<${element.type}>`;
 			},
-			arrayElementType: element, // Note: Using arrayElementType for sets as well
+			arrayElementType: element,
 		};
 	},
 	/**
 	 * Defines an `array` field.
 	 * @param element The field definition for the elements within the array.
-	 * @param options Options for the array field, such as `max` size.
+	 * @param options Options for the array field, such as `length`.
 	 * @example
 	 * ```ts
 	 * // An array of strings
@@ -322,11 +335,17 @@ export const Field = {
 		element: TElementDef,
 		options: ArrayFieldOptions<InferFieldType<TElementDef>> = {},
 	): FieldDefinition<Array<InferFieldType<TElementDef>>> {
+		if (options.length !== undefined && options.max !== undefined) {
+			throw new Error(
+				"Cannot specify both 'length' and 'max' on an array field. Use 'length' instead.",
+			);
+		}
+		const size = options.length ?? options.max;
 		return {
 			...options,
 			get type() {
-				return options.max
-					? `array<${element.type}, ${options.max}>`
+				return size
+					? `array<${element.type}, ${size}>`
 					: `array<${element.type}>`;
 			},
 			arrayElementType: element,

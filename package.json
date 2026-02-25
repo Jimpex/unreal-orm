@@ -9,8 +9,7 @@
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
-	"packageManager": "bun@1.3.2",
-	"workspaces": ["apps/*", "packages/*"],
+	"workspaces": ["apps/docs", "packages/unreal-orm", "packages/unreal-cli"],
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4"
 	}

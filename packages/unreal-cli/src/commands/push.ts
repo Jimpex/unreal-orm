@@ -10,6 +10,7 @@ import { compareSchemas } from "unreal-orm";
 import { extractSchemaFromRuntime } from "../diff/parseTypeScript";
 import { generateSqlForChange } from "../diff/generateMigration";
 import { ui } from "../utils/ui";
+import { debug } from "../utils/debug";
 
 export const pushCommand = new Command()
 	.name("push")
@@ -22,6 +23,11 @@ export const pushCommand = new Command()
 	.option("--auth-level <level>", "Auth level: root, namespace, or database")
 	.option("-s, --schema-dir <path>", "Schema directory path")
 	.option("--embedded <mode>", "Use embedded mode (memory or file path)")
+	.option(
+		"--log-level <level>",
+		"Log output level: silent, normal, debug",
+		"normal",
+	)
 	.option("-y, --yes", "Skip confirmation prompt")
 	// .option("--detailed", "Show detailed diff with old/new values")
 	.action(async (options) => {
@@ -29,11 +35,13 @@ export const pushCommand = new Command()
 		clearWarnings();
 
 		// Load config and resolve schema directory
+		debug("Loading config");
 		const unrealConfig = await loadConfig();
 		const schemaDir = await resolveSchemaDir({
 			cliOutput: options.schemaDir,
 			config: unrealConfig,
 		});
+		debug(`Schema dir resolved: ${schemaDir}`);
 
 		// Check if schema directory exists
 		if (!existsSync(schemaDir)) {
@@ -56,6 +64,7 @@ export const pushCommand = new Command()
 		// Resolve database connection (handles CLI flags, config, or prompts)
 		// With -y flag and no credentials: use config automatically
 		// Without -y flag: prompt for config vs manual choice
+		debug("Resolving database connection");
 		const db = await resolveConnection({
 			cliOptions: {
 				url: options.url,
@@ -77,6 +86,7 @@ export const pushCommand = new Command()
 		}
 
 		// Extract code schema
+		debug("Loading code schema");
 		let spinner = ui.spin("Loading code schema...");
 		let codeSchema: SchemaAST;
 		try {
@@ -91,6 +101,7 @@ export const pushCommand = new Command()
 		}
 
 		// Introspect database schema
+		debug("Introspecting database schema");
 		spinner = ui.spin("Introspecting database schema...");
 		let databaseSchema: SchemaAST;
 		try {
@@ -106,6 +117,7 @@ export const pushCommand = new Command()
 		}
 
 		// Compare schemas (code -> database, isPush=true for correct wording)
+		debug("Comparing schemas");
 		spinner.start("Comparing schemas...");
 		const changes = compareSchemas(codeSchema, databaseSchema, true);
 		spinner.succeed("Comparison complete");
@@ -267,6 +279,7 @@ export const pushCommand = new Command()
 		}
 
 		// Apply migration
+		debug(`Applying ${sqlStatements.length} SQL statement(s)`);
 		spinner.start("Applying schema changes...");
 		try {
 			// Flatten multi-line statements and join with semicolons

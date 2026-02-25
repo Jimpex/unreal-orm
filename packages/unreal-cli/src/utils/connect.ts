@@ -15,6 +15,7 @@ import {
 	type ConnectionPromptOptions,
 } from "./prompts";
 import { ui } from "./ui";
+import { debug } from "./debug";
 
 /**
  * CLI connection options that can be passed to commands.
@@ -89,6 +90,7 @@ export async function resolveConnection(
 		};
 
 		const finalConfig = await promptForConnection(promptOptions);
+		debug("Connecting via CLI flags");
 		return createConnection(finalConfig);
 	}
 
@@ -97,6 +99,7 @@ export async function resolveConnection(
 		const surrealPath = resolve(process.cwd(), getSurrealPath(config));
 
 		if (existsSync(surrealPath)) {
+			debug("Connecting via surreal.ts config");
 			return loadFromSurrealTs(surrealPath);
 		}
 	}
@@ -214,6 +217,7 @@ export async function createConnection(
 			db = new Surreal({ engines: createNodeEngines() });
 
 			await db.connect(engine, config);
+			debug("Embedded connection established");
 		} catch (error) {
 			throw new Error(
 				`Failed to initialize embedded SurrealDB. Make sure @surrealdb/node is installed and your environment supports native bindings.\nOriginal Error: ${error}`,
@@ -223,6 +227,7 @@ export async function createConnection(
 		// Remote mode. Connect and authenticate in one call.
 		db = new Surreal();
 		await db.connect(config.url, config);
+		debug("Remote connection established");
 	}
 
 	// Select namespace and database

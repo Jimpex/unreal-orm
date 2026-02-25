@@ -178,6 +178,9 @@ describe("transactions", () => {
 			return;
 		}
 
+		// Clean table to avoid stale data from prior tests
+		await db.query("DELETE person");
+
 		// Create initial records
 		await Person.create(db, { name: "Charlie", email: "charlie@example.com" });
 		await Person.create(db, { name: "Diana", email: "diana@example.com" });

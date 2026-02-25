@@ -16,11 +16,17 @@ import type {
  *
  * This type picks only the core methods that are guaranteed to be available
  * across all SurrealDB object types, ensuring maximum compatibility.
+ * `connect` and `close` are optional as they are not present on transaction objects.
  */
 export type SurrealLike = Pick<
 	Surreal,
-	"create" | "select" | "update" | "delete" | "query" | "relate"
->;
+	| "create"
+	| "select"
+	| "update"
+	| "delete"
+	| "query"
+	| "relate"
+> & Partial<Pick<Surreal, "connect" | "close">>;
 
 /**
  * Defines the core options for creating a table schema.

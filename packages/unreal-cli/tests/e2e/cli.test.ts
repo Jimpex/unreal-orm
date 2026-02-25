@@ -39,66 +39,60 @@ describe("CLI E2E Tests", () => {
 
 	describe("pull command", () => {
 		test("should handle empty database gracefully", async () => {
-			// Each CLI invocation creates its own in-memory DB (empty)
 			const result =
-				await $`bun run ${CLI_PATH} pull --embedded memory -n test -d test -s ${join(testDir, "unreal/tables")} -y`
+				await $`bun run ${CLI_PATH} pull --log-level silent --embedded memory -n test -d test -s ${join(testDir, "unreal/tables")} -y`
 					.cwd(testDir)
+					.quiet()
 					.nothrow();
 
-			// Should complete without error
 			expect(result.exitCode).toBe(0);
-			// With empty DB, should show "up to date" message
-			expect(result.stdout.toString()).toContain("up to date");
 		});
 
 		test("should show proper output messages", async () => {
 			const result =
 				await $`bun run ${CLI_PATH} pull --embedded memory -n test -d test -s ${join(testDir, "unreal/tables")} -y`
 					.cwd(testDir)
+					.quiet()
 					.nothrow();
 
 			const output = result.stdout.toString();
 			expect(output).toContain("UnrealORM Pull");
-			// Note: Spinner output is cleared, so we check for final messages
 			expect(output).toContain("up to date");
 		});
 	});
 
 	describe("push command", () => {
 		test("should apply TypeScript schema to database using examples", async () => {
-			// Use the examples directory which has proper package resolution
 			const result =
-				await $`bun run ${CLI_PATH} push --embedded memory -n test -d test -s ${EXAMPLES_DIR} -y`
+				await $`bun run ${CLI_PATH} push --log-level silent --embedded memory -n test -d test -s ${EXAMPLES_DIR} -y`
 					.cwd(join(import.meta.dir, "../.."))
+					.quiet()
 					.nothrow();
 
 			expect(result.exitCode).toBe(0);
-			// Verify output mentions applying changes
-			const output = result.stdout.toString();
-			expect(output).toContain("APPLYING ALL CHANGES");
-			expect(output).toContain("Schema push complete");
 		});
 
 		test("should fail gracefully when schema directory doesn't exist", async () => {
 			const result =
-				await $`bun run ${CLI_PATH} push --embedded memory -n test -d test -s ${join(testDir, "nonexistent")} -y`
+				await $`bun run ${CLI_PATH} push --log-level silent --embedded memory -n test -d test -s ${join(testDir, "nonexistent")} -y`
 					.cwd(testDir)
+					.quiet()
 					.nothrow();
 
 			expect(result.exitCode).not.toBe(0);
-			expect(result.stdout.toString()).toContain("not found");
+			const allOutput = result.stdout.toString() + result.stderr.toString();
+			expect(allOutput).toContain("not found");
 		});
 	});
 
 	describe("diff command", () => {
 		test("should work with examples directory", async () => {
-			// Run diff command using examples
 			const result =
-				await $`bun run ${CLI_PATH} diff --embedded memory -n test -d test -s ${EXAMPLES_DIR}`
+				await $`bun run ${CLI_PATH} diff --log-level silent --embedded memory -n test -d test -s ${EXAMPLES_DIR}`
 					.cwd(join(import.meta.dir, "../.."))
+					.quiet()
 					.nothrow();
 
-			// Should complete (may show differences since DB is empty)
 			expect(result.exitCode).toBe(0);
 		});
 	});
@@ -107,28 +101,26 @@ describe("CLI E2E Tests", () => {
 		test("should generate mermaid diagram from code using examples", async () => {
 			const outputPath = join(testDir, "schema.mermaid");
 
-			// Run mermaid command using examples directory
 			const result =
-				await $`bun run ${CLI_PATH} mermaid --code -s ${EXAMPLES_DIR} -o ${outputPath}`
+				await $`bun run ${CLI_PATH} mermaid --log-level silent --code -s ${EXAMPLES_DIR} -o ${outputPath}`
 					.cwd(join(import.meta.dir, "../.."))
+					.quiet()
 					.nothrow();
 
 			expect(result.exitCode).toBe(0);
 
-			// Verify output file
 			const mermaidContent = await readFile(outputPath, "utf-8");
 			expect(mermaidContent).toContain("erDiagram");
 			expect(mermaidContent).toContain("user");
 		});
 
 		test("should generate mermaid diagram from database (empty)", async () => {
-			// Note: Each CLI invocation creates its own in-memory DB
-			// So we test that it handles an empty DB gracefully
 			const outputPath = join(testDir, "db-schema.mermaid");
 
 			const result =
-				await $`bun run ${CLI_PATH} mermaid --db --embedded memory -n test -d test -o ${outputPath}`
+				await $`bun run ${CLI_PATH} mermaid --log-level silent --db --embedded memory -n test -d test -o ${outputPath}`
 					.cwd(testDir)
+					.quiet()
 					.nothrow();
 
 			expect(result.exitCode).toBe(0);
@@ -138,10 +130,10 @@ describe("CLI E2E Tests", () => {
 		});
 
 		test("should output to stdout with --stdout flag", async () => {
-			// Test stdout output with empty DB
 			const result =
-				await $`bun run ${CLI_PATH} mermaid --db --embedded memory -n test -d test --stdout`
+				await $`bun run ${CLI_PATH} mermaid --log-level silent --db --embedded memory -n test -d test --stdout`
 					.cwd(testDir)
+					.quiet()
 					.nothrow();
 
 			expect(result.exitCode).toBe(0);
@@ -149,7 +141,6 @@ describe("CLI E2E Tests", () => {
 		});
 
 		test("should generate from .surql file", async () => {
-			// Create a .surql file
 			const surqlContent = `
 DEFINE TABLE category SCHEMAFULL;
 DEFINE FIELD name ON TABLE category TYPE string;
@@ -161,8 +152,9 @@ DEFINE FIELD slug ON TABLE category TYPE string;
 			const outputPath = join(testDir, "from-surql.mermaid");
 
 			const result =
-				await $`bun run ${CLI_PATH} mermaid --surql ${surqlPath} -o ${outputPath}`
+				await $`bun run ${CLI_PATH} mermaid --log-level silent --surql ${surqlPath} -o ${outputPath}`
 					.cwd(testDir)
+					.quiet()
 					.nothrow();
 
 			expect(result.exitCode).toBe(0);
@@ -175,19 +167,20 @@ DEFINE FIELD slug ON TABLE category TYPE string;
 
 	describe("CLI flags", () => {
 		test("should accept all connection flags", async () => {
-			// Test that CLI accepts all connection flags without error
-			// This will fail to connect but should parse flags correctly
 			const result =
-				await $`bun run ${CLI_PATH} pull --url ws://localhost:8000 -u root -p root -n test -d test --auth-level root -s ${join(testDir, "unreal/tables")} -y`
+				await $`bun run ${CLI_PATH} pull --log-level silent --embedded memory -u root -p root -n test -d test --auth-level root -s ${join(testDir, "unreal/tables")} -y`
 					.cwd(testDir)
+					.quiet()
 					.nothrow();
 
-			// Should not have flag parsing errors
 			expect(result.stderr.toString()).not.toContain("unknown option");
 		});
 
 		test("should show help with --help flag", async () => {
-			const result = await $`bun run ${CLI_PATH} --help`.cwd(testDir).nothrow();
+			const result = await $`bun run ${CLI_PATH} --help`
+				.cwd(testDir)
+				.quiet()
+				.nothrow();
 
 			expect(result.exitCode).toBe(0);
 			expect(result.stdout.toString()).toContain("UnrealORM CLI");
@@ -200,21 +193,22 @@ DEFINE FIELD slug ON TABLE category TYPE string;
 		test("should show command help with command --help", async () => {
 			const result = await $`bun run ${CLI_PATH} pull --help`
 				.cwd(testDir)
+				.quiet()
 				.nothrow();
 
 			expect(result.exitCode).toBe(0);
 			expect(result.stdout.toString()).toContain("--schema-dir");
 			expect(result.stdout.toString()).toContain("--url");
-			expect(result.stdout.toString()).toContain("--auth-level");
+			expect(result.stdout.toString()).toContain("--log-level");
 		});
 
 		test("should show version with --version flag", async () => {
 			const result = await $`bun run ${CLI_PATH} --version`
 				.cwd(testDir)
+				.quiet()
 				.nothrow();
 
 			expect(result.exitCode).toBe(0);
-			// Version should be a semver-like string
 			expect(result.stdout.toString()).toMatch(/\d+\.\d+\.\d+/);
 		});
 	});

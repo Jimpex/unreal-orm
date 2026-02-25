@@ -16,7 +16,7 @@ describe("Field.array - primitive arrays", () => {
 	class TagsModel extends Table.normal({
 		name: "tags_model",
 		fields: {
-			tags: Field.array(Field.string(), { max: 5, default: surql`[]` }),
+			tags: Field.array(Field.string(), { length: 5, default: surql`[]` }),
 		},
 		schemafull: true,
 	}) {}
@@ -31,22 +31,26 @@ describe("Field.array - primitive arrays", () => {
 	});
 
 	test("should create and fetch a record with string array", async () => {
-		const data = { tags: ["a", "b", "c"] };
+		// SurrealDB v3: array<string, 5> means exactly 5 elements
+		const data = { tags: ["a", "b", "c", "d", "e"] };
 		const record = await TagsModel.create(db, data);
-		expect(record.tags).toEqual(["a", "b", "c"]);
+		expect(record.tags).toEqual(["a", "b", "c", "d", "e"]);
 
 		const fetched = await TagsModel.select(db, { from: record.id, only: true });
-		expect(fetched?.tags).toEqual(["a", "b", "c"]);
+		expect(fetched?.tags).toEqual(["a", "b", "c", "d", "e"]);
 		const updated = await fetched?.update(db, {
 			mode: "merge",
-			data: { tags: ["tag3", "tag4"] },
+			data: { tags: ["v", "w", "x", "y", "z"] },
 		});
-		expect(updated?.tags).toEqual(["tag3", "tag4"]);
+		expect(updated?.tags).toEqual(["v", "w", "x", "y", "z"]);
 	});
 
-	test("should fail if array exceeds max length", async () => {
-		const tooManyTags = { tags: ["a", "b", "c", "d", "e", "f"] };
-		expect(TagsModel.create(db, tooManyTags)).rejects.toThrow();
+	test("should fail if array length does not match", async () => {
+		// SurrealDB v3: array<string, 5> requires exactly 5 elements
+		const tooMany = { tags: ["a", "b", "c", "d", "e", "f"] };
+		expect(TagsModel.create(db, tooMany)).rejects.toThrow();
+		const tooFew = { tags: ["a", "b"] };
+		expect(TagsModel.create(db, tooFew)).rejects.toThrow();
 	});
 });
 

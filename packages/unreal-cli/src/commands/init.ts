@@ -353,10 +353,10 @@ export const initCommand = new Command("init")
 
 		// === Dependency Installation ===
 		const detectedPkgManager = detectPackageManager();
-		const deps = ["unreal-orm@latest", "surrealdb@alpha"];
+		const deps = ["unreal-orm@latest", "surrealdb@2.0.0"];
 		const devDeps = ["@unreal-orm/cli"];
 		if (connectionMode === "memory" || connectionMode === "file") {
-			deps.push("@surrealdb/node@alpha");
+			deps.push("@surrealdb/node@3.0.1");
 		}
 
 		// Determine if we should install

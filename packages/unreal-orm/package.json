@@ -33,16 +33,14 @@
 	],
 	"author": "Jimpex <contact@jimpex.dev> (https://jimpex.dev)",
 	"license": "ISC",
-	"packageManager": "pnpm@10.11.1",
 	"devDependencies": {
-		"@surrealdb/node": "2.3.4",
+		"@surrealdb/node": "^3.0.1",
 		"@types/bun": "^1.2.16",
-		"@types/node": "^22.15.29",
-		"surrealdb": "^2.0.0-alpha.14",
+		"surrealdb": "^2.0.0",
 		"unbuild": "^3.6.1"
 	},
 	"peerDependencies": {
-		"surrealdb": "^2.0.0-alpha.14",
+		"surrealdb": "^2.0.0",
 		"typescript": "^5"
 	},
 	"files": ["dist", "unreal.schema.json", "README.md", "LICENSE"],

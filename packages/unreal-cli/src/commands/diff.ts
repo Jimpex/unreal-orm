@@ -10,6 +10,7 @@ import { formatChanges } from "../diff/compare";
 import type { SchemaAST } from "unreal-orm";
 import { compareSchemas } from "unreal-orm";
 import { ui } from "../utils/ui";
+import { debug } from "../utils/debug";
 
 interface FileDiff {
 	filename: string;
@@ -185,11 +186,17 @@ export const diffCommand = new Command()
 	.option("-s, --schema-dir <path>", "Schema directory path")
 	.option("-e, --embedded <mode>", "Use embedded mode (memory or file path)")
 	.option("--detailed", "Show detailed field-level changes")
+	.option(
+		"--log-level <level>",
+		"Log output level: silent, normal, debug",
+		"normal",
+	)
 	.action(async (options) => {
 		try {
 			ui.header("UnrealORM Diff", "Compare code vs database schema");
 
 			// Load config and resolve schema directory
+			debug("Loading config");
 			const unrealConfig = await loadConfig();
 			const outputDir = await resolveSchemaDir({
 				cliOutput: options.schemaDir,
@@ -197,6 +204,7 @@ export const diffCommand = new Command()
 			});
 
 			// Resolve database connection (handles CLI flags, config, or prompts)
+			debug("Resolving database connection");
 			const db = await resolveConnection({
 				cliOptions: {
 					url: options.url,
@@ -218,11 +226,13 @@ export const diffCommand = new Command()
 			}
 
 			// Introspect database schema
+			debug("Introspecting database schema");
 			const introspectSpinner = ui.spin("Introspecting database schema");
 			const databaseSchema: SchemaAST = await introspect(db);
 			introspectSpinner.succeed("Introspected database schema");
 
 			// Extract code schema from TypeScript files
+			debug("Parsing code schema");
 			let codeSchema: SchemaAST | null = null;
 			if (existsSync(outputDir)) {
 				const parseSpinner = ui.spin("Parsing code schema");
@@ -240,6 +250,7 @@ export const diffCommand = new Command()
 			// Perform semantic diff if we have code schema, otherwise fall back to file comparison
 			if (codeSchema) {
 				// Semantic AST-based diff
+				debug("Comparing schemas (semantic)");
 				const changes = compareSchemas(databaseSchema, codeSchema);
 
 				if (changes.length === 0) {

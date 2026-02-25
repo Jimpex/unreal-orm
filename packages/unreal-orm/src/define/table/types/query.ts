@@ -128,12 +128,17 @@ export interface SelectQueryOptions<
 	fetch?: string[];
 	/** The timeout for the query, specified in a duration string (e.g. "1m"). */
 	timeout?: string;
-	/** If true, runs the query in parallel with other queries. */
+	/**
+	 * @deprecated SurrealDB no longer supports the PARALLEL clause.
+	 * If true, runs the query in parallel with other queries. This option is now ignored.
+	 */
 	parallel?: boolean;
 	/** If true, enables temporary file usage for the query. */
 	tempfiles?: boolean;
 	/** If true, returns the query plan instead of the results. */
 	explain?: boolean;
+	/** If true, outputs the generated query and bindings for debugging. */
+	DEBUG?: boolean;
 }
 
 /**
@@ -215,10 +220,15 @@ export interface CountQueryOptions<TTable> {
 	where?: string;
 	/** An array of fields to group the results by before counting. */
 	groupBy?: (keyof TTable | string)[];
-	/** If true, runs the query in parallel with other queries. */
+	/**
+	 * @deprecated SurrealDB no longer supports the PARALLEL clause.
+	 * If true, runs the query in parallel with other queries. This option is now ignored.
+	 */
 	parallel?: boolean;
 	/** The timeout for the query, specified in a duration string (e.g. "1m"). */
 	timeout?: string;
+	/** If true, outputs the generated query and bindings for debugging. */
+	DEBUG?: boolean;
 }
 
 // ============================================================================
@@ -398,4 +408,6 @@ export interface InsertQueryOptions<TTable, TData = TTable | TTable[]> {
 	 * ```
 	 */
 	onDuplicate?: Partial<TTable> | BoundQuery | Expr;
+	/** If true, outputs the generated query and bindings for debugging. */
+	DEBUG?: boolean;
 }

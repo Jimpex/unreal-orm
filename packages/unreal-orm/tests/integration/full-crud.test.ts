@@ -151,7 +151,6 @@ describe("Full CRUD & Relations Integration", () => {
       author: u2.id,
     });
     const posts = await Post.select(db);
-    console.log(posts);
     expect(posts.length).toBeGreaterThanOrEqual(2);
     const authors = posts.map((p: InstanceType<typeof Post>) => p.author);
     expect(authors.map((a) => a.toString()).includes(u1.id.toString()));

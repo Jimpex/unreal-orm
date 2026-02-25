@@ -18,6 +18,7 @@ import { planFileChanges, type FileChange } from "../codegen/fileMerger";
 import { extractSchemaFromRuntime } from "../diff/parseTypeScript";
 import { getFileDiff, getChangeSummary } from "../utils/diffViewer";
 import { ui } from "../utils/ui";
+import { debug } from "../utils/debug";
 
 export const pullCommand = new Command()
 	.name("pull")
@@ -30,6 +31,11 @@ export const pullCommand = new Command()
 	.option("--auth-level <level>", "Auth level: root, namespace, or database")
 	.option("-s, --schema-dir <path>", "Schema directory path")
 	.option("--embedded <mode>", "Use embedded mode (memory or file path)")
+	.option(
+		"--log-level <level>",
+		"Log output level: silent, normal, debug",
+		"normal",
+	)
 	.option("-y, --yes", "Skip confirmation prompt")
 	// .option("--detailed", "Show detailed diff with old/new values")
 	.action(async (options) => {
@@ -37,6 +43,7 @@ export const pullCommand = new Command()
 		clearWarnings();
 
 		// Load config and resolve schema directory
+		debug("Loading config");
 		const unrealConfig = await loadConfig();
 		const outputDir = await resolveSchemaDir({
 			cliOutput: options.schemaDir,
@@ -56,6 +63,7 @@ export const pullCommand = new Command()
 		// Resolve database connection (handles CLI flags, config, or prompts)
 		// With -y flag and no credentials: use config automatically
 		// Without -y flag: prompt for config vs manual choice
+		debug("Resolving database connection");
 		const db = await resolveConnection({
 			cliOptions: {
 				url: options.url,
@@ -77,6 +85,7 @@ export const pullCommand = new Command()
 		}
 
 		// Introspect schema
+		debug("Introspecting database schema");
 		const spinner = ui.spin("Introspecting database schema...");
 		let schema: SchemaAST;
 		try {
@@ -90,6 +99,7 @@ export const pullCommand = new Command()
 		}
 
 		// Read existing files
+		debug("Planning file changes");
 		spinner.start("Planning file changes...");
 		const existingFiles = new Map<string, string>();
 		if (existsSync(outputDir)) {
@@ -272,6 +282,7 @@ export const pullCommand = new Command()
 		}
 
 		// Apply file changes
+		debug(`Applying ${filesToApply.length} file change(s)`);
 		spinner.start("Applying file changes...");
 		try {
 			if (!existsSync(outputDir)) {

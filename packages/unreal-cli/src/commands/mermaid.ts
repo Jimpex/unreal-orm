@@ -10,6 +10,7 @@ import { resolveConnection } from "../utils/connect";
 import { promptText, promptSelect } from "../utils/prompts";
 import type { SchemaAST, TableAST, FieldAST } from "unreal-orm";
 import { ui } from "../utils/ui";
+import { debug } from "../utils/debug";
 
 type SchemaSource = "code" | "database" | "surql";
 
@@ -36,6 +37,11 @@ export const mermaidCommand = new Command("mermaid")
 	.option("-d, --database <database>", "Database name")
 	.option("--auth-level <level>", "Auth level: root, namespace, or database")
 	.option("--embedded <mode>", "Use embedded mode (memory or file path)")
+	.option(
+		"--log-level <level>",
+		"Log output level: silent, normal, debug",
+		"normal",
+	)
 	.action(async (options) => {
 		ui.header("Mermaid ERD Generator", "Visualize your schema");
 		clearWarnings();
@@ -44,6 +50,7 @@ export const mermaidCommand = new Command("mermaid")
 
 		try {
 			// Load config (provides paths for both code and database connection)
+			debug("Loading config");
 			const config = await loadConfig(options.config);
 			if (config) {
 				spinner.succeed("Configuration loaded");
@@ -107,6 +114,7 @@ export const mermaidCommand = new Command("mermaid")
 					config,
 				});
 				spinner.start(`Extracting schema from ${schemaDir}...`);
+				debug("Extracting code schema");
 				schema = await extractSchemaFromRuntime(schemaDir);
 				spinner.succeed(
 					`Found ${schema.tables.length} tables from TypeScript schema`,
@@ -136,6 +144,7 @@ export const mermaidCommand = new Command("mermaid")
 				}
 
 				// Introspect
+				debug("Introspecting database schema");
 				spinner.start("Introspecting database schema...");
 				try {
 					schema = await introspect(db);
@@ -167,6 +176,7 @@ export const mermaidCommand = new Command("mermaid")
 			}
 
 			// Generate Mermaid
+			debug("Generating Mermaid diagram");
 			spinner.start("Generating Mermaid diagram...");
 			const mermaid = generateMermaidERD(schema);
 			spinner.succeed("Diagram generated");

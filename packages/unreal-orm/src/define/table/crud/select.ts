@@ -12,6 +12,15 @@ import type { FieldDefinition } from "../../field/types";
 import type { TypedExpr, FieldSelect } from "../types/select";
 import { getDatabase, isSurrealLike } from "../../../config";
 
+/**
+ * Global counter for unique binding keys to avoid collisions within a single query.
+ * @internal
+ */
+let queryBindingCounter = 0;
+function getUniqueKey(prefix: string): string {
+	return `${prefix}_${queryBindingCounter++}`;
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -278,7 +287,7 @@ function buildQuery<TTable>(
 		) {
 			// RecordId - bind directly
 			isDirectIdQuery = true;
-			const recordKey = `record_${Date.now()}`;
+			const recordKey = getUniqueKey("record");
 			sqlString += ` $${recordKey}`;
 			bindings[recordKey] = opts.from;
 		} else if (
@@ -296,7 +305,7 @@ function buildQuery<TTable>(
 			Object.assign(bindings, boundQuery.bindings);
 		} else if (typeof opts.from === "string") {
 			// String table name - use type::table()
-			const tableKey = `table_${Date.now()}`;
+			const tableKey = getUniqueKey("table");
 			sqlString += ` type::table($${tableKey})`;
 			bindings[tableKey] = opts.from;
 		} else {
@@ -307,7 +316,7 @@ function buildQuery<TTable>(
 		}
 	} else {
 		// Default: use the model's table name with type::table()
-		const tableKey = `table_${Date.now()}`;
+		const tableKey = getUniqueKey("table");
 		sqlString += ` type::table($${tableKey})`;
 		bindings[tableKey] = tableName;
 	}
@@ -366,14 +375,14 @@ function buildQuery<TTable>(
 
 	// LIMIT clause
 	if (opts.limit !== undefined) {
-		const limitKey = `limit_${Date.now()}`;
+		const limitKey = getUniqueKey("limit");
 		sqlString += ` LIMIT $${limitKey}`;
 		bindings[limitKey] = opts.limit;
 	}
 
 	// START clause
 	if (opts.start !== undefined) {
-		const startKey = `start_${Date.now()}`;
+		const startKey = getUniqueKey("start");
 		sqlString += ` START $${startKey}`;
 		bindings[startKey] = opts.start;
 	}
@@ -388,10 +397,10 @@ function buildQuery<TTable>(
 		sqlString += ` TIMEOUT ${opts.timeout}`;
 	}
 
-	// PARALLEL clause (after TIMEOUT)
-	if (opts.parallel) {
-		sqlString += " PARALLEL";
-	}
+	// PARALLEL clause (deprecated in SurrealDB 2.2+)
+	// if (opts.parallel) {
+	// 	sqlString += " PARALLEL";
+	// }
 
 	// TEMPFILES clause (after PARALLEL)
 	if (opts.tempfiles) {
@@ -426,6 +435,14 @@ async function executeAndProcessQuery<T, ModelInstanceType, TTable>(
 		!!opts.split ||
 		!!opts.value ||
 		!!opts.omit;
+
+	// DEBUG logging
+	if ("DEBUG" in opts && opts.DEBUG) {
+		console.log(`[UNREALORM DEBUG] Query: ${queryString}`);
+		console.log(
+			`[UNREALORM DEBUG] Bindings: ${JSON.stringify(bindings, null, 2)}`,
+		);
+	}
 
 	// Use string query with bindings, then collect results
 	const queryBuilder = (db as unknown as Surreal).query(queryString, bindings);

@@ -13,7 +13,7 @@ feedback: true
 
 import { Aside } from '@astrojs/starlight/components';
 
-This guide helps you upgrade your UnrealORM codebase to 1.0.0 alpha. The 1.0.0 release includes major improvements including transaction support, SurrealDB JS SDK 2.0 alpha integration, and enhanced update APIs.
+This guide helps you upgrade your UnrealORM codebase to 1.0.0 alpha. The 1.0.0 release includes major improvements including transaction support, SurrealDB JS SDK 2.0 integration, and enhanced update APIs.
 
 <Aside type="caution" title="Breaking Changes">
   This migration guide covers breaking changes that require code updates. Please read carefully and test thoroughly.
@@ -111,17 +111,17 @@ const users = await User.from(db, surql`SELECT * FROM user WHERE age > 18`);
 const users = await User.from(db, { raw: "SELECT * FROM user WHERE active = true" });
 ```
 
-### 5. SurrealDB 2.0 Alpha Dependency
+### 5. SurrealDB 2.0 Dependency
 
-UnrealORM 1.0.0 alpha requires SurrealDB 2.0 alpha. Update your dependencies:
+UnrealORM 1.0.0 alpha requires SurrealDB 2.0. Update your dependencies:
 
 **package.json:**
 
 ```json
 {
   "dependencies": {
-    "surrealdb": "^2.0.0-alpha.14",
-    "@surrealdb/node": "2.3.4" // if you run embedded, such as for internal testing
+    "surrealdb": "^2.0.0",
+    "@surrealdb/node": "^3.0.1" // if you run embedded, such as for internal testing
   }
 }
 ```
@@ -272,9 +272,9 @@ bunx @unreal-orm/cli init
 Or manually update:
 
 ```bash
-# Update SurrealDB to 2.0 alpha
-bun add surrealdb@alpha
-bun add @surrealdb/node@alpha  # if using embedded mode
+# Update SurrealDB to 2.0
+bun add surrealdb@2.0.0
+bun add @surrealdb/node@3.0.1  # if using embedded mode
 
 # Update UnrealORM and install CLI
 bun add unreal-orm@latest
@@ -539,7 +539,7 @@ if (!db.isFeatureSupported(Features.Transactions)) {
 
 ### Migration Checklist
 
-- [ ] Update SurrealDB to 2.0 alpha
+- [ ] Update SurrealDB to 2.0
 - [ ] Update UnrealORM to 1.0.0 alpha
 - [ ] Run `bunx @unreal-orm/cli init` or install CLI manually
 - [ ] Replace `.$dynamic.field` with `.field` (direct property access)

@@ -1,3 +1,5 @@
+import { isSilent } from "./logLevel";
+
 /**
  * A smart printer that tracks how many lines it has output,
  * allowing for "rewinding" (clearing) the output to replace it.
@@ -9,6 +11,7 @@ export class SmartPrinter {
 	 * Prints a message and tracks the number of lines used.
 	 */
 	log(message = ""): void {
+		if (isSilent()) return;
 		console.log(message);
 		// Count newlines + 1 (for the line itself)
 		// Also need to account for wrapping, but for now simple newline counting is a good approximation
