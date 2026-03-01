@@ -1,0 +1,124 @@
+---
+title: Mastering Graph Relations
+description: Advanced graph many-to-many relations, edge properties, and traversing links with Unreal ORM.
+---
+
+SurrealDB is a Multi-Model database, meaning it thrives as both a Document and a **Graph** database. While simple `Field.record()` links are great for one-to-many relations, **Relation Tables** (Edges) allow for powerful many-to-many structures with their own properties.
+
+## 🔗 Relation Tables (Edges)
+
+In Unreal ORM, relation tables are defined using `Table.relation()`. They require two special fields: `in` and `out`.
+
+### Defining an Edge
+
+Suppose we have `User` and `Project` models. We want to track which users are "members" of which projects, and include their "role" on that specific project.
+
+```ts
+import Table, { Field } from 'unreal-orm';
+
+class MemberOf extends Table.relation({
+  name: 'member_of',
+  fields: {
+    // The source (User)
+    in: Field.record(() => User),
+    // The target (Project)
+    out: Field.record(() => Project),
+    // Edge property
+    role: Field.string({ default: surql`"contributor"` }),
+    joinedAt: Field.datetime({ default: surql`time::now()` }),
+  },
+}) {}
+```
+
+### Creating an Edge
+
+To create a relationship, you create an instance of the edge model just like any other record.
+
+```ts
+await MemberOf.create(db, {
+  in: userId,
+  out: projectId,
+  role: 'admin',
+});
+```
+
+---
+
+## 🚀 Traversing Relations
+
+One of the main benefits of using edges is the ability to traverse them easily in both directions.
+
+### Using `fetch` for hydration
+
+You can hydrate the `in` or `out` records automatically during a select:
+
+```ts
+const memberships = await MemberOf.select(db, {
+  where: surql`out = ${projectId}`,
+  fetch: ['in'], // Hydrate the User record
+});
+
+console.log(memberships[0].in.name); // "Alice"
+```
+
+### 🚀 Path Traversal in `FROM`
+
+SurrealDB allows you to query directly from a relationship path. This is often **faster and more efficient** than using a `WHERE` clause because it uses graph indices to jump directly between records.
+
+In Unreal ORM, you can modify the `from` option in `select` to use a graph path.
+
+```ts
+// Find all projects that Alice is a member of
+// This traverses: User (Alice) -> MemberOf Edge -> Project
+const aliceProjects = await Project.select(db, {
+  from: surql`user:alice->member_of->project`,
+});
+```
+
+---
+
+## 🔝 Advanced Projections with `typed()`
+
+When selecting related data, you can use the `typed<T>()` helper to ensure the results are correctly typed in TypeScript.
+
+### Projecting Relation Data
+
+You can project data across relations directly in the `select` block.
+
+```ts
+import { typed } from 'unreal-orm';
+
+const projects = await Project.select(db, {
+  select: {
+    name: true,
+    // Project the count of members using a graph expression
+    memberCount: typed<number>(surql`count(<-member_of)`),
+    // Fetch the names of all members
+    memberNames: typed<string[]>(surql`<-member_of<-user.name`),
+  },
+});
+
+// projects[0].memberCount is typed as number
+// projects[0].memberNames is typed as string[]
+```
+
+---
+
+## 🔗 Official Resources
+
+For a deep dive into how SurrealDB handles graph data, check out the official documentation:
+
+- [**SurrealDB Graph Models**](https://surrealdb.com/docs/surrealdb/models/graph) — Details on IDs, Edges, and Graph Traversal.
+
+---
+
+## 💡 Many-to-Many vs. Record Links
+
+| Feature | `Field.record` (Link) | `Table.relation` (Edge) |
+| :--- | :--- | :--- |
+| **Cardinality** | One-to-One / One-to-Many | Many-to-Many |
+| **Properties** | No (Link only) | ✅ Yes (Properties on the Edge) |
+| **Query Speed** | Fast (Direct lookup) | Fast (Index-backed graph traversal) |
+| **Complexity** | Simple | More setup (Extra table) |
+
+**Recommendation:** Use `record` links for simple ownership (e.g., `Post` has one `Author`). Use `relation` tables when the relationship itself has data (e.g., `User` follows `User` with a `since` timestamp).

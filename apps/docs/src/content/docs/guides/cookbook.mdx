@@ -119,6 +119,78 @@ const users = await User.select(db, {
 // Type: Omit<User, 'password'>[]
 ```
 
+## DRY & Reusable Definitions
+
+Keep your models clean by abstracting common field patterns and logic.
+
+### 🧱 Field Helper Functions
+
+Instead of repeating complex validation, wrap field definitions in functions.
+
+```ts
+// Reusable email field with consistent validation
+export const EmailField = (options = {}) => 
+  Field.string({
+    assert: surql`string::is::email($value)`,
+    comment: 'User email address',
+    ...options
+  });
+
+// Usage in models
+class User extends Table.normal({
+  name: 'user',
+  fields: {
+    email: EmailField({ unique: true }),
+  }
+}) {}
+```
+
+### 🏗️ Base Models & Shared Methods
+
+You can use TypeScript inheritance to share logic across models.
+
+```ts
+class BaseModel extends Table.normal({ ... }) {
+  // Shared logic for all models extending this class
+  async archive(db: Surreal) {
+    return this.update(db, { data: { archived: true }, mode: 'merge' });
+  }
+}
+
+class Post extends BaseModel {
+  // Post inherits .archive()
+}
+```
+
+### 📋 Shared Fields (Spread Pattern)
+
+Need the same timestamps on every table? Use the spread operator.
+
+```ts
+const TIMESTAMPS = {
+  createdAt: Field.datetime({ default: surql`time::now()`, readonly: true }),
+  updatedAt: Field.datetime({ value: surql`time::now()` }),
+};
+
+class Post extends Table.normal({
+  name: 'post',
+  fields: {
+    title: Field.string(),
+    ...TIMESTAMPS
+  }
+}) {}
+```
+
 ---
+
+## 🚀 Deep Dives
+
+Looking for more than just a snippet? Check out our in-depth guides:
+
+- [**Mastering Graph Relations**](./graph-relations/) — Many-to-many and edge properties.
+- [**Security & Permissions**](./security-permissions/) — Row-level security patterns.
+- [**Testing Strategies**](./testing/) — Fast in-memory unit testing.
+- [**Common Patterns**](./patterns/) — Architectural patterns like singletons and hierarchies.
+- [**Migrations & Schema Sync**](./migrations/) — CLI usage and CI/CD integration.
 
 📖 Continue exploring the [Tutorial](./unreal-orm-tutorial/) or deep-dive into the [API Reference](../api/).

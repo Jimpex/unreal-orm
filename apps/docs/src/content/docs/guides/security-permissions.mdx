@@ -1,0 +1,77 @@
+---
+title: Security & Permissions
+description: implementing row-level security and field-level permissions using $auth and Unreal ORM.
+---
+
+SurrealDB provides a robust permissions system that allows you to define who can access what at the Table or Field level. Unreal ORM exposes these features through the `permissions` option.
+
+## 🛡️ Table Permissions
+
+Table permissions control access to the entire record based on a SurrealQL `WHERE` clause.
+
+### Common Patterns: Row-Level Security (RLS)
+
+The most common pattern is restricting access to the record owner. SurrealDB provides the `$auth` variable which contains the current session's record ID.
+
+```ts
+class Post extends Table.normal({
+  name: 'post',
+  fields: {
+    title: Field.string(),
+    author: Field.record(() => User),
+  },
+  permissions: {
+    // Anyone can see a post
+    select: true,
+    // Only the author can update or delete their own post
+    update: surql`author = $auth.id`,
+    delete: surql`author = $auth.id`,
+    // Anyone logged in can create
+    create: surql`$auth.id != NONE`,
+  },
+}) {}
+```
+
+---
+
+## 🔒 Field Permissions
+
+Field-level permissions allow you to hide or protect specific fields even if the user has access to the record.
+
+### Hiding Private Data
+
+A classic example is hiding a user's `email` or `password_hash` from other users.
+
+```ts
+class User extends Table.normal({
+  name: 'user',
+  fields: {
+    name: Field.string(),
+    email: Field.string({
+      permissions: {
+        // Only the user themselves can see their email
+        select: surql`id = $auth.id`,
+        // Only the user can update their email
+        update: surql`id = $auth.id`,
+      }
+    }),
+  },
+}) {}
+```
+
+---
+
+## 🔑 Permissions & $auth
+
+The `$auth` variable structure depends on your authentication level. Typically, if you are using SurrealDB's Scope authentication, it represents the record in the `user` (or equivalent) table.
+
+### Permission Expressions
+
+Permissions can be set to:
+- `true`: Always allowed (standard SurrealDB `FULL` access).
+- `false`: Always denied (standard SurrealDB `NONE` access).
+- `surql'...'`: A custom SurrealQL expression that evaluates to a boolean.
+
+:::tip
+When using complex permissions, it is highly recommended to use the **`mem://` engine** for testing your security logic in unit tests. See the [Testing Guide](./testing/) for more.
+:::

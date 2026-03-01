@@ -60,6 +60,7 @@ Options:
   -d, --database <database>    Database name
   --auth-level <level>         Auth level: root, namespace, or database
   --embedded <mode>            Use embedded mode (memory or file path)
+  --log-level <level>          Log output level: silent, normal, debug (default: normal)
   --skip-install               Skip dependency installation
 ```
 
@@ -91,6 +92,7 @@ Options:
   -s, --schema-dir <path>      Schema directory path
   --auth-level <level>         Auth level: root, namespace, or database
   --embedded <mode>            Use embedded mode (memory or file path)
+  --log-level <level>          Log output level: silent, normal, debug (default: normal)
   -y, --yes                    Skip confirmation prompts
 ```
 
@@ -145,6 +147,7 @@ Options:
   -s, --schema-dir <path>      Schema directory path
   --auth-level <level>         Auth level: root, namespace, or database
   --embedded <mode>            Use embedded mode (memory or file path)
+  --log-level <level>          Log output level: silent, normal, debug (default: normal)
   -y, --yes                    Skip confirmation prompts
 ```
 
@@ -172,6 +175,7 @@ Options:
   -s, --schema-dir <path>      Schema directory path
   --auth-level <level>         Auth level: root, namespace, or database
   --embedded <mode>            Use embedded mode (memory or file path)
+  --log-level <level>          Log output level: silent, normal, debug (default: normal)
   --detailed                   Show detailed field-level changes
 ```
 
@@ -199,6 +203,7 @@ Options:
   --page-size <size>           Records per page (5-100, default: auto)
   --timeout <seconds>          Query timeout in seconds (default: 3)
   --concurrency <count>        Max concurrent count queries (default: 5)
+  --log-level <level>          Log output level: silent, normal, debug (default: normal)
 ```
 
 **Features:**
@@ -235,6 +240,22 @@ Options:
   --stdout                     Output to stdout instead of file
   --url <url>                  Database URL (for database source)
   -s, --schema-dir <path>      Schema directory (for code source)
+  --log-level <level>          Log output level: silent, normal, debug (default: normal)
+
+### `docs`
+
+Open the UnrealORM documentation in the default browser.
+
+```bash
+unreal docs
+```
+
+### `github`
+
+Open the UnrealORM GitHub repository in the default browser.
+
+```bash
+unreal github
 ```
 
 **Example output:**

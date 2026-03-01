@@ -1,0 +1,99 @@
+---
+title: Testing Strategies
+description: How to unit test your models and logic using Unreal ORM and the SurrealDB in-memory engine.
+---
+
+One of the best developer experiences in SurrealDB is the ability to run the database fully in-memory (`mem://`). This makes it possible to write ultra-fast unit tests that verify your schema, assertions, and permissions without any external dependencies.
+
+## 🧪 In-Memory Setup
+
+To use the in-memory engine, you need to use the `@surrealdb/node` engine (which is included in the `surrealdb` package as an optional dependency, but required for local engines).
+
+```bash
+# Ensure you have the node engines available
+bun add @surrealdb/node
+```
+
+In your test setup, import the engine to register it with the SDK:
+
+```ts
+import { Surreal } from 'surrealdb';
+import { Unreal } from 'unreal-orm';
+// Import the node engine to enable mem:// and file://
+import { createNodeEngines } from '@surrealdb/node';
+
+async function setupTestDb() {
+  const db = new Surreal({
+    engines: {
+      ...createNodeEngines(),
+    },
+  });
+  // Connect to an isolated in-memory instance
+  await db.connect('mem://');
+  await db.use({ namespace: 'test', database: 'test' });
+  
+  // Configure the ORM to use this instance globally
+  Unreal.configure({ database: db });
+  
+  return db;
+}
+```
+
+:::info
+For a real-world example of how we test the ORM itself using this pattern, check out the [Unreal ORM Tests on GitHub](https://github.com/Jimpex/unreal-orm/tree/main/packages/unreal-orm/src/tests).
+:::
+
+---
+
+## 🏎️ Running Unit Tests
+
+Using a framework like `vitest` or `bun test`, you can set up a clean database for every test file (or even every test).
+
+### Example: Testing Assertions
+
+```ts
+import { test, expect, beforeAll } from 'vitest';
+import { User } from './models';
+
+beforeAll(async () => {
+  const db = await setupTestDb();
+  // Apply the schema once
+  await Unreal.applySchema(db, [User]);
+});
+
+test('should fail if email is invalid', async () => {
+  const db = Unreal.getDatabase();
+  
+  await expect(User.create(db, {
+    name: 'Alice',
+    email: 'invalid-email', // This should trigger Field assertion
+  })).rejects.toThrow();
+});
+```
+
+---
+
+## 🛡️ Testing Permissions
+
+Testing permissions is critical. You can simulate different users by "signing in" or using the `vars` option in queries.
+
+```ts
+test('user should not be able to delete others posts', async () => {
+  const db = Unreal.getDatabase();
+  
+  // 1. Create a post as User A
+  const post = await Post.create(db, { title: 'Secret', author: 'user:A' });
+  
+  // 2. Try to delete as User B (simulated via vars)
+  // Note: In real scenarios, you would use scope auth, 
+  // but for raw logic testing you can use $auth vars.
+  await expect(db.query('DELETE $id', { id: post.id, auth: { id: 'user:B' } }))
+    .rejects.toThrow();
+});
+```
+
+## 💡 Best Practices
+
+1. **Namespace Isolation**: Use a unique database/namespace name for each test runner if running in parallel.
+2. **Global Configuration**: Use `Unreal.configure` in a global setup file to avoid passing the `db` instance everywhere.
+3. **Snapshot Testing**: Use `Unreal.ast.extractSchema()` to snapshot your schema and prevent accidental DDL changes.

@@ -198,6 +198,8 @@ unreal push     # Apply TypeScript schema to database
 unreal diff     # Compare code vs database schema
 unreal mermaid  # Generate ERD diagram
 unreal view     # Interactive TUI for browsing/editing records
+unreal docs     # Open the UnrealORM documentation
+unreal github   # Open the UnrealORM GitHub repository
 ```
 
 After `init`, the CLI is installed as a dev dependency and can be run via `bunx unreal` or `npx unreal`.

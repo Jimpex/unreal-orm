@@ -34,7 +34,8 @@ This repository is organized as a monorepo, making it easy to develop, test, and
 - [API Reference](https://unreal-orm.jimpex.dev/api/): Full API documentation
 
 - **Main ORM package:** See [`packages/unreal-orm/README.md`](packages/unreal-orm/README.md) for usage, API, and details.
-- **CLI tools:** See [`packages/unreal-cli/README.md`](packages/unreal-cli/README.md) for schema introspection, diffing, and migrations.
+- **CLI tools:** See [`packages/unreal-cli/README.md`](packages/unreal-cli/README.md) for schema introspection (`pull`), migrations (`push`), diffing (`diff`), ERD generation (`mermaid`), and record browsing (`view`).
+- **Need help?** Run `unreal docs` or `unreal github`.
 - **Documentation site source:** See [`apps/docs/`](apps/docs/) for the Astro-powered docs.
 
 ---

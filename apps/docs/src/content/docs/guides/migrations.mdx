@@ -1,0 +1,75 @@
+---
+title: Migrations & Schema Sync
+sidebar_label: Migrations & Schema Sync
+description: Best practices for managing your SurrealDB schema using the Unreal CLI and automation.
+---
+
+Managing your database schema is a core part of the Unreal ORM workflow. The CLI provides tools to keep your TypeScript models and SurrealDB schema in sync.
+
+## 🔄 The Sync Workflow
+
+The primary tools for schema management are `unreal pull`, `unreal push`, and `unreal diff`.
+
+### 1. Pulling existing schema
+Use `unreal pull` to generate ORM models from an existing SurrealDB instance. 
+
+**Pro-tip:** Flags are completely optional! If you just run `unreal pull`, the CLI will interactively prompt you for connection details or let you pick from your `unreal.config.ts`.
+
+```bash
+# Automated/Pattern usage:
+bun unreal pull --url http://localhost:8000 --user root --pass root --ns test --db test
+
+# Interactive/Convenient usage:
+bun unreal pull
+```
+
+### 2. Pushing your models
+Once you've defined or modified your `Table.normal` classes, use `unreal push` to apply the generated SurrealQL to your database.
+
+```bash
+bun unreal push
+```
+*(This uses your `unreal.config.ts` for connection details)*
+
+### 3. Reviewing changes with `diff`
+Before applying changes, use `unreal diff` to see what has changed between your current models and the live database.
+
+```bash
+bun unreal diff
+```
+
+---
+
+## 🛠️ Automation & CI/CD
+
+Integrating schema validation into your CI/CD pipeline ensures that your code never drifts from its intended schema.
+
+### Schema Validation in CI
+You can use `Unreal.ast.compareSchemas` or the CLI in a dry-run mode to fail a pull-request if the models don't match the expected schema.
+
+```yaml
+# GitHub Action Example
+- name: Verify Schema Sync
+  run: |
+    # Generate schema SQL and compare with a snapshot or live DB
+    bun unreal diff --exit-code-on-change
+```
+
+### Schema Generation as an Artifact
+You can generate the full SurrealQL schema without connecting to a database by using `Unreal.generateFullSchemaQl()`. This is useful for generating a `schema.surql` file for your repository.
+
+```ts
+import { Unreal } from 'unreal-orm';
+import { User, Post } from './models';
+
+const sql = Unreal.generateFullSchemaQl([User, Post]);
+// Write sql to a file...
+```
+
+---
+
+## 💡 Best Practices
+
+1. **Model-First approach**: Let your TypeScript code be the "source of truth".
+2. **Version Control your Schema**: Always check in your `unreal.config.ts` and consider checking in a generated `schema.surql` for documentation.
+3. **Use SCHEMAFULL**: Always set `schemafull: true` on your tables to ensure SurrealDB enforces your type definitions.

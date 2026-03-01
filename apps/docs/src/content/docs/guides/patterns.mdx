@@ -1,0 +1,105 @@
+---
+title: Common Patterns
+sidebar_label: Common Patterns
+description: Architectural patterns for common application requirements like singletons, tagging, and hierarchies.
+---
+
+This guide covers common structural patterns you might encounter while building applications with SurrealDB and Unreal ORM.
+
+## 🏢 Singleton / Global Settings
+
+Use a singleton table when you need global configuration that only has one record (e.g., app settings, maintenance flags).
+
+```ts
+class AppSettings extends Table.normal({
+  name: 'app_settings',
+  fields: {
+    siteName: Field.string(),
+    maintenanceMode: Field.bool({ default: surql`false` }),
+  },
+}) {
+  static async getInstance(db: Surreal) {
+    // Always use a fixed ID for the singleton
+    return this.select(db, { from: 'app_settings:main', only: true });
+  }
+}
+```
+
+---
+
+## 🏷️ Tagging Systems
+
+For tagging, you can either use an array of strings (simple) or a many-to-many relationship (advanced).
+
+### Simple: Array of Strings
+Best for simple filtering where you don't need to store extra data about the tags.
+
+```ts
+class BlogPost extends Table.normal({
+  name: 'post',
+  fields: {
+    title: Field.string(),
+    tags: Field.array(Field.string()),
+  },
+}) {}
+
+// Querying by tag
+const devPosts = await BlogPost.select(db, {
+  where: surql`tags CONTAINS "development"`
+});
+```
+
+---
+
+## 🌳 Recursive / Hierarchical Data
+
+The parent-child pattern is common for categories, folders, or comment threads.
+
+```ts
+class Category extends Table.normal({
+  name: 'category',
+  fields: {
+    name: Field.string(),
+    parent: Field.option(Field.record(() => Category)),
+  },
+}) {
+  static async getRoot(db: Surreal) {
+    return this.select(db, { where: surql`parent = NONE` });
+  }
+
+  async getChildren(db: Surreal) {
+    return Category.select(db, { where: surql`parent = ${this.id}` });
+  }
+}
+```
+
+---
+
+## 🎭 Polymorphic Links
+
+A polymorphic link is a field that can point to multiple different types of tables.
+
+```ts
+class ActivityFeed extends Table.normal({
+  name: 'activity',
+  fields: {
+    action: Field.string(),
+    // Link to either a User or an Organization
+    actor: Field.custom<RecordId>('record<user | organization>'),
+  },
+}) {}
+```
+
+---
+
+## 🔑 Multi-Column Unique Index
+
+Enforcing uniqueness across multiple fields (e.g., a user can only have one "primary" email).
+
+```ts
+const idx_user_primary = Index.define(() => User, {
+  name: 'idx_user_primary',
+  fields: ['userId', 'isPrimary'],
+  unique: true,
+});
+```

@@ -18,6 +18,23 @@ This release focuses heavily on **TypeScript type safety and inference improveme
 
 ## ✨ Features
 
+### Documentation Improvements & Advanced Guides
+
+Completely revamped the documentation structure and added a suite of deep-dive guides for production-grade development:
+- **[Mastering Graph Relations](/guides/graph-relations/):** Advanced many-to-many patterns, edge properties, and high-performance `FROM` clause path traversal.
+- **[Security & Permissions](/guides/security-permissions/):** Row-level security (RLS) patterns using `$auth` for table and field-level protection.
+- **[Testing Strategies](/guides/testing/):** Ultra-fast unit testing workflows using the SurrealDB `mem://` engine and `@surrealdb/node`.
+- **[Common Patterns](/guides/patterns/):** Architectural recipes for singletons, tagging systems, recursive hierarchies, and polymorphic links.
+- **[Migrations & Schema Sync](/guides/migrations/):** Best practices for the CLI `pull`/`push`/`diff` workflow and CI/CD integration.
+
+### CLI Unified Log Levels
+
+Introduced a centralized `--log-level` flag (`silent`, `normal`, `debug`) across all CLI commands.
+
+### Interactive CLI Prompts
+
+The CLI now provides interactive prompts for database connections if flags are omitted, making it more convenient for manual usage.
+
 ### Deeply Nested Type Inference
 
 The type signatures for `Table.select()` and the `FieldSelect` utility have been entirely rewritten to support infinite-depth schema awareness. 
@@ -84,6 +101,13 @@ const results = await Post.select(db, {
 // Result merges inferShape<PostFields> but narrows `author: { name: string }`
 ```
 
+### Enhanced SurrealDB Feature Support
+
+The [Capabilities Matrix](/getting-started/capabilities/) has been updated to reflect full support for:
+- **Table Views (`AS SELECT`)**: Define projected views directly in your schema.
+- **Changefeeds**: Configure durations and original data inclusion.
+- **Record References**: Support for `ON DELETE` actions (CASCADE, REJECT, etc.) in `Field.record`.
+
 ### Explicit `id` Projection
 
 The `FieldSelect` utility now officially permits manually specifying `id: true` alongside standard schema fields, and correctly resolves the output type to the table's `RecordId`.
@@ -93,28 +117,6 @@ const results = await Post.select(db, {
   select: { id: true, title: true }
 });
 // Result strictly includes `id: RecordId<"post">`
-```
-
-## ⚠️ Breaking Changes
-
-### Strict `FieldSelect` Property Validation
-
-To enable accurate deeply nested types, the `FieldSelect` type no longer permits arbitrary unknown string keys implicitly. If your projection previously assigned an object with computed scalar fields to a variable typed strictly as `FieldSelect<T>`, you should instead let TypeScript infer the type or assign it `as const`:
-
-```typescript
-// ❌ Old (Throws a type error because 'commentCount' is not on Post)
-const select: FieldSelect<PostFields> = {
-  title: true,
-  commentCount: typed<number>(surql`count(<-comment)`)
-};
-
-// ✅ New (Let TypeScript infer the select object)
-const results = await Post.select(db, {
-  select: {
-    title: true,
-    commentCount: typed<number>(surql`count(<-comment)`) // Perfectly fine when evaluated dynamically
-  }
-});
 ```
 
 ## 🐛 Bug Fixes
