@@ -1,5 +1,5 @@
 import { RecordId as SurrealRecordId } from "surrealdb";
-import type { FieldDefinition } from "../field/types";
+import type { FieldDefinition, InternalFieldDef } from "../field/types";
 import type {
 	InferShapeFromFields,
 	ModelInstance,
@@ -46,26 +46,28 @@ export function hydrate<
 	): unknown {
 		if (!fieldDef) return value;
 
+		const internalDef = fieldDef as InternalFieldDef;
+
 		if (
-			fieldDef.type?.startsWith?.("record<") &&
-			fieldDef.recordTableThunk &&
+			internalDef.type?.startsWith?.("record<") &&
+			internalDef.recordTableThunk &&
 			typeof value === "object" &&
 			value !== null &&
 			!(value instanceof SurrealRecordId) &&
 			!Array.isArray(value)
 		) {
-			const RelatedModel = fieldDef.recordTableThunk();
+			const RelatedModel = internalDef.recordTableThunk();
 			return new RelatedModel(
 				value as InferShapeFromFields<typeof RelatedModel._fields>,
 			);
 		}
 
 		if (
-			fieldDef.arrayElementType?.type?.startsWith?.("record<") &&
-			fieldDef.arrayElementType.recordTableThunk &&
+			internalDef.arrayElementType?.type?.startsWith?.("record<") &&
+			internalDef.arrayElementType.recordTableThunk &&
 			Array.isArray(value)
 		) {
-			const RelatedModel = fieldDef.arrayElementType.recordTableThunk();
+			const RelatedModel = internalDef.arrayElementType.recordTableThunk();
 			return value.map((item) =>
 				typeof item === "object" &&
 				item !== null &&
@@ -76,22 +78,24 @@ export function hydrate<
 		}
 
 		if (
-			fieldDef.type === "object" &&
-			fieldDef.objectSchema &&
+			internalDef.type === "object" &&
+			internalDef.objectSchema &&
 			typeof value === "object" &&
 			value !== null
 		) {
 			const hydratedObj: Record<string, unknown> = {};
-			for (const key in fieldDef.objectSchema) {
-				if (Object.prototype.hasOwnProperty.call(fieldDef.objectSchema, key)) {
+			for (const key in internalDef.objectSchema) {
+				if (
+					Object.prototype.hasOwnProperty.call(internalDef.objectSchema, key)
+				) {
 					hydratedObj[key] = hydrateValue(
 						(value as Record<string, unknown>)?.[key],
-						fieldDef.objectSchema?.[key],
+						internalDef.objectSchema?.[key],
 					);
 				}
 			}
 			for (const key in value as Record<string, unknown>) {
-				if (!fieldDef.objectSchema?.[key]) {
+				if (!internalDef.objectSchema?.[key]) {
 					hydratedObj[key] = (value as Record<string, unknown>)[key];
 				}
 			}

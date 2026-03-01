@@ -8,8 +8,14 @@ import type {
 	SurrealLike,
 } from "../types/model";
 import type { SelectQueryOptions, OrderByClause } from "../types/query";
+import type {
+	TypedExpr,
+	FieldSelect,
+	InferSelectResult,
+	OmitSelect,
+	InferOmitResult,
+} from "../types/select";
 import type { FieldDefinition } from "../../field/types";
-import type { TypedExpr, FieldSelect } from "../types/select";
 import { getDatabase, isSurrealLike } from "../../../config";
 
 /**
@@ -467,6 +473,130 @@ async function executeAndProcessQuery<T, ModelInstanceType, TTable>(
 }
 
 // ============================================================================
+// SELECT METHOD OVERLOADED TYPE
+// ============================================================================
+
+/**
+ * Fully typed overloaded interface for the `select` method.
+ * Narrows the return type based on whether `select:` (field projection),
+ * `omit:`, or `only: true` are present in the options.
+ *
+ * The cross product of options gives 8 overloads:
+ *   (with-db | no-db) × (select | omit | plain) × (only | array)
+ *
+ * @internal — cast target for the implementation; exported so model.ts can reference it.
+ */
+export type SelectMethod<
+	TFields extends Record<string, FieldDefinition<unknown>>,
+> = {
+	// ── With explicit db ─────────────────────────────────────────────────────
+
+	// select: + only: true  →  single narrowed result
+	<TSelect extends FieldSelect<TFields>>(
+		db: SurrealLike,
+		opts: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>>,
+			"select" | "only"
+		> & {
+			select: TSelect;
+			only: true;
+		},
+	): Promise<InferSelectResult<TFields, TSelect> | undefined>;
+
+	// select: (no only)  →  array of narrowed results
+	<TSelect extends FieldSelect<TFields>>(
+		db: SurrealLike,
+		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "select"> & {
+			select: TSelect;
+		},
+	): Promise<InferSelectResult<TFields, TSelect>[]>;
+
+	// omit: + only: true  →  single omit result
+	<TOmit extends OmitSelect<TFields>>(
+		db: SurrealLike,
+		opts: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>>,
+			"omit" | "only"
+		> & {
+			omit: TOmit;
+			only: true;
+		},
+	): Promise<InferOmitResult<TFields, TOmit> | undefined>;
+
+	// omit: (no only)  →  array of omit results
+	<TOmit extends OmitSelect<TFields>>(
+		db: SurrealLike,
+		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "omit"> & {
+			omit: TOmit;
+		},
+	): Promise<InferOmitResult<TFields, TOmit>[]>;
+
+	// only: true (no projection)  →  single model instance
+	(
+		db: SurrealLike,
+		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "only"> & {
+			only: true;
+		},
+	): Promise<ModelInstance<InferShapeFromFields<TFields>> | undefined>;
+
+	// no only / plain  →  model instance array
+	(
+		db?: SurrealLike,
+		opts?: SelectQueryOptions<InferShapeFromFields<TFields>>,
+	): Promise<ModelInstance<InferShapeFromFields<TFields>>[]>;
+
+	// ── Without explicit db (uses configured default) ─────────────────────
+
+	// select: + only: true  →  single narrowed result (no db)
+	<TSelect extends FieldSelect<TFields>>(
+		opts: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>>,
+			"select" | "only"
+		> & {
+			select: TSelect;
+			only: true;
+		},
+	): Promise<InferSelectResult<TFields, TSelect> | undefined>;
+
+	// select: (no only)  →  array of narrowed results (no db)
+	<TSelect extends FieldSelect<TFields>>(
+		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "select"> & {
+			select: TSelect;
+		},
+	): Promise<InferSelectResult<TFields, TSelect>[]>;
+
+	// omit: + only: true  →  single omit result (no db)
+	<TOmit extends OmitSelect<TFields>>(
+		opts: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>>,
+			"omit" | "only"
+		> & {
+			omit: TOmit;
+			only: true;
+		},
+	): Promise<InferOmitResult<TFields, TOmit> | undefined>;
+
+	// omit: (no only)  →  array of omit results (no db)
+	<TOmit extends OmitSelect<TFields>>(
+		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "omit"> & {
+			omit: TOmit;
+		},
+	): Promise<InferOmitResult<TFields, TOmit>[]>;
+
+	// only: true (no projection, no db)  →  single model instance
+	(
+		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "only"> & {
+			only: true;
+		},
+	): Promise<ModelInstance<InferShapeFromFields<TFields>> | undefined>;
+
+	// no opts (no db)  →  model instance array
+	(
+		opts?: SelectQueryOptions<InferShapeFromFields<TFields>>,
+	): Promise<ModelInstance<InferShapeFromFields<TFields>>[]>;
+};
+
+// ============================================================================
 // MAIN FACTORY FUNCTION
 // ============================================================================
 
@@ -521,8 +651,8 @@ async function executeAndProcessQuery<T, ModelInstanceType, TTable>(
  */
 export function getSelectMethod<
 	TFields extends Record<string, FieldDefinition<unknown>>,
->() {
-	return async function select<T extends Record<string, unknown>>(
+>(): SelectMethod<TFields> {
+	const selectImpl = async function select<T extends Record<string, unknown>>(
 		this: ModelStatic<
 			ModelInstance<InferShapeFromFields<TFields>>,
 			TFields,
@@ -563,4 +693,9 @@ export function getSelectMethod<
 			InferShapeFromFields<(typeof this)["_fields"]>
 		>(db, queryString, bindings, opts, this);
 	};
+
+	// Cast to the fully-overloaded type. The body returns Promise<unknown>
+	// at implementation level; the public signature is precisely typed via
+	// SelectMethod<TFields> with 12 overloads.
+	return selectImpl as unknown as SelectMethod<TFields>;
 }

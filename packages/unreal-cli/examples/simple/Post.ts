@@ -66,7 +66,7 @@ export class Post extends Table.normal({
 	static async findPublished(db: Surreal) {
 		return this.select(db, {
 			where: surql`status = 'published'`,
-			order: { published_at: "DESC" },
+			orderBy: [{ field: "published_at", order: "DESC" }],
 			limit: 10,
 		});
 	}

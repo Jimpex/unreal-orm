@@ -100,6 +100,18 @@ const posts = await Post.select(db, {
 });
 // Type: { title: string; commentCount: number }[]
 
+// Nested relation fetch by overriding the wildcard default
+const latest = await Post.select(db, {
+  select: { '*': true, author: { name: true, email: true } }
+});
+// Type: { title: string; content: string; views: number; metadata: ...; author: { name: string; email: string } }[]
+
+// Native ID string parsing
+const onlyIDs = await Post.select(db, {
+  select: { id: true, title: true }
+});
+// Type: { id: RecordId<"post">; title: string }[]
+
 // Type-safe omit - exclude fields from result
 const users = await User.select(db, {
   omit: { password: true },

@@ -16,7 +16,7 @@ import type {
 	TypedExpr,
 } from "../../src/define/table/types/select";
 import type { FieldDefinition } from "../../src/define/field/types";
-import { surql } from "surrealdb";
+import { surql, type Surreal } from "surrealdb";
 
 // ============================================================================
 // Test Models
@@ -43,6 +43,12 @@ class Post extends Table.normal({
 			tags: Field.array(Field.string()),
 			category: Field.string(),
 			featured: Field.bool(),
+			history: Field.array(
+				Field.object({
+					date: Field.string(),
+					action: Field.string(),
+				}),
+			),
 		}),
 	},
 	schemafull: true,
@@ -99,14 +105,14 @@ describe("FieldSelect", () => {
 		expect(select["*"]).toBe(true);
 	});
 
-	test("should allow custom computed fields with TypedExpr", () => {
-		const select: FieldSelect<SimpleFields> = {
+	test("should allow custom computed fields with TypedExpr via explicit cast or SelectOption", () => {
+		const select = {
 			title: true,
 			commentCount: typed<number>(surql`count(<-comment)`),
-		};
+		} as const;
 
 		expect(select.title).toBe(true);
-		expect((select.commentCount as TypedExpr<number>).expr).toBeDefined();
+		expect(select.commentCount.expr).toBeDefined();
 	});
 });
 
@@ -133,19 +139,55 @@ describe("InferSelectResult", () => {
 	});
 
 	test("should infer custom computed fields", () => {
-		type Result = InferSelectResult<
-			SimpleFields,
-			{
-				title: true;
-				commentCount: TypedExpr<number>;
-			}
-		>;
+		// With strict FieldSelect, custom computed fields must be cast or passed dynamically
+		// since they are not in the schema.
+		const selectOpts = {
+			title: true as const,
+			commentCount: typed<number>(surql`count()`),
+		} as const;
+
+		type Result = InferSelectResult<SimpleFields, typeof selectOpts>;
 
 		// The result should have title: string and commentCount: number
 		const _check: AssertAssignable<
 			{ title: string; commentCount: number },
 			Result
 		> = {} as Result;
+
+		expect(true).toBe(true);
+	});
+
+	test("should offer suggestions for nested record/object/array fields (FieldSelect input type)", () => {
+		type PostFields = (typeof Post)["_fields"];
+
+		// 1. Record linkages (author = User)
+		const _recordSelect: FieldSelect<PostFields> = {
+			author: { name: true, email: true }, // Should compile (valid User fields)
+		};
+
+		// 2. Objects (metadata), Arrays of strings (tags), and Arrays of objects (history)
+		const _objectSelect: FieldSelect<PostFields> = {
+			metadata: {
+				category: true,
+				tags: true, // Should compile because tags is an array of primitives
+				history: {
+					date: true,
+				}, // Should compile and offer suggestions on history elements
+			},
+		};
+
+		expect(true).toBe(true);
+	});
+
+	test("should reject unknown nested fields in FieldSelect input type", () => {
+		type PostFields = (typeof Post)["_fields"];
+
+		// This uses @ts-expect-error to verify compilation fails for invalid fields
+		// We expect these to error because invalidField is not on User
+		const _recordSelect: FieldSelect<PostFields> = {
+			// @ts-expect-error
+			author: { invalidField: true },
+		};
 
 		expect(true).toBe(true);
 	});
@@ -176,6 +218,89 @@ describe("InferSelectResult", () => {
 		type AuthorName = Result extends { author: { name: infer N } } ? N : never;
 		// This assignment will fail compilation if AuthorName is unknown
 		const _checkString: string = "" as AuthorName;
+
+		expect(true).toBe(true);
+	});
+
+	test("should allow overriding wildcard base properties with sub-selections", () => {
+		type PostFields = (typeof Post)["_fields"];
+
+		type Result = InferSelectResult<
+			PostFields,
+			{
+				"*": true;
+				author: { name: true };
+			}
+		>;
+
+		// Result should contain 'title', 'content' (from '*'), and 'author' should only have 'name'
+		type ExpectedAuthor = { name: string };
+		type ActualAuthor = Result extends { author: infer A } ? A : never;
+
+		const _checkAuthor: AssertAssignable<ExpectedAuthor, ActualAuthor> =
+			{} as ActualAuthor;
+
+		// Ensure primary properties from '*' still map
+		const _checkTitle: string = "" as Result extends { title: infer T }
+			? T
+			: never;
+
+		expect(true).toBe(true);
+	});
+
+	test("should append extra computed fields alongside wildcard", () => {
+		type PostFields = (typeof Post)["_fields"];
+
+		type Result = InferSelectResult<
+			PostFields,
+			{
+				"*": true;
+				commentCount: TypedExpr<number>;
+				extraData: { someString: TypedExpr<string> };
+			}
+		>;
+
+		const _checkCommentCount: number = 0 as Result extends {
+			commentCount: infer C;
+		}
+			? C
+			: never;
+		const _checkExtraData: { someString: string } = {} as Result extends {
+			extraData: infer E;
+		}
+			? E
+			: never;
+
+		// Base field
+		const _checkTitle: string = "" as Result extends { title: infer T }
+			? T
+			: never;
+
+		expect(true).toBe(true);
+	});
+
+	test("should infer 'id' as RecordId", () => {
+		type PostFields = (typeof Post)["_fields"];
+
+		type Result = InferSelectResult<
+			PostFields,
+			{
+				id: true;
+			}
+		>;
+
+		type IdField = Result extends { id: infer I } ? I : never;
+
+		// Verify id field is compatible with RecordId via bidirectional assignability check.
+		// (Direct assignment fails due to RecordId's #private fields; this pattern avoids that.)
+		type _checkIdExtendsRecordId = IdField extends import("surrealdb").RecordId
+			? true
+			: "Error: id field should extend RecordId";
+		type _checkRecordIdExtendsId = import("surrealdb").RecordId extends IdField
+			? true
+			: "Error: RecordId should extend id field type";
+		const _assertId: _checkIdExtendsRecordId = true;
+		const _assertRecordId: _checkRecordIdExtendsId = true;
 
 		expect(true).toBe(true);
 	});
@@ -270,6 +395,36 @@ describe("InferOmitResult type inference", () => {
 		// views should still be number
 		type ViewsType = Result extends { views: infer V } ? V : never;
 		const _checkViews: number = 0 as ViewsType;
+
+		expect(true).toBe(true);
+	});
+});
+
+describe("End-to-End Type Inference using Table Methods", () => {
+	test("should properly infer select result types from Table.select() signature", () => {
+		// Wrap in a function so it is never executed at runtime, only evaluated by TS compiler
+		const getResult = () => {
+			const db = {} as unknown as Surreal;
+			return Post.select(db, {
+				select: {
+					title: true,
+					author: { name: true, email: true },
+					metadata: { category: true, history: { date: true } },
+				},
+			});
+		};
+
+		type ExpectedResultArray = Array<{
+			title: string;
+			author: { name: string; email: string };
+			metadata: { category: string; history: Array<{ date: string }> };
+		}>;
+
+		// Verify the inferred return type of the generated promise
+		const _check: AssertAssignable<
+			ExpectedResultArray,
+			Awaited<ReturnType<typeof getResult>>
+		> = {} as Awaited<ReturnType<typeof getResult>>;
 
 		expect(true).toBe(true);
 	});

@@ -1,0 +1,123 @@
+---
+title: v1.0.0-alpha.9
+description: Changelog for Unreal ORM v1.0.0-alpha.9
+lastUpdated: 2026-02-26
+sidebar_label: 1.0.0-alpha.9
+sidebar_position: 9
+tags:
+  - release
+  - changelog
+  - alpha
+toc: true
+feedback: true
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This release focuses heavily on **TypeScript type safety and inference improvements**, specifically targeting nested projections and query result mapping.
+
+## ✨ Features
+
+### Deeply Nested Type Inference
+
+The type signatures for `Table.select()` and the `FieldSelect` utility have been entirely rewritten to support infinite-depth schema awareness. 
+
+When projecting complex structures, TypeScript will now provide full autocompletion and strict validation for:
+- Nested `Field.object()` properties
+- Linked tables via `Field.record()` 
+- Array projections like `Field.array(Field.object({...}))`
+
+**Example:**
+```typescript
+const posts = await Post.select(db, {
+  select: {
+    title: true, // Primitive 
+    author: { name: true, email: true }, // Infers User schema across Record link
+    metadata: { 
+      category: true, 
+      history: { date: true } // Infers Array Element schema
+    }
+  }
+});
+
+// `posts` is strictly typed as:
+// Array<{ title: string, author: { name: string, email: string }, metadata: { category: string, history: Array<{ date: string }> } }>
+```
+
+If you specify an unknown field inside a nested object, the TypeScript compiler will now correctly reject it:
+
+```typescript
+const posts = await Post.select(db, {
+  select: {
+    author: { invalidField: true } // ❌ TypeScript Error!
+  }
+});
+```
+
+## 🔧 Improvements
+
+### Strict `only: true` Return Types
+
+The `.select()` method now provides precise return type narrowing when using the `only: true` query option. When specified alongside field projections (`select:`) or exclusions (`omit:`), TypeScript will correctly infer the result as a single object (or `undefined`) instead of an array of objects.
+
+```typescript
+const singlePost = await Post.select(db, {
+  select: { title: true, views: true },
+  from: post.id,
+  only: true, // Narrows the return type
+});
+// Type: { title: string; views: number } | undefined
+```
+
+### Wildcard Selection Overrides
+
+When using the `*` wildcard to select all fields on a table, you can now explicitly declare subselections without breaking type inference. Explicitly declared keys will cleanly override the base wildcard types.
+
+```typescript
+const results = await Post.select(db, {
+  select: {
+    "*": true, // Fetch all fields
+    author: { name: true } // But strictly project the 'author' relation down to just `name`
+  }
+});
+
+// Result merges inferShape<PostFields> but narrows `author: { name: string }`
+```
+
+### Explicit `id` Projection
+
+The `FieldSelect` utility now officially permits manually specifying `id: true` alongside standard schema fields, and correctly resolves the output type to the table's `RecordId`.
+
+```typescript
+const results = await Post.select(db, {
+  select: { id: true, title: true }
+});
+// Result strictly includes `id: RecordId<"post">`
+```
+
+## ⚠️ Breaking Changes
+
+### Strict `FieldSelect` Property Validation
+
+To enable accurate deeply nested types, the `FieldSelect` type no longer permits arbitrary unknown string keys implicitly. If your projection previously assigned an object with computed scalar fields to a variable typed strictly as `FieldSelect<T>`, you should instead let TypeScript infer the type or assign it `as const`:
+
+```typescript
+// ❌ Old (Throws a type error because 'commentCount' is not on Post)
+const select: FieldSelect<PostFields> = {
+  title: true,
+  commentCount: typed<number>(surql`count(<-comment)`)
+};
+
+// ✅ New (Let TypeScript infer the select object)
+const results = await Post.select(db, {
+  select: {
+    title: true,
+    commentCount: typed<number>(surql`count(<-comment)`) // Perfectly fine when evaluated dynamically
+  }
+});
+```
+
+## 🐛 Bug Fixes
+
+- **CLI:** `unreal init` will now correctly install `@types/node` (or `@types/bun` if using Bun) as a dev dependency to prevent TypeScript unresolved module errors on fresh setups.
+- **CLI Examples:** Fixed an outdated query signature in the generated example `Post` class (`order` changed to `orderBy`).

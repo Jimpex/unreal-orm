@@ -7,6 +7,7 @@ import type {
 	SelectOption,
 	OmitSelect,
 	InferOmitResult,
+	DeepValidateSelect,
 } from "./select";
 
 /**
@@ -20,13 +21,9 @@ import type {
  */
 export type SurrealLike = Pick<
 	Surreal,
-	| "create"
-	| "select"
-	| "update"
-	| "delete"
-	| "query"
-	| "relate"
-> & Partial<Pick<Surreal, "connect" | "close">>;
+	"create" | "select" | "update" | "delete" | "query" | "relate"
+> &
+	Partial<Pick<Surreal, "connect" | "close">>;
 
 /**
  * Defines the core options for creating a table schema.
@@ -85,7 +82,9 @@ export type InferShapeFromFields<
 export type InferFieldType<T extends FieldDefinition<unknown>> =
 	// Array fields
 	T extends { arrayElementType: infer E }
-		? Array<InferFieldType<E & FieldDefinition<unknown>>>
+		? E extends FieldDefinition<unknown>
+			? Array<InferFieldType<E>>
+			: unknown[]
 		: // Record fields - check BEFORE object fields because Field.record sets objectSchema: undefined
 			// Extract instance type from recordTableThunk to handle cases where FieldDefinition<unknown> loses type info
 			T extends { recordTableThunk: () => infer M }
@@ -102,7 +101,11 @@ export type InferFieldType<T extends FieldDefinition<unknown>> =
 			: // Object fields - only match if objectSchema is a Record (not undefined)
 				T extends { objectSchema: infer S }
 				? S extends Record<string, FieldDefinition<unknown>>
-					? { [K in keyof S]: InferFieldType<S[K] & FieldDefinition<unknown>> }
+					? {
+							[K in keyof S]: S[K] extends FieldDefinition<unknown>
+								? InferFieldType<S[K]>
+								: unknown;
+						}
 					: // objectSchema is undefined, fall through
 						T extends { isOptional: true }
 						? InferFieldType<Omit<T, "isOptional">> | undefined
@@ -433,18 +436,35 @@ export type ModelStatic<
 	): Promise<unknown[]>;
 
 	/**
-	 * Selects records with OMIT clause (implicit db).
+	 * Selects and omits fields from a single record (implicit db).
 	 */
-	select(
+	select<TOmit extends OmitSelect<TFields>>(
 		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields> & {
-			omit: string[];
+		options: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
+			"omit"
+		> & {
+			omit: TOmit;
+			only: true;
 		},
-	): Promise<Partial<InferShapeFromFields<TFields>>[]>;
+	): Promise<InferOmitResult<TFields, TOmit> | undefined>;
+
+	select<TOmit extends OmitSelect<TFields>>(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		options: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
+			"omit"
+		> & {
+			omit: TOmit;
+		},
+	): Promise<InferOmitResult<TFields, TOmit>[]>;
 
 	/**
 	 * Selects with type-safe field selection object (implicit db).
 	 * Returns inferred type based on selected fields.
+	 */
+	/**
+	 * Selects specified fields from a single record (implicit db).
 	 */
 	select<TSelect extends FieldSelect<TFields>>(
 		this: ModelStatic<TInstance, TFields, TOptions>,
@@ -452,7 +472,22 @@ export type ModelStatic<
 			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
 			"select"
 		> & {
-			select: TSelect;
+			select: TSelect extends DeepValidateSelect<TFields, TSelect>
+				? TSelect
+				: DeepValidateSelect<TFields, TSelect>;
+			only: true;
+		},
+	): Promise<InferSelectResult<TFields, TSelect> | undefined>;
+
+	select<TSelect extends FieldSelect<TFields>>(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		options: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
+			"select"
+		> & {
+			select: TSelect extends DeepValidateSelect<TFields, TSelect>
+				? TSelect
+				: DeepValidateSelect<TFields, TSelect>;
 		},
 	): Promise<InferSelectResult<TFields, TSelect>[]>;
 
@@ -523,6 +558,21 @@ export type ModelStatic<
 	 * // Type: Omit<User, 'password'>[]
 	 * ```
 	 */
+	/**
+	 * Selects and omits fields from a single record (explicit db).
+	 */
+	select<TOmit extends OmitSelect<TFields>>(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		db: SurrealLike,
+		options: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
+			"omit"
+		> & {
+			omit: TOmit;
+			only: true;
+		},
+	): Promise<InferOmitResult<TFields, TOmit> | undefined>;
+
 	select<TOmit extends OmitSelect<TFields>>(
 		this: ModelStatic<TInstance, TFields, TOptions>,
 		db: SurrealLike,
@@ -564,6 +614,23 @@ export type ModelStatic<
 	 * // Type: { title: string; commentCount: number }[]
 	 * ```
 	 */
+	/**
+	 * Selects specified fields from a single record (explicit db).
+	 */
+	select<TSelect extends FieldSelect<TFields>>(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		db: SurrealLike,
+		options: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
+			"select"
+		> & {
+			select: TSelect extends DeepValidateSelect<TFields, TSelect>
+				? TSelect
+				: DeepValidateSelect<TFields, TSelect>;
+			only: true;
+		},
+	): Promise<InferSelectResult<TFields, TSelect> | undefined>;
+
 	select<TSelect extends FieldSelect<TFields>>(
 		this: ModelStatic<TInstance, TFields, TOptions>,
 		db: SurrealLike,

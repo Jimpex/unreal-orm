@@ -132,10 +132,13 @@ function buildOnDuplicateClause(
  * Builds the complete INSERT query string and bindings from options.
  * @internal
  */
-function buildInsertQuery<TTable>(
-	opts: InsertQueryOptions<TTable, TTable | TTable[]>,
+function buildInsertQuery(
+	opts: Pick<
+		InsertQueryOptions<unknown>,
+		"relation" | "ignore" | "onDuplicate" | "return"
+	>,
 	tableName: string,
-	data: (TTable & { id?: unknown }) | (TTable & { id?: unknown })[],
+	data: unknown,
 ): {
 	queryString: string;
 	bindings: Record<string, unknown>;
@@ -193,7 +196,7 @@ async function executeInsertQuery<T, ModelInstanceType>(
 	db: SurrealLike,
 	queryString: string,
 	bindings: Record<string, unknown>,
-	opts: InsertQueryOptions<T>,
+	opts: Pick<InsertQueryOptions<T>, "return">,
 	ModelClass: new (data: T) => ModelInstanceType,
 	isBulk: boolean,
 ): Promise<unknown> {
@@ -374,21 +377,13 @@ export function getInsertMethod<
 		const { queryString, bindings } = buildInsertQuery(
 			effectiveOpts,
 			tableName,
-			// Type assertion needed due to the InsertData wrapper adding id field
-			data as (TableData & { id?: unknown }) | (TableData & { id?: unknown })[],
+			data,
 		);
 
 		// Execute query and process results
 		return executeInsertQuery<
 			InferShapeFromFields<(typeof this)["_fields"]>,
 			InstanceType<typeof this>
-		>(
-			db,
-			queryString,
-			bindings,
-			effectiveOpts as InsertQueryOptions<TableData, TableData | TableData[]>,
-			this,
-			isBulk,
-		);
+		>(db, queryString, bindings, effectiveOpts, this, isBulk);
 	};
 }

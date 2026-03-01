@@ -83,19 +83,6 @@ export interface FieldDefinition<T = unknown> extends FieldOptions {
 	type: string;
 	/** If true, the field is wrapped in `option<T>`, making it optional. */
 	isOptional?: boolean;
-	/** For `array` fields, the definition of the elements within the array. */
-	arrayElementType?: FieldDefinition<unknown>;
-	/** For `object` fields, a map defining the shape of the nested object. */
-	objectSchema?: Record<string, FieldDefinition<unknown>>;
-	/** For `record` fields, a thunk that returns the referenced model class to avoid circular dependencies. */
-	recordTableThunk?: () => ModelStatic<
-		// biome-ignore lint/suspicious/noExplicitAny: Using `any` in the thunk is a temporary workaround to break the circular dependency between models.
-		any,
-		// biome-ignore lint/suspicious/noExplicitAny: Need any to preserve specific field types for inference
-		any,
-		// biome-ignore lint/suspicious/noExplicitAny: Need any
-		any
-	>;
 	/** @deprecated This property is not used and will be removed. */
 	recordReference?: boolean;
 	/**
@@ -113,4 +100,19 @@ export interface FieldDefinition<T = unknown> extends FieldOptions {
 		| "UNSET"
 		| "CASCADE"
 		| "REJECT";
+}
+
+/**
+ * An internal extension of FieldDefinition used for framework-level runtime logic
+ * where we need to interrogate nested structures. These properties were removed
+ * from the public `FieldDefinition` interface to prevent TypeScript structural
+ * union poisoning when inferring nested schemas.
+ *
+ * @internal
+ */
+export interface InternalFieldDef extends FieldDefinition<unknown> {
+	arrayElementType?: InternalFieldDef;
+	objectSchema?: Record<string, InternalFieldDef>;
+	// biome-ignore lint/suspicious/noExplicitAny: Need to break strict generic constraints natively here
+	recordTableThunk?: () => any;
 }

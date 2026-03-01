@@ -300,7 +300,9 @@ export const Field = {
 	set<TElementDef extends FieldDefinition<unknown>>(
 		element: TElementDef,
 		options: ArrayFieldOptions<InferFieldType<TElementDef>> = {},
-	): FieldDefinition<Set<InferFieldType<TElementDef>>> {
+	): FieldDefinition<Set<InferFieldType<TElementDef>>> & {
+		arrayElementType: TElementDef;
+	} {
 		if (options.length !== undefined && options.max !== undefined) {
 			throw new Error(
 				"Cannot specify both 'length' and 'max' on a set field. Use 'length' instead.",
@@ -334,7 +336,9 @@ export const Field = {
 	array<TElementDef extends FieldDefinition<unknown>>(
 		element: TElementDef,
 		options: ArrayFieldOptions<InferFieldType<TElementDef>> = {},
-	): FieldDefinition<Array<InferFieldType<TElementDef>>> {
+	): FieldDefinition<Array<InferFieldType<TElementDef>>> & {
+		arrayElementType: TElementDef;
+	} {
 		if (options.length !== undefined && options.max !== undefined) {
 			throw new Error(
 				"Cannot specify both 'length' and 'max' on an array field. Use 'length' instead.",
@@ -406,8 +410,6 @@ export const Field = {
 				const tableClass = tableClassThunk();
 				return `record<${tableClass._tableName}>`;
 			},
-			arrayElementType: undefined,
-			objectSchema: undefined,
 			recordTableThunk: tableClassThunk,
 			reference: isReference,
 			recordOnDelete: onDelete,

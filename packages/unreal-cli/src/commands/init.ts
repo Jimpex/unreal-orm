@@ -353,8 +353,39 @@ export const initCommand = new Command("init")
 
 		// === Dependency Installation ===
 		const detectedPkgManager = detectPackageManager();
+		let pkgManager: string = options.pm ?? "";
+
+		// Determine package manager first if we might need to install
+		if (!pkgManager && options.install !== false) {
+			const pmChoices = [
+				{ title: "npm", value: "npm" },
+				{ title: "yarn", value: "yarn" },
+				{ title: "pnpm", value: "pnpm" },
+				{ title: "bun", value: "bun" },
+			];
+			const detectedIndex = pmChoices.findIndex(
+				(c) => c.value === detectedPkgManager,
+			);
+
+			const { pm } = await prompts(
+				{
+					type: "select",
+					name: "pm",
+					message: "Package manager:",
+					choices: pmChoices,
+					initial: detectedIndex >= 0 ? detectedIndex : 0,
+				},
+				{ onCancel },
+			);
+			pkgManager = pm ?? detectedPkgManager;
+		}
+
+		const effectivePm = pkgManager || detectedPkgManager;
 		const deps = ["unreal-orm@latest", "surrealdb@2.0.0"];
-		const devDeps = ["@unreal-orm/cli"];
+		const devDeps = [
+			"@unreal-orm/cli",
+			effectivePm === "bun" ? "@types/bun" : "@types/node",
+		];
 		if (connectionMode === "memory" || connectionMode === "file") {
 			deps.push("@surrealdb/node@3.0.1");
 		}
@@ -376,32 +407,6 @@ export const initCommand = new Command("init")
 		}
 
 		if (shouldInstall) {
-			// Determine package manager
-			let pkgManager: string = options.pm ?? "";
-			if (!pkgManager) {
-				const pmChoices = [
-					{ title: "npm", value: "npm" },
-					{ title: "yarn", value: "yarn" },
-					{ title: "pnpm", value: "pnpm" },
-					{ title: "bun", value: "bun" },
-				];
-				const detectedIndex = pmChoices.findIndex(
-					(c) => c.value === detectedPkgManager,
-				);
-
-				const { pm } = await prompts(
-					{
-						type: "select",
-						name: "pm",
-						message: "Package manager:",
-						choices: pmChoices,
-						initial: detectedIndex >= 0 ? detectedIndex : 0,
-					},
-					{ onCancel },
-				);
-				pkgManager = pm ?? detectedPkgManager;
-			}
-
 			// Install production dependencies
 			const cmd = getInstallCommand(pkgManager, deps, false);
 			ui.newline();
@@ -637,7 +642,8 @@ function getInstallCommand(manager: string, deps: string[], isDev: boolean) {
  */
 function generateConfigJson(unrealPath: string): object {
 	return {
-		$schema: "./node_modules/unreal-orm/schema.json",
+		$schema:
+			"https://raw.githubusercontent.com/Jimpex/unreal-orm/refs/heads/main/packages/unreal-orm/unreal.schema.json",
 		path: unrealPath,
 	};
 }

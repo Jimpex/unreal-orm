@@ -1,6 +1,6 @@
 // Field utility functions for Unreal-ORM (migrated from fieldUtils.ts)
 
-import type { FieldDefinition } from "./types";
+import type { FieldDefinition, InternalFieldDef } from "./types";
 
 /**
  * Recursively enumerates all subfields of a `FieldDefinition`, including nested arrays and objects.
@@ -21,21 +21,23 @@ export function enumerateSubfields(
 	const path = basePath;
 	results.push({ path, fieldDef });
 
+	const internalDef = fieldDef as InternalFieldDef;
+
 	// Handle array of objects/arrays recursively
-	if (fieldDef.type.startsWith("array<") && fieldDef.arrayElementType) {
+	if (internalDef.type.startsWith("array<") && internalDef.arrayElementType) {
 		const arrPath = path ? `${path}[*]` : "[*]";
-		results.push(...enumerateSubfields(fieldDef.arrayElementType, arrPath));
+		results.push(...enumerateSubfields(internalDef.arrayElementType, arrPath));
 	}
 
 	// Handle option<object> and similar wrappers
 	// If this is an option type that wraps an object, we want to enumerate subfields as well.
 	// This works for type === 'option<object>' or type.startsWith('option<') && objectSchema
 	if (
-		(fieldDef.type === "object" ||
-			(fieldDef.type.startsWith("option<") && fieldDef.objectSchema)) &&
-		fieldDef.objectSchema
+		(internalDef.type === "object" ||
+			(internalDef.type.startsWith("option<") && internalDef.objectSchema)) &&
+		internalDef.objectSchema
 	) {
-		for (const [subKey, subDef] of Object.entries(fieldDef.objectSchema)) {
+		for (const [subKey, subDef] of Object.entries(internalDef.objectSchema)) {
 			const objPath = path ? `${path}.${subKey}` : subKey;
 			results.push(...enumerateSubfields(subDef, objPath));
 		}

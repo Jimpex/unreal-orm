@@ -15,7 +15,10 @@ import type {
 	PermissionsAST,
 } from "./types";
 import type { AnyModelClass } from "../../define/table/types/model";
-import type { FieldDefinition } from "../../define/field/types";
+import type {
+	FieldDefinition,
+	InternalFieldDef,
+} from "../../define/field/types";
 import type { IndexDefinition } from "../../define/index/types";
 import type { Definable } from "../../define/types";
 
@@ -71,19 +74,21 @@ function enumerateSubfields(
 	const path = basePath;
 	results.push({ path, fieldDef });
 
+	const internalDef = fieldDef as InternalFieldDef;
+
 	// Handle array of objects/arrays recursively
-	if (fieldDef.type.startsWith("array<") && fieldDef.arrayElementType) {
+	if (internalDef.type.startsWith("array<") && internalDef.arrayElementType) {
 		const arrPath = path ? `${path}[*]` : "[*]";
-		results.push(...enumerateSubfields(fieldDef.arrayElementType, arrPath));
+		results.push(...enumerateSubfields(internalDef.arrayElementType, arrPath));
 	}
 
 	// Handle option<object> and similar wrappers
 	if (
-		(fieldDef.type === "object" ||
-			(fieldDef.type.startsWith("option<") && fieldDef.objectSchema)) &&
-		fieldDef.objectSchema
+		(internalDef.type === "object" ||
+			(internalDef.type.startsWith("option<") && internalDef.objectSchema)) &&
+		internalDef.objectSchema
 	) {
-		for (const [subKey, subDef] of Object.entries(fieldDef.objectSchema)) {
+		for (const [subKey, subDef] of Object.entries(internalDef.objectSchema)) {
 			const objPath = path ? `${path}.${subKey}` : subKey;
 			results.push(...enumerateSubfields(subDef, objPath));
 		}
