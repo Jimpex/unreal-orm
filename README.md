@@ -32,6 +32,8 @@ This repository is organized as a monorepo, making it easy to develop, test, and
 - [Design Principles](https://unreal-orm.jimpex.dev/contributing/design-principles/): Project philosophy and technical decisions
 - [Contributing Guide](https://unreal-orm.jimpex.dev/contributing/guide/): How to contribute, code style, and submitting issues/PRs
 - [API Reference](https://unreal-orm.jimpex.dev/api/): Full API documentation
+- [Using Unreal ORM with AI](https://unreal-orm.jimpex.dev/guides/ai-usage/): How to leverage LLMs with the ORM
+- **AI Friendly**: Includes [llms.txt](https://unreal-orm.jimpex.dev/llms.txt) and [llms-full.txt](https://unreal-orm.jimpex.dev/llms-full.txt) for AI-powered development.
 
 - **Main ORM package:** See [`packages/unreal-orm/README.md`](packages/unreal-orm/README.md) for usage, API, and details.
 - **CLI tools:** See [`packages/unreal-cli/README.md`](packages/unreal-cli/README.md) for schema introspection (`pull`), migrations (`push`), diffing (`diff`), ERD generation (`mermaid`), and record browsing (`view`).

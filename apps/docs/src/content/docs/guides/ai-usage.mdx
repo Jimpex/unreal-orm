@@ -1,0 +1,148 @@
+---
+title: Using with AI
+description: A practical guide to using AI coding tools like Cursor, Windsurf, and GitHub Copilot with Unreal ORM.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Unreal ORM's **Native First** design means AI tools can understand and generate code for it with minimal friction. Because it stays close to SurrealQL and avoids complex abstractions, models trained on SurrealDB documentation work well out of the box. This guide covers how to get the most out of AI when working with Unreal ORM.
+
+## LLM Context Files
+
+We publish two files specifically designed for AI tools:
+
+- **[`/llms.txt`](/llms.txt)** — A concise index of all documentation guides and API references, ideal for AI crawlers and documentation discovery tools.
+- **[`/llms-full.txt`](/llms-full.txt)** — The entire documentation in a single Markdown file. Attach this to your AI chat or upload it to your IDE to give the model complete, up-to-date knowledge of the ORM.
+
+Using `llms-full.txt` is particularly effective when starting a new project or asking the AI to design a schema, as it prevents the model from hallucinating method names borrowed from other ORMs like Prisma or Drizzle.
+
+---
+
+## Setting Up Your AI Editor
+
+<Tabs>
+<TabItem label="Cursor">
+
+**Add Unreal ORM docs**: Go to "Add new Doc" and provide `https://unreal-orm.jimpex.dev/llms.txt`. Once indexed, use `@unreal-orm` in any prompt to ground suggestions in the actual API.
+
+**Add project rules** via `.cursorrules` at the project root or `.cursor/rules/*.md`:
+
+```
+- Define all tables using Table.normal or Table.relation. Never write raw SurrealQL strings for schema definitions.
+- Use type-safe select and create methods. Avoid the `any` type for query results.
+- Always use the surql template literal for custom filters and WHERE clauses to ensure parameter binding.
+```
+
+</TabItem>
+<TabItem label="Windsurf">
+
+**Context Pinning**: Unreal ORM schemas often span multiple files (e.g., a `Table.normal` in one file and its `Table.relation` in another). Pin both files to the Cascade context so the agent maintains an accurate picture of your graph structure.
+
+**Cascade Hooks**: Set up a `pre_write_code` hook to run `unreal diff` before any schema file is written. If the proposed change would break the current database state, the hook returns the error directly to Cascade for self-correction.
+
+Add global rules via `global_rules.md`:
+
+```
+- Always use Table.normal or Table.relation for schema definitions.
+- Use the surql tag for all custom query logic.
+```
+
+</TabItem>
+<TabItem label="GitHub Copilot">
+
+Add `https://unreal-orm.jimpex.dev/llms.txt` as a documentation source in Copilot settings, or include `llms-full.txt` as a context file in your workspace.
+
+When using Copilot Chat, reference your schema files directly with `#file` to help it suggest correct field names and query options.
+
+</TabItem>
+</Tabs>
+
+---
+
+## Schema-First Workflow
+
+The most effective pattern when using AI with Unreal ORM is to **lock in the schema before writing queries**.
+
+1. **Give the AI your requirements** and ask it to generate `Table.normal` and `Table.relation` definitions. If you have an existing SurrealDB database, run `unreal pull` first and share the output.
+
+2. **Review the schema** before moving on. Ask the AI to check for missing indexes or incorrect relation directions.
+
+3. **Generate implementation code** referencing the finalized schema. Prompt specifically: _"Use type-safe `select` and `create` methods. Use the `surql` template literal for any custom filtering."_
+
+This sequence reduces architectural drift — the AI is less likely to invent fields or methods if it's working from an explicit definition.
+
+---
+
+## Providing Schema as Context
+
+Always share your table definitions when asking the AI for help with queries. This is the single biggest factor in output quality:
+
+```typescript
+// Share this with the AI when asking for query help
+const User = Table.normal({
+  name: 'user',
+  fields: {
+    username: Field.string(),
+    email: Field.string({
+      assert: surql`string::is::email($value)`,
+    }),
+  },
+});
+
+const Writes = Table.relation({
+  name: 'writes',
+  in: User,
+  out: Post,
+  fields: {
+    timestamp: Field.datetime({ default: surql`time::now()` }),
+  },
+});
+```
+
+Field constraints (like `assert`) are especially helpful — they tell the AI what values are valid, making it less likely to generate logic that violates your business rules.
+
+---
+
+## The `surql` Tag
+
+Always instruct the AI to use the `surql` template literal for custom query logic. This is important for two reasons:
+
+1. **Security** — variables are passed as bound parameters, not interpolated into the query string.
+2. **Type inference** — the query builder maintains return type inference through `surql` expressions.
+
+If the AI generates raw string queries, correct it:
+
+```typescript
+// ❌ What AI tools sometimes suggest
+const query = `SELECT * FROM user WHERE email = '${email}'`;
+
+// ✅ What you should prompt for instead
+const users = await User.select(db, {
+  where: surql`email = ${email}`,
+});
+```
+
+---
+
+## Using the CLI in Your AI Workflow
+
+The `unreal-cli` tools are useful checkpoints when working with an AI agent:
+
+| Command | When to use it |
+|---|---|
+| `unreal pull` | Before starting a session on an existing project — generates ORM definitions from the live database |
+| `unreal diff` | After the AI proposes a schema change — shows what would actually change in the database |
+| `unreal push` | After reviewing the diff and confirming the migration is safe |
+
+A useful prompt after the AI updates your schema:
+> _"Run `unreal diff` and show me what would change in the database."_
+
+This gives you a concrete SQL diff to review before committing anything.
+
+---
+
+## Tips for Avoiding Hallucinations
+
+- **Use `llms-full.txt`** when the AI invents methods (e.g., a `.where()` from Drizzle). Attach the file and ask it to _"verify the available query options according to the provided documentation"_.
+- **Pin the version**: Tell the AI which version of Unreal ORM you're on. It may otherwise suggest APIs that don't exist yet or have been changed.
+- **Commit frequently**: After the AI produces a working schema or query, commit it. This creates a clean baseline you can always return to if the conversation drifts.

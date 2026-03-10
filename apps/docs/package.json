@@ -5,7 +5,8 @@
 	"scripts": {
 		"copy-docs": "bun ./scripts/copy-package-docs.ts",
 		"generate-cli-docs": "bun ./scripts/generate-cli-docs.ts",
-		"prebuild": "bun run copy-docs && bun run generate-cli-docs",
+		"generate-llms-txt": "bun ./scripts/generate-llms-txt.ts",
+		"prebuild": "bun run copy-docs && bun run generate-cli-docs && bun run generate-llms-txt",
 		"dev": "bun run prebuild && astro dev",
 		"start": "bun run prebuild && node ./dist/server/entry.mjs",
 		"build": "bun run prebuild && astro build",
