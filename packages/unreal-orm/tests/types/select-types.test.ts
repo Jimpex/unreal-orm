@@ -7,16 +7,16 @@
  * If this compiles, the type is correct.
  */
 
-import { describe, test, expect } from "bun:test";
-import { Table, Field, typed } from "../../src";
+import { describe, expect, test } from "bun:test";
+import { type Surreal, surql } from "surrealdb";
+import { Field, Table, typed } from "../../src";
+import type { FieldDefinition } from "../../src/define/field/types";
 import type {
 	FieldSelect,
-	InferSelectResult,
 	InferOmitResult,
+	InferSelectResult,
 	TypedExpr,
 } from "../../src/define/table/types/select";
-import type { FieldDefinition } from "../../src/define/field/types";
-import { surql, type Surreal } from "surrealdb";
 
 // ============================================================================
 // Test Models
@@ -38,6 +38,12 @@ class Post extends Table.normal({
 		title: Field.string(),
 		content: Field.string(),
 		views: Field.number(),
+		status: Field.union([Field.literal("draft"), Field.literal("published")]),
+		flexibleValue: Field.union([Field.string(), Field.int()]),
+		literalConfig: Field.literal({
+			mode: "strict",
+			enabled: true,
+		}),
 		author: Field.record(() => Author),
 		metadata: Field.object({
 			tags: Field.array(Field.string()),
@@ -136,6 +142,26 @@ describe("InferSelectResult", () => {
 			{} as Result;
 
 		expect(true).toBe(true); // Test passes if compilation succeeds
+	});
+
+	test("should preserve literal and union field inference on model instances", () => {
+		const post = {} as InstanceType<typeof Post>;
+
+		const _status: "draft" | "published" = post.status;
+		const _flexibleValue: string | number = post.flexibleValue;
+		const _literalConfig: {
+			mode: "strict";
+			enabled: true;
+		} = post.literalConfig;
+
+		// @ts-expect-error - invalid literal value should be rejected
+		post.status = "archived";
+		// @ts-expect-error - number is not in the union type
+		post.flexibleValue = true;
+		// @ts-expect-error - invalid literal config value
+		post.literalConfig = { mode: "invalid" };
+
+		expect(true).toBe(true);
 	});
 
 	test("should infer custom computed fields", () => {

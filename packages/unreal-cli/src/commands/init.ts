@@ -1,10 +1,10 @@
-import { Command } from "@commander-js/extra-typings";
-import prompts from "prompts";
+import { execSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { Command } from "@commander-js/extra-typings";
+import prompts from "prompts";
+import type { DatabaseAuth, NamespaceAuth, RootAuth } from "surrealdb";
 import type { ConnectionConfig } from "../config/types";
-import type { RootAuth, NamespaceAuth, DatabaseAuth } from "surrealdb";
 import { ui } from "../utils/ui";
 
 /** Handle Ctrl+C gracefully */
@@ -381,13 +381,13 @@ export const initCommand = new Command("init")
 		}
 
 		const effectivePm = pkgManager || detectedPkgManager;
-		const deps = ["unreal-orm@latest", "surrealdb@2.0.0"];
+		const deps = ["unreal-orm@latest", "surrealdb@2.0.3"];
 		const devDeps = [
 			"@unreal-orm/cli",
 			effectivePm === "bun" ? "@types/bun" : "@types/node",
 		];
 		if (connectionMode === "memory" || connectionMode === "file") {
-			deps.push("@surrealdb/node@3.0.1");
+			deps.push("@surrealdb/node@3.0.3");
 		}
 
 		// Determine if we should install

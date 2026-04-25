@@ -9,11 +9,11 @@
  * which has proper package resolution.
  */
 
-import { describe, test, expect, beforeEach } from "bun:test";
-import { $ } from "bun";
-import { mkdtemp, readdir, readFile, writeFile, mkdir } from "node:fs/promises";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { $ } from "bun";
 
 // Path to the CLI entry point
 const CLI_PATH = join(import.meta.dir, "../../src/index.ts");
@@ -166,6 +166,15 @@ DEFINE FIELD slug ON TABLE category TYPE string;
 	});
 
 	describe("CLI flags", () => {
+		test("init command pins current surrealdb dependency version in generated deps", async () => {
+			const initSource = await readFile(
+				join(import.meta.dir, "../../src/commands/init.ts"),
+				"utf-8",
+			);
+			expect(initSource).toContain('"surrealdb@2.0.3"');
+			expect(initSource).toContain('"@surrealdb/node@3.0.3"');
+		});
+
 		test("should accept all connection flags", async () => {
 			const result =
 				await $`bun run ${CLI_PATH} pull --log-level silent --embedded memory -u root -p root -n test -d test --auth-level root -s ${join(testDir, "unreal/tables")} -y`

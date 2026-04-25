@@ -1,13 +1,13 @@
-import type { RecordId, Surreal, BoundQuery, Expr } from "surrealdb";
+import type { BoundQuery, Expr, RecordId, Surreal } from "surrealdb";
 import type { FieldDefinition } from "../../field/types";
-import type { SelectQueryOptions, JsonPatchOperation } from "./query";
+import type { JsonPatchOperation, SelectQueryOptions } from "./query";
 import type {
-	FieldSelect,
-	InferSelectResult,
-	SelectOption,
-	OmitSelect,
-	InferOmitResult,
 	DeepValidateSelect,
+	FieldSelect,
+	InferOmitResult,
+	InferSelectResult,
+	OmitSelect,
+	SelectOption,
 } from "./select";
 
 /**

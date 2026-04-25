@@ -113,13 +113,13 @@ function generateFieldDdl(
 
 	statement += ` ${field.name} ON TABLE ${tableName}`;
 
+	// Add TYPE
+	statement += ` TYPE ${field.type}`;
+
 	// Add FLEXIBLE if needed
 	if (field.flex) {
 		statement += " FLEXIBLE";
 	}
-
-	// Add TYPE
-	statement += ` TYPE ${field.type}`;
 
 	// Add ASSERT
 	if (field.assert) {

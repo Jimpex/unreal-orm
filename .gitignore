@@ -1,1 +1,5 @@
 node_modules
+apps/docs/public/llms-full.txt
+apps/docs/public/llms.txt
+surrealdb-docs
+surrealdb-sdk

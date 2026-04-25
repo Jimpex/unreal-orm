@@ -1,5 +1,5 @@
-import type { ModelStatic, TableDefineOptions } from "../table/types/model";
 import type { BoundQuery, Expr } from "surrealdb";
+import type { ModelStatic, TableDefineOptions } from "../table/types/model";
 /**
  * Defines a SurrealDB permissions clause for a specific field.
  * The value for each property should be a valid SurrealQL `WHERE` clause, BoundQuery, or Expr.
@@ -113,6 +113,7 @@ export interface FieldDefinition<T = unknown> extends FieldOptions {
 export interface InternalFieldDef extends FieldDefinition<unknown> {
 	arrayElementType?: InternalFieldDef;
 	objectSchema?: Record<string, InternalFieldDef>;
+	unionMembers?: InternalFieldDef[];
 	// biome-ignore lint/suspicious/noExplicitAny: Need to break strict generic constraints natively here
 	recordTableThunk?: () => any;
 }

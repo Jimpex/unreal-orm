@@ -12,12 +12,83 @@ import type {
 	RecordId,
 	Uuid,
 } from "surrealdb";
-import type { FieldDefinition, FieldOptions, ReferenceOptions } from "./types";
 import type {
 	AnyModelClass,
 	InferFieldType,
 	InferShapeFromFields,
 } from "../table/types/model";
+import type { FieldDefinition, FieldOptions, ReferenceOptions } from "./types";
+
+type PrimitiveLiteral = string | number | boolean | null | undefined;
+type LiteralValue =
+	| PrimitiveLiteral
+	| { [key: string]: LiteralValue }
+	| LiteralValue[];
+
+type SurrealLiteralValue<T> = T extends undefined
+	? undefined
+	: T extends null
+		? null
+		: T extends string | number | boolean
+			? T
+			: T extends readonly (infer U)[]
+				? SurrealLiteralValue<U>[]
+				: T extends (infer U)[]
+					? SurrealLiteralValue<U>[]
+					: T extends Record<string, unknown>
+						? { [K in keyof T]: SurrealLiteralValue<T[K]> }
+						: never;
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function escapeSurrealString(value: string): string {
+	return JSON.stringify(value);
+}
+
+function serializeLiteralValue(value: LiteralValue): string {
+	if (value === undefined) {
+		return "NONE";
+	}
+
+	if (value === null) {
+		return "NULL";
+	}
+
+	if (typeof value === "string") {
+		return escapeSurrealString(value);
+	}
+
+	if (typeof value === "number") {
+		if (!Number.isFinite(value)) {
+			throw new Error("Field.literal only supports finite numbers.");
+		}
+
+		return String(value);
+	}
+
+	if (typeof value === "boolean") {
+		return value ? "true" : "false";
+	}
+
+	if (Array.isArray(value)) {
+		return `[${value.map((item) => serializeLiteralValue(item)).join(", ")}]`;
+	}
+
+	if (isPlainObject(value)) {
+		return `{ ${Object.entries(value)
+			.map(
+				([key, entryValue]) =>
+					`${key}: ${serializeLiteralValue(entryValue as LiteralValue)}`,
+			)
+			.join(", ")} }`;
+	}
+
+	throw new Error(
+		"Field.literal received a value that cannot be mapped to SurrealQL.",
+	);
+}
 
 /**
  * Options for defining an array field.
@@ -269,6 +340,43 @@ export const Field = {
 		options: CustomFieldOptions = {},
 	): FieldDefinition<T> {
 		return { ...options, type: typeString, flexible: options.flexible };
+	},
+	/**
+	 * Defines a single literal field type using SurrealQL literal syntax.
+	 * @param value A literal value that can be represented in SurrealQL type syntax.
+	 * @param options Standard field options.
+	 */
+	literal<T extends LiteralValue>(
+		value: T,
+		options: FieldOptions = {},
+	): FieldDefinition<SurrealLiteralValue<T>> {
+		return {
+			...options,
+			type: serializeLiteralValue(value),
+		};
+	},
+	/**
+	 * Defines a union of field definitions.
+	 * @param fields The member field definitions in the union.
+	 * @param options Standard field options.
+	 */
+	union<const TFields extends readonly FieldDefinition<unknown>[]>(
+		fields: TFields,
+		options: FieldOptions = {},
+	): FieldDefinition<InferFieldType<TFields[number]>> & {
+		unionMembers: TFields;
+	} {
+		if (fields.length === 0) {
+			throw new Error("Field.union requires at least one field definition.");
+		}
+
+		return {
+			...options,
+			get type() {
+				return fields.map((field) => field.type).join(" | ");
+			},
+			unionMembers: [...fields] as TFields,
+		};
 	},
 	/**
 	 * Makes a field optional. In SurrealDB, fields are required by default.
