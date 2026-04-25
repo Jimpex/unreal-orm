@@ -1,0 +1,74 @@
+---
+title: v1.0.0-alpha.10
+description: Changelog for Unreal ORM v1.0.0-alpha.10
+lastUpdated: 2026-03-09
+sidebar_label: 1.0.0-alpha.10
+sidebar_position: 10
+tags:
+  - release
+  - changelog
+  - alpha
+toc: true
+feedback: true
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+This release adds new field type definition methods and fixes schema generation compatibility with SurrealDB v3.
+
+## ✨ Features
+
+### `Field.literal()` - SurrealQL Literal Types
+
+Define fields using SurrealQL's native literal type syntax directly in your schema:
+
+```typescript
+class Post extends Table.normal({
+  status: Field.literal("draft"), // or "published"
+  config: Field.literal({ mode: "strict", enabled: true }),
+});
+```
+
+This generates proper SurrealQL field definitions like `TYPE "draft"` and `TYPE { mode: "strict", enabled: true }`.
+
+### `Field.union()` - Union Type Definitions
+
+Define fields with multiple possible types:
+
+```typescript
+class Post extends Table.normal({
+  value: Field.union([Field.string(), Field.int()]),
+  status: Field.union([Field.literal("draft"), Field.literal("published")]),
+});
+```
+
+Generates: `TYPE string | int` and `TYPE "draft" | "published"`.
+
+### AI Usage Guide
+
+New documentation guide for integrating AI assistance into your development workflow with Unreal ORM.
+
+### Automated AI Context Files
+
+The docs now automatically generate `llms.txt` and `llms-full.txt` context files for improved AI tool compatibility.
+
+## 🔧 Improvements
+
+### SurrealDB Dependency Updates
+
+- Upgraded `surrealdb` from `^2.0.0` to `^2.0.3`
+- Upgraded `@surrealdb/node` from `^3.0.1` to `^3.0.3`
+
+## 🐛 Bug Fixes
+
+### `FLEXIBLE` Keyword Placement
+
+Fixed schema generation to place the `FLEXIBLE` keyword before the `TYPE` clause. SurrealDB v3 has stricter parsing rules, and this ordering is required:
+
+```sql
+-- Before (broken in SurrealDB v3):
+DEFINE FIELD data ON TABLE posts TYPE object FLEXIBLE;
+
+-- After (correct):
+DEFINE FIELD data ON TABLE posts FLEXIBLE TYPE object;
+```
