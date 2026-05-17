@@ -31,7 +31,7 @@ Create `src/index.ts`:
 // src/index.ts
 import { Surreal } from 'surrealdb';
 import { surrealdbNodeEngines } from '@surrealdb/node';
-import Table, { Field } from 'unreal-orm';
+import { Table, Field } from 'unreal-orm';
 
 const db = new Surreal({ engines: surrealdbNodeEngines() });
 
@@ -62,7 +62,7 @@ Let's create a `User` model with basic fields:
 ```ts
 // src/index.ts
 import { Surreal } from 'surrealdb';
-import Table, { Field, applySchema } from 'unreal-orm';
+import { Table, Field, applySchema } from 'unreal-orm';
 
 class User extends Table.normal({
   name: 'user',
@@ -421,7 +421,7 @@ Here's the full working blog API:
 ```ts
 // src/blog-api.ts
 import { Surreal } from 'surrealdb';
-import Table, { Field, Index, applySchema } from 'unreal-orm';
+import { Table, Field, Index, applySchema } from 'unreal-orm';
 
 // Models
 class User extends Table.normal({
