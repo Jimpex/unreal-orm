@@ -84,7 +84,7 @@ yarn add -D @unreal-orm/cli@latest
 
 ```ts
 import { Surreal, surql } from "surrealdb";
-import Table, { Field, Index, applySchema } from "unreal-orm";
+import { Table, Field, Index, applySchema } from "unreal-orm";
 
 // Define a User model with validation and custom methods
 class User extends Table.normal({

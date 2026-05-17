@@ -14,7 +14,7 @@ In Unreal ORM, relation tables are defined using `Table.relation()`. They requir
 Suppose we have `User` and `Project` models. We want to track which users are "members" of which projects, and include their "role" on that specific project.
 
 ```ts
-import Table, { Field } from 'unreal-orm';
+import { Table, Field } from 'unreal-orm';
 
 class MemberOf extends Table.relation({
   name: 'member_of',
