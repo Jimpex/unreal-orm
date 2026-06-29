@@ -51,6 +51,13 @@ export {
 export { Index } from "./define/index";
 
 /**
+ * The primary interface for defining file storage buckets.
+ * Requires SurrealDB to be started with `--allow-experimental files`.
+ * @see {@link ./define/bucket/index.ts}
+ */
+export { Bucket } from "./define/bucket";
+
+/**
  * Configuration functions for global database setup.
  * Enables using ORM methods without passing db explicitly.
  * @see {@link ./config/index.ts}
@@ -74,13 +81,16 @@ export {
 	parseTableDefinition,
 	parseFieldDefinition,
 	parseIndexDefinition,
+	parseBucketDefinition,
 	extractTableName,
 	// Extractor
 	extractSchemaFromDefinables,
 	extractTableFromModel,
 	extractIndexFromDefinition,
+	extractBucketFromDefinition,
 	isModelClass,
 	isIndexDefinition,
+	isBucketDefinition,
 	// Compare
 	compareSchemas,
 	schemasAreEqual,
@@ -89,6 +99,7 @@ export {
 	// Generator
 	generateSurqlFromAST,
 	generateMigrationSurql,
+	generateBucketDdl,
 } from "./schema/ast";
 
 export type {
@@ -100,6 +111,7 @@ export type {
 	EventAST,
 	PermissionsAST,
 	TableType,
+	BucketAST,
 	// Compare types
 	ChangeType,
 	SchemaChange,
@@ -120,6 +132,11 @@ export type { FieldDefinition, FieldOptions } from "./define/field/types";
  * The type definition for a database index.
  */
 export type { IndexDefinition } from "./define/index/types";
+
+/**
+ * Type definitions for bucket definitions and their options.
+ */
+export type { BucketDefinition, BucketOptions } from "./define/bucket/types";
 
 /**
  * Types for constructing and executing `SELECT`, `INSERT`, `UPDATE`, and `COUNT` queries.

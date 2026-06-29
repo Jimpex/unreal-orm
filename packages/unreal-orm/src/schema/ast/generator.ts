@@ -7,7 +7,13 @@
  * @module
  */
 
-import type { SchemaAST, TableAST, FieldAST, IndexAST } from "./types";
+import type {
+	SchemaAST,
+	TableAST,
+	FieldAST,
+	IndexAST,
+	BucketAST,
+} from "./types";
 import type { SchemaChange } from "./compare";
 
 // ============================================================================
@@ -222,6 +228,43 @@ function generateIndexDdl(
 }
 
 // ============================================================================
+// BUCKET GENERATION
+// ============================================================================
+
+/**
+ * Generates a DEFINE BUCKET statement from a BucketAST.
+ *
+ * @param bucket - The bucket AST
+ * @param method - Schema application method
+ * @returns SurrealQL DEFINE BUCKET statement
+ */
+export function generateBucketDdl(
+	bucket: BucketAST,
+	method: SchemaApplicationMethod,
+): string {
+	let statement = "DEFINE BUCKET";
+
+	if (method !== "error") {
+		statement += ` ${method}`;
+	}
+
+	statement += ` ${bucket.name}`;
+	statement += ` BACKEND '${bucket.backend}'`;
+
+	// Add permissions (single WHERE expression)
+	if (bucket.permissions) {
+		statement += ` PERMISSIONS ${bucket.permissions}`;
+	}
+
+	// Add COMMENT
+	if (bucket.comment) {
+		statement += ` COMMENT '${bucket.comment.replace(/'/g, "''")}'`;
+	}
+
+	return `${statement};`;
+}
+
+// ============================================================================
 // FULL SCHEMA GENERATION
 // ============================================================================
 
@@ -260,6 +303,12 @@ export function generateSurqlFromAST(
 		}
 
 		statements.push(""); // Empty line between tables
+	}
+
+	// Generate bucket DDLs
+	for (const bucket of schema.buckets ?? []) {
+		statements.push(generateBucketDdl(bucket, method));
+		statements.push(""); // Empty line between buckets
 	}
 
 	return statements.join("\n");

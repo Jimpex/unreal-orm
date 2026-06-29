@@ -7,7 +7,13 @@
  * @module
  */
 
-import type { FieldAST, IndexAST, TableAST, PermissionsAST } from "./types";
+import type {
+	BucketAST,
+	FieldAST,
+	IndexAST,
+	TableAST,
+	PermissionsAST,
+} from "./types";
 
 // ============================================================================
 // PARSE HELPERS
@@ -256,4 +262,55 @@ export function parseIndexDefinition(ql: string): IndexAST {
 export function extractTableName(ql: string): string | undefined {
 	const match = ql.match(/\sON\s+(?:TABLE\s+)?(\w+)/i);
 	return match?.[1];
+}
+
+// ============================================================================
+// BUCKET PARSING
+// ============================================================================
+
+/**
+ * Parses a `DEFINE BUCKET` statement into a BucketAST.
+ *
+ * @param ql - The raw SurrealQL DEFINE BUCKET statement
+ * @returns Complete BucketAST
+ *
+ * @example
+ * ```ts
+ * const bucket = parseBucketDefinition("DEFINE BUCKET avatars BACKEND 'memory'");
+ * // { name: "avatars", backend: "memory" }
+ * ```
+ */
+export function parseBucketDefinition(ql: string): BucketAST {
+	// Extract bucket name
+	const nameMatch = ql.match(
+		/DEFINE\s+BUCKET\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:OVERWRITE\s+)?(\w+)/i,
+	);
+	if (!nameMatch || !nameMatch[1]) {
+		throw new Error(`Could not parse bucket name from: ${ql}`);
+	}
+	const name: string = nameMatch[1];
+
+	// Extract BACKEND value (single-quoted or double-quoted string)
+	const backendMatch = ql.match(/\bBACKEND\s+['"]([^'"]+)['"]/i);
+	if (!backendMatch || !backendMatch[1]) {
+		throw new Error(`Could not parse bucket backend from: ${ql}`);
+	}
+	const backend: string = backendMatch[1];
+
+	// Extract PERMISSIONS WHERE clause (everything after PERMISSIONS until COMMENT or end)
+	const permMatch = ql.match(
+		/\bPERMISSIONS\s+((?:FULL|NONE|WHERE\s+.*?))\s*(?:COMMENT\s+|$)/i,
+	);
+	const permissions = permMatch?.[1] ? permMatch[1].trim() : undefined;
+
+	// Extract COMMENT value
+	const commentMatch = ql.match(/\bCOMMENT\s+['"]([^'"]+)['"]/i);
+	const comment = commentMatch?.[1] ?? undefined;
+
+	return {
+		name,
+		backend,
+		...(permissions !== undefined && { permissions }),
+		...(comment !== undefined && { comment }),
+	};
 }

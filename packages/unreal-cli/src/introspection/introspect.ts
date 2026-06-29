@@ -1,5 +1,6 @@
 import type { Surreal } from "surrealdb";
 import type {
+	BucketAST,
 	EventAST,
 	FieldAST,
 	IndexAST,
@@ -7,6 +8,7 @@ import type {
 	TableAST,
 } from "unreal-orm";
 import {
+	parseBucketDefinition,
 	parseFieldDefinition,
 	parseIndexDefinition,
 	parseTableDefinition,
@@ -169,7 +171,22 @@ export async function introspect(db: Surreal): Promise<SchemaAST> {
 		}
 	}
 
+	// 3. Introspect buckets
+	const bucketsAST: BucketAST[] = [];
+	const bucketsMap = dbInfo.buckets || {};
+	for (const bucketName of Object.keys(bucketsMap)) {
+		const bucketDdl = bucketsMap[bucketName];
+		if (bucketDdl) {
+			try {
+				bucketsAST.push(parseBucketDefinition(bucketDdl));
+			} catch (e) {
+				console.warn(`Failed to parse bucket ${bucketName}`, e);
+			}
+		}
+	}
+
 	return {
 		tables: tablesAST,
+		buckets: bucketsAST,
 	};
 }

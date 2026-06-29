@@ -12,7 +12,7 @@ export async function setupInMemoryDb(namespace = "test", database = "test") {
 	const db = new Surreal({
 		engines: {
 			// ...createRemoteEngines(),
-			...createNodeEngines(),
+			...createNodeEngines({ capabilities: { experimental: true } }),
 		},
 	});
 	const useRemote = process.env.TEST_MODE === "remote";

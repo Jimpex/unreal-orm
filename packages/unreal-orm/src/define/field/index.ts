@@ -1,6 +1,7 @@
 import type {
 	Decimal,
 	Duration,
+	FileRef,
 	Geometry,
 	GeometryCollection,
 	GeometryLine,
@@ -196,6 +197,31 @@ export const Field = {
 		return {
 			...options,
 			type: "bytes",
+		};
+	},
+	/**
+	 * Defines a `file` field for storing file pointers to a SurrealDB bucket.
+	 * Returns a `FileRef` instance when queried, which provides `.bucket` and `.key` properties.
+	 *
+	 * **EXPERIMENTAL**: Requires the `files` experimental capability to be enabled.
+	 * Enable with `--allow-experimental files` when starting SurrealDB.
+	 * A bucket must be defined with `Bucket.define()` before file pointers can be used.
+	 *
+	 * @param options Options for the file field.
+	 *
+	 * @since SurrealDB v3.0.0
+	 *
+	 * @example
+	 * ```ts
+	 * avatar: Field.file()
+	 * // Field accepts file pointers: f"avatars:/user-123.png"
+	 * // Returns: FileRef with .bucket = "avatars", .key = "user-123.png"
+	 * ```
+	 */
+	file(options: FieldOptions = {}): FieldDefinition<FileRef> {
+		return {
+			...options,
+			type: "file",
 		};
 	},
 	/**

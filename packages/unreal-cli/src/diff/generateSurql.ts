@@ -1,4 +1,5 @@
 import type {
+	BucketAST,
 	SchemaAST,
 	TableAST,
 	FieldAST,
@@ -40,6 +41,13 @@ export function generateSurqlFromAST(
 		}
 
 		statements.push(""); // Empty line between tables
+	}
+
+	// Generate bucket DDLs
+	for (const bucket of (schema as SchemaAST & { buckets?: BucketAST[] })
+		.buckets ?? []) {
+		statements.push(generateBucketDdl(bucket, method));
+		statements.push(""); // Empty line between buckets
 	}
 
 	return statements.join("\n");
@@ -167,6 +175,33 @@ function generateFieldDdl(
 }
 
 /**
+ * Generates a DEFINE BUCKET statement.
+ */
+function generateBucketDdl(
+	bucket: BucketAST,
+	method: SchemaApplicationMethod,
+): string {
+	let statement = "DEFINE BUCKET";
+
+	if (method !== "error") {
+		statement += ` ${method}`;
+	}
+
+	statement += ` ${bucket.name}`;
+	statement += ` BACKEND '${bucket.backend}'`;
+
+	if (bucket.permissions) {
+		statement += ` PERMISSIONS ${bucket.permissions}`;
+	}
+
+	if (bucket.comment) {
+		statement += ` COMMENT '${bucket.comment.replace(/'/g, "''")}'`;
+	}
+
+	return `${statement};`;
+}
+
+/**
  * Generates a DEFINE INDEX statement.
  * Based on: packages/unreal-orm/src/schema/ddl/index.ts
  */
@@ -204,6 +239,7 @@ export function generateMigrationSurql(
 		table: string;
 		field?: string;
 		index?: string;
+		bucket?: string;
 		newValue?: unknown;
 	}>,
 ): string {
@@ -258,6 +294,26 @@ export function generateMigrationSurql(
 
 			case "table_removed":
 				statements.push(`REMOVE TABLE ${change.table};`);
+				break;
+
+			case "bucket_added":
+				if (change.newValue && typeof change.newValue === "object") {
+					const b = change.newValue as BucketAST;
+					statements.push(generateBucketDdl(b, "error"));
+				}
+				break;
+
+			case "bucket_removed":
+				if (change.bucket) {
+					statements.push(`REMOVE BUCKET ${change.bucket};`);
+				}
+				break;
+
+			case "bucket_modified":
+				if (change.newValue && typeof change.newValue === "object") {
+					const b = change.newValue as BucketAST;
+					statements.push(generateBucketDdl(b, "OVERWRITE"));
+				}
 				break;
 
 			default:

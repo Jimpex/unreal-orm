@@ -1,4 +1,10 @@
-import type { FieldAST, IndexAST, SchemaAST, TableAST } from "unreal-orm";
+import type {
+	BucketAST,
+	FieldAST,
+	IndexAST,
+	SchemaAST,
+	TableAST,
+} from "unreal-orm";
 
 /**
  * Generates TypeScript code from a schema AST.
@@ -9,6 +15,13 @@ export function generateCode(schema: SchemaAST): Map<string, string> {
 	for (const table of schema.tables) {
 		const code = generateTableCode(table);
 		files.set(`${capitalize(table.name)}.ts`, code);
+	}
+
+	// Generate bucket file if there are buckets
+	const buckets = schema.buckets ?? [];
+	if (buckets.length > 0) {
+		const code = generateBucketsFileCode(buckets);
+		files.set("Buckets.ts", code);
 	}
 
 	return files;
@@ -343,6 +356,41 @@ function generateIndexCode(
 		code += "  unique: true,\n";
 	}
 	code += "});\n";
+	return code;
+}
+
+/**
+ * Generates TypeScript code for a single bucket definition.
+ */
+function generateBucketCode(bucket: BucketAST): string {
+	let code = `export const ${capitalize(bucket.name)}Bucket = Bucket.define({\n`;
+	code += `  name: "${bucket.name}",\n`;
+	code += `  backend: "${bucket.backend}",\n`;
+	if (bucket.permissions) {
+		code += `  permissions: surql\`${bucket.permissions}\`,\n`;
+	}
+	if (bucket.comment) {
+		code += `  comment: "${bucket.comment.replace(/"/g, '\\"')}",\n`;
+	}
+	code += "});\n";
+	return code;
+}
+
+/**
+ * Generates a Buckets.ts file containing all bucket definitions.
+ */
+function generateBucketsFileCode(buckets: BucketAST[]): string {
+	let code = "import { Bucket } from 'unreal-orm';\n";
+	code += "import { surql } from 'surrealdb';\n\n";
+
+	const varNames: string[] = [];
+	for (const bucket of buckets) {
+		code += generateBucketCode(bucket);
+		code += "\n";
+		varNames.push(`${capitalize(bucket.name)}Bucket`);
+	}
+
+	code += `export const BucketDefinitions = [${varNames.join(", ")}];\n`;
 	return code;
 }
 

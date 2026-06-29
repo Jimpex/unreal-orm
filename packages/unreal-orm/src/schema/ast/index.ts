@@ -19,6 +19,7 @@ export type {
 	EventAST,
 	PermissionsAST,
 	TableType,
+	BucketAST,
 } from "./types";
 
 // Parser (SurrealQL → AST)
@@ -26,6 +27,7 @@ export {
 	parseTableDefinition,
 	parseFieldDefinition,
 	parseIndexDefinition,
+	parseBucketDefinition,
 	extractTableName,
 } from "./parser";
 
@@ -34,8 +36,10 @@ export {
 	extractSchemaFromDefinables,
 	extractTableFromModel,
 	extractIndexFromDefinition,
+	extractBucketFromDefinition,
 	isModelClass,
 	isIndexDefinition,
+	isBucketDefinition,
 } from "./extractor";
 
 // Compare (AST ↔ AST)
@@ -49,4 +53,8 @@ export {
 
 // Generator (AST → SurrealQL)
 export type { SchemaApplicationMethod } from "./generator";
-export { generateSurqlFromAST, generateMigrationSurql } from "./generator";
+export {
+	generateSurqlFromAST,
+	generateMigrationSurql,
+	generateBucketDdl,
+} from "./generator";

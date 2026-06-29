@@ -7,7 +7,13 @@
  * @module
  */
 
-import type { SchemaAST, TableAST, FieldAST, IndexAST } from "./types";
+import type {
+	SchemaAST,
+	TableAST,
+	FieldAST,
+	IndexAST,
+	BucketAST,
+} from "./types";
 
 // ============================================================================
 // TYPES
@@ -28,7 +34,10 @@ export type ChangeType =
 	| "field_assertion_changed"
 	| "index_added"
 	| "index_removed"
-	| "index_modified";
+	| "index_modified"
+	| "bucket_added"
+	| "bucket_removed"
+	| "bucket_modified";
 
 /**
  * Represents a single schema change between source and target.
@@ -36,12 +45,14 @@ export type ChangeType =
 export interface SchemaChange {
 	/** Type of change */
 	type: ChangeType;
-	/** Table name affected */
+	/** Table name affected (empty string for bucket changes) */
 	table: string;
 	/** Field name (for field changes) */
 	field?: string;
 	/** Index name (for index changes) */
 	index?: string;
+	/** Bucket name (for bucket changes) */
+	bucket?: string;
 	/** Previous value (for modifications/removals) */
 	oldValue?: unknown;
 	/** New value (for additions/modifications) */
@@ -359,6 +370,56 @@ export function compareSchemas(
 				description: isPush
 					? `Table '${tableName}' will be dropped${detailStr}`
 					: `Table '${tableName}' will be removed${detailStr}`,
+			});
+		}
+	}
+
+	// Compare buckets
+	const sourceBuckets = new Map((source.buckets ?? []).map((b) => [b.name, b]));
+	const targetBuckets = new Map((target.buckets ?? []).map((b) => [b.name, b]));
+
+	for (const [bucketName, sourceBucket] of sourceBuckets) {
+		const targetBucket = targetBuckets.get(bucketName);
+
+		if (!targetBucket) {
+			changes.push({
+				type: "bucket_added",
+				table: "",
+				bucket: bucketName,
+				newValue: sourceBucket,
+				description: isPush
+					? `Bucket '${bucketName}' will be created`
+					: `Bucket '${bucketName}' will be added`,
+			});
+			continue;
+		}
+
+		// Compare backend and permissions
+		if (
+			sourceBucket.backend !== targetBucket.backend ||
+			sourceBucket.permissions !== targetBucket.permissions
+		) {
+			changes.push({
+				type: "bucket_modified",
+				table: "",
+				bucket: bucketName,
+				oldValue: targetBucket,
+				newValue: sourceBucket,
+				description: `Bucket '${bucketName}' definition changed`,
+			});
+		}
+	}
+
+	for (const [bucketName, targetBucket] of targetBuckets) {
+		if (!sourceBuckets.has(bucketName)) {
+			changes.push({
+				type: "bucket_removed",
+				table: "",
+				bucket: bucketName,
+				oldValue: targetBucket,
+				description: isPush
+					? `Bucket '${bucketName}' will be removed`
+					: `Bucket '${bucketName}' exists in database but not in code`,
 			});
 		}
 	}

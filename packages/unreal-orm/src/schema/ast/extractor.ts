@@ -13,6 +13,7 @@ import type {
 	FieldAST,
 	IndexAST,
 	PermissionsAST,
+	BucketAST,
 } from "./types";
 import type { AnyModelClass } from "../../define/table/types/model";
 import type {
@@ -20,6 +21,7 @@ import type {
 	InternalFieldDef,
 } from "../../define/field/types";
 import type { IndexDefinition } from "../../define/index/types";
+import type { BucketDefinition } from "../../define/bucket/types";
 import type { Definable } from "../../define/types";
 
 // ============================================================================
@@ -52,6 +54,22 @@ export function isIndexDefinition(value: unknown): value is IndexDefinition {
 		typeof obj.name === "string" &&
 		"table" in obj &&
 		Array.isArray(obj.fields)
+	);
+}
+
+/**
+ * Type guard to check if a value is a bucket definition.
+ */
+export function isBucketDefinition(value: unknown): value is BucketDefinition {
+	if (typeof value !== "object" || value === null) {
+		return false;
+	}
+
+	const obj = value as Record<string, unknown>;
+	return (
+		obj._type === "bucket" &&
+		typeof obj.name === "string" &&
+		typeof obj.backend === "string"
 	);
 }
 
@@ -277,6 +295,38 @@ export function extractIndexFromDefinition(indexDef: IndexDefinition): {
 }
 
 // ============================================================================
+// BUCKET EXTRACTION
+// ============================================================================
+
+/**
+ * Extracts a BucketAST from a runtime bucket definition.
+ *
+ * @param bucketDef - The bucket definition to extract from
+ * @returns Complete BucketAST
+ *
+ * @example
+ * ```ts
+ * const bucketAST = extractBucketFromDefinition(AvatarBucket);
+ * // { name: "avatars", backend: "memory" }
+ * ```
+ */
+export function extractBucketFromDefinition(
+	bucketDef: BucketDefinition,
+): BucketAST {
+	const bucket: BucketAST = {
+		name: bucketDef.name,
+		backend: bucketDef.backend,
+	};
+
+	if (bucketDef.permissions) {
+		bucket.permissions = valueToString(bucketDef.permissions);
+	}
+	if (bucketDef.comment) bucket.comment = bucketDef.comment;
+
+	return bucket;
+}
+
+// ============================================================================
 // SCHEMA EXTRACTION
 // ============================================================================
 
@@ -299,6 +349,7 @@ export function extractSchemaFromDefinables(
 ): SchemaAST {
 	const tableMap = new Map<string, TableAST>();
 	const indexes: { index: IndexAST; tableName: string }[] = [];
+	const buckets: BucketAST[] = [];
 
 	for (const definable of definables) {
 		if (isModelClass(definable)) {
@@ -307,6 +358,8 @@ export function extractSchemaFromDefinables(
 		} else if (isIndexDefinition(definable)) {
 			const { index, tableName } = extractIndexFromDefinition(definable);
 			indexes.push({ index, tableName });
+		} else if (isBucketDefinition(definable)) {
+			buckets.push(extractBucketFromDefinition(definable));
 		}
 	}
 
@@ -318,5 +371,5 @@ export function extractSchemaFromDefinables(
 		}
 	}
 
-	return { tables: Array.from(tableMap.values()) };
+	return { tables: Array.from(tableMap.values()), buckets };
 }

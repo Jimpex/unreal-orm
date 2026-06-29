@@ -13,6 +13,8 @@
  */
 export interface SchemaAST {
 	tables: TableAST[];
+	/** Bucket definitions for file storage. Defaults to empty array if not present. */
+	buckets: BucketAST[];
 }
 
 /**
@@ -116,4 +118,28 @@ export interface PermissionsAST {
 	update?: string;
 	/** DELETE permission expression */
 	delete?: string;
+}
+
+/**
+ * AST node representing a bucket definition for file storage.
+ *
+ * **EXPERIMENTAL**: Requires the `files` experimental capability to be enabled.
+ * @since SurrealDB v3.0.0
+ */
+export interface BucketAST {
+	/** Bucket name */
+	name: string;
+	/**
+	 * Storage backend string.
+	 * - `"memory"` for non-persistent in-memory storage.
+	 * - `"file:/path"` for disk-backed storage.
+	 */
+	backend: string;
+	/**
+	 * Permissions WHERE expression.
+	 * Available variables: `$action`, `$file`, `$target`.
+	 */
+	permissions?: string;
+	/** Bucket comment */
+	comment?: string;
 }
