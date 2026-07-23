@@ -69,7 +69,7 @@ export function isBucketDefinition(value: unknown): value is BucketDefinition {
 	return (
 		obj._type === "bucket" &&
 		typeof obj.name === "string" &&
-		typeof obj.backend === "string"
+		(obj.backend === undefined || typeof obj.backend === "string")
 	);
 }
 
@@ -315,9 +315,14 @@ export function extractBucketFromDefinition(
 ): BucketAST {
 	const bucket: BucketAST = {
 		name: bucketDef.name,
-		backend: bucketDef.backend,
 	};
 
+	if (bucketDef.backend !== undefined) {
+		bucket.backend = bucketDef.backend;
+	}
+	if (bucketDef.readonly) {
+		bucket.readonly = true;
+	}
 	if (bucketDef.permissions) {
 		bucket.permissions = valueToString(bucketDef.permissions);
 	}

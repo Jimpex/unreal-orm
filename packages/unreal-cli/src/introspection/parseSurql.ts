@@ -1,9 +1,10 @@
 import { promises as fs } from "node:fs";
-import type { SchemaAST, TableAST } from "unreal-orm";
+import type { SchemaAST, TableAST, BucketAST } from "unreal-orm";
 import {
 	parseTableDefinition,
 	parseFieldDefinition,
 	parseIndexDefinition,
+	parseBucketDefinition,
 } from "unreal-orm";
 import { addWarning } from "./warnings";
 
@@ -50,6 +51,7 @@ function stripComments(content: string): string {
  */
 export function parseSurqlContent(content: string): SchemaAST {
 	const tables = new Map<string, TableAST>();
+	const buckets: BucketAST[] = [];
 
 	// Strip comments and split by semicolons
 	const cleanContent = stripComments(content);
@@ -149,6 +151,9 @@ export function parseSurqlContent(content: string): SchemaAST {
 				// User definitions are DB admin, skip silently
 			} else if (upperNormalized.startsWith("DEFINE ACCESS")) {
 				// Access definitions are auth config, skip silently
+			} else if (upperNormalized.startsWith("DEFINE BUCKET")) {
+				const bucketDef = parseBucketDefinition(stmt);
+				buckets.push(bucketDef);
 			} else if (upperNormalized.startsWith("OPTION")) {
 				// OPTION statements (like OPTION IMPORT) are skipped
 			}
@@ -165,5 +170,6 @@ export function parseSurqlContent(content: string): SchemaAST {
 
 	return {
 		tables: Array.from(tables.values()),
+		buckets,
 	};
 }

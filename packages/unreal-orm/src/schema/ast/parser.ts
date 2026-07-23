@@ -292,14 +292,14 @@ export function parseBucketDefinition(ql: string): BucketAST {
 
 	// Extract BACKEND value (single-quoted or double-quoted string)
 	const backendMatch = ql.match(/\bBACKEND\s+['"]([^'"]+)['"]/i);
-	if (!backendMatch || !backendMatch[1]) {
-		throw new Error(`Could not parse bucket backend from: ${ql}`);
-	}
-	const backend: string = backendMatch[1];
+	const backend = backendMatch?.[1];
 
-	// Extract PERMISSIONS WHERE clause (everything after PERMISSIONS until COMMENT or end)
+	// Detect READONLY flag
+	const readonly = /\bREADONLY\b/i.test(ql);
+
+	// Extract PERMISSIONS expression (everything after PERMISSIONS until COMMENT or end)
 	const permMatch = ql.match(
-		/\bPERMISSIONS\s+((?:FULL|NONE|WHERE\s+.*?))\s*(?:COMMENT\s+|$)/i,
+		/\bPERMISSIONS\s+(.+?)\s*(?:COMMENT\s+|$)/i,
 	);
 	const permissions = permMatch?.[1] ? permMatch[1].trim() : undefined;
 
@@ -307,10 +307,11 @@ export function parseBucketDefinition(ql: string): BucketAST {
 	const commentMatch = ql.match(/\bCOMMENT\s+['"]([^'"]+)['"]/i);
 	const comment = commentMatch?.[1] ?? undefined;
 
-	return {
-		name,
-		backend,
-		...(permissions !== undefined && { permissions }),
-		...(comment !== undefined && { comment }),
-	};
+	const result: BucketAST = { name };
+	if (backend !== undefined) result.backend = backend;
+	if (readonly) result.readonly = true;
+	if (permissions !== undefined) result.permissions = permissions;
+	if (comment !== undefined) result.comment = comment;
+
+	return result;
 }

@@ -100,6 +100,7 @@ export {
 	generateSurqlFromAST,
 	generateMigrationSurql,
 	generateBucketDdl,
+	generateBucketAlter,
 } from "./schema/ast";
 
 export type {

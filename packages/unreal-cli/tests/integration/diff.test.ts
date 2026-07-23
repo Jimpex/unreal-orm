@@ -5,8 +5,10 @@ import {
 	Table,
 	Field,
 	Index,
+	Bucket,
 	applySchema,
 	extractTableFromModel,
+	extractBucketFromDefinition,
 	type SchemaAST,
 } from "unreal-orm";
 import { introspect } from "../../src/introspection/introspect";
@@ -16,11 +18,11 @@ describe("Diff Command Integration", () => {
 	let db: Surreal;
 
 	beforeAll(async () => {
-		// Setup DB with Node engines
+		// Setup DB with Node engines (experimental capabilities required for buckets)
 		db = new Surreal({
 			engines: {
 				...createRemoteEngines(),
-				...createNodeEngines(),
+				...createNodeEngines({ capabilities: { experimental: true } }),
 			},
 		});
 		await db.connect("mem://");
@@ -134,5 +136,25 @@ describe("Diff Command Integration", () => {
 			(c) => c.type === "field_removed" && c.field === "bio",
 		);
 		expect(removed).toBeDefined();
+	});
+
+	test("should detect bucket added in local code", async () => {
+		const AvatarBucket = Bucket.define({
+			name: "avatars",
+			backend: "memory",
+		});
+
+		// DB has no buckets; local code defines avatars bucket
+		const remoteSchema = await introspect(db);
+		const localSchema: SchemaAST = {
+			tables: [],
+			buckets: [extractBucketFromDefinition(AvatarBucket)],
+		};
+
+		const changes = compareSchemas(localSchema, remoteSchema);
+		const bucketAdded = changes.find(
+			(c) => c.type === "bucket_added" && c.bucket === "avatars",
+		);
+		expect(bucketAdded).toBeDefined();
 	});
 });

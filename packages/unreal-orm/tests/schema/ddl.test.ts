@@ -5,6 +5,7 @@ import {
 	Field,
 	Index,
 	Table,
+	Bucket,
 	applySchema,
 	generateFullSchemaQl,
 } from "../../src";
@@ -166,5 +167,41 @@ describe("DDL Generation", () => {
 		expect(ddl).toContain(
 			"DEFINE INDEX IF NOT EXISTS idx_product_name_exists ON TABLE product_exists FIELDS name",
 		);
+	});
+
+	test("generates bucket DDL with optional backend and READONLY", () => {
+		const AvatarBucket = Bucket.define({
+			name: "avatars",
+			backend: "memory",
+		});
+
+		const StaticBucket = Bucket.define({
+			name: "static",
+			backend: "file:/data/static",
+			readonly: true,
+			permissions: surql`WHERE $auth.role = 'admin'`,
+			comment: "Static assets",
+		});
+
+		const GlobalBucket = Bucket.define({
+			name: "global_assets",
+		});
+
+		const ddl = generateFullSchemaQl([AvatarBucket, StaticBucket, GlobalBucket]);
+
+		// Buckets should appear before any table DDL
+		const avatarIndex = ddl.indexOf("DEFINE BUCKET avatars");
+		const staticIndex = ddl.indexOf("DEFINE BUCKET static");
+		const globalIndex = ddl.indexOf("DEFINE BUCKET global_assets");
+		expect(avatarIndex).toBeGreaterThan(-1);
+		expect(staticIndex).toBeGreaterThan(avatarIndex);
+		expect(globalIndex).toBeGreaterThan(staticIndex);
+
+		expect(ddl).toContain("DEFINE BUCKET avatars BACKEND 'memory'");
+		expect(ddl).toContain(
+			"DEFINE BUCKET static BACKEND 'file:/data/static' READONLY PERMISSIONS WHERE $auth.role = 'admin' COMMENT 'Static assets'",
+		);
+		expect(ddl).toContain("DEFINE BUCKET global_assets");
+		expect(ddl).not.toContain("DEFINE BUCKET global_assets BACKEND");
 	});
 });

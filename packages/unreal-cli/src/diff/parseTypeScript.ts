@@ -12,17 +12,20 @@ import {
 	type SchemaAST,
 	type TableAST,
 	type IndexAST,
+	type BucketAST,
 	extractTableFromModel,
 	extractIndexFromDefinition,
+	extractBucketFromDefinition,
 	isModelClass,
 	isIndexDefinition,
+	isBucketDefinition,
 } from "unreal-orm";
 import { readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createJiti } from "jiti";
 
 // Re-export types for CLI consumers
-export type { SchemaAST, TableAST, IndexAST };
+export type { SchemaAST, TableAST, IndexAST, BucketAST };
 
 // Create a jiti instance for importing TypeScript files
 const jiti = createJiti(import.meta.url, {
@@ -44,6 +47,7 @@ export async function extractSchemaFromRuntime(
 	outputDir: string,
 ): Promise<SchemaAST> {
 	const tables: TableAST[] = [];
+	const buckets: BucketAST[] = [];
 
 	for (const file of readdirSync(outputDir).filter((f) => f.endsWith(".ts"))) {
 		const filePath = resolve(join(outputDir, file));
@@ -52,7 +56,7 @@ export async function extractSchemaFromRuntime(
 			// Use jiti to import TypeScript files
 			const module = await jiti.import(filePath);
 
-			// Find exported model classes and indexes
+			// Find exported model classes, indexes, and buckets
 			const tableMap = new Map<string, TableAST>();
 			const indexes: { index: IndexAST; tableName: string }[] = [];
 
@@ -68,6 +72,10 @@ export async function extractSchemaFromRuntime(
 				else if (isIndexDefinition(exportValue)) {
 					const { index, tableName } = extractIndexFromDefinition(exportValue);
 					indexes.push({ index, tableName });
+				}
+				// Check if it's a bucket definition
+				else if (isBucketDefinition(exportValue)) {
+					buckets.push(extractBucketFromDefinition(exportValue));
 				}
 			}
 
@@ -87,5 +95,5 @@ export async function extractSchemaFromRuntime(
 		}
 	}
 
-	return { tables };
+	return { tables, buckets };
 }

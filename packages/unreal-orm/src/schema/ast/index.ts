@@ -57,4 +57,5 @@ export {
 	generateSurqlFromAST,
 	generateMigrationSurql,
 	generateBucketDdl,
+	generateBucketAlter,
 } from "./generator";

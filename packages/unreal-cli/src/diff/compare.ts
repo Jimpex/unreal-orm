@@ -138,6 +138,56 @@ export function compareSchemas(
 		}
 	}
 
+	// Compare buckets
+	const sourceBuckets = new Map((source.buckets ?? []).map((b) => [b.name, b]));
+	const targetBuckets = new Map((target.buckets ?? []).map((b) => [b.name, b]));
+
+	for (const [bucketName, sourceBucket] of sourceBuckets) {
+		const targetBucket = targetBuckets.get(bucketName);
+		if (!targetBucket) {
+			changes.push({
+				type: "bucket_added",
+				table: "",
+				bucket: bucketName,
+				newValue: sourceBucket,
+				description: isPush
+					? `Bucket '${bucketName}' will be created`
+					: `Bucket '${bucketName}' will be added`,
+			});
+			continue;
+		}
+
+		if (
+			sourceBucket.backend !== targetBucket.backend ||
+			sourceBucket.readonly !== targetBucket.readonly ||
+			sourceBucket.permissions !== targetBucket.permissions ||
+			sourceBucket.comment !== targetBucket.comment
+		) {
+			changes.push({
+				type: "bucket_modified",
+				table: "",
+				bucket: bucketName,
+				oldValue: targetBucket,
+				newValue: sourceBucket,
+				description: `Bucket '${bucketName}' definition changed`,
+			});
+		}
+	}
+
+	for (const [bucketName, targetBucket] of targetBuckets) {
+		if (!sourceBuckets.has(bucketName)) {
+			changes.push({
+				type: "bucket_removed",
+				table: "",
+				bucket: bucketName,
+				oldValue: targetBucket,
+				description: isPush
+					? `Bucket '${bucketName}' will be removed`
+					: `Bucket '${bucketName}' exists in database but not in code`,
+			});
+		}
+	}
+
 	return changes;
 }
 
@@ -307,16 +357,17 @@ export function formatChanges(
 	const lines: string[] = [];
 	const byTable = new Map<string, SchemaChange[]>();
 
-	// Group by table
+	// Group by table (bucket changes use table: "")
 	for (const change of changes) {
-		const existing = byTable.get(change.table) || [];
+		const groupKey = change.table || (change.type.startsWith("bucket_") ? "Buckets" : "");
+		const existing = byTable.get(groupKey) || [];
 		existing.push(change);
-		byTable.set(change.table, existing);
+		byTable.set(groupKey, existing);
 	}
 
 	// Format by table
 	for (const [table, tableChanges] of byTable) {
-		lines.push(chalk.bold(`\n${table}:`));
+		lines.push(chalk.bold(`\n${table || "Other"}:`));
 		for (const change of tableChanges) {
 			const icon = getChangeIcon(change.type);
 			let colorizedDesc = change.description;

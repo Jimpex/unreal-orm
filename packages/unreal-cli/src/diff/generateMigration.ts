@@ -3,8 +3,10 @@ import type {
 	TableAST,
 	FieldAST,
 	IndexAST,
+	BucketAST,
 	SchemaChange,
 } from "unreal-orm";
+import { generateBucketDdl, generateBucketAlter } from "unreal-orm";
 
 /**
  * Generates SurrealQL migration statements from schema changes.
@@ -139,6 +141,36 @@ function generateChangeStatement(
 			);
 			if (!indexToUpdate) return null;
 			return generateIndexDefine(change.table, indexToUpdate, true);
+		}
+
+		case "bucket_added": {
+			if (change.newValue && typeof change.newValue === "object") {
+				const bucket = change.newValue as BucketAST;
+				return generateBucketDdl(bucket, "error");
+			}
+			return null;
+		}
+
+		case "bucket_removed": {
+			if (change.bucket) {
+				return `REMOVE BUCKET ${change.bucket};`;
+			}
+			return null;
+		}
+
+		case "bucket_modified": {
+			if (
+				change.oldValue &&
+				change.newValue &&
+				typeof change.oldValue === "object" &&
+				typeof change.newValue === "object"
+			) {
+				return generateBucketAlter(
+					change.oldValue as BucketAST,
+					change.newValue as BucketAST,
+				);
+			}
+			return null;
 		}
 
 		default:

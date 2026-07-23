@@ -14,7 +14,7 @@
 export interface SchemaAST {
 	tables: TableAST[];
 	/** Bucket definitions for file storage. Defaults to empty array if not present. */
-	buckets: BucketAST[];
+	buckets?: BucketAST[];
 }
 
 /**
@@ -133,8 +133,11 @@ export interface BucketAST {
 	 * Storage backend string.
 	 * - `"memory"` for non-persistent in-memory storage.
 	 * - `"file:/path"` for disk-backed storage.
+	 * - Omit for a global bucket.
 	 */
-	backend: string;
+	backend?: string;
+	/** Whether the bucket is READONLY. */
+	readonly?: boolean;
 	/**
 	 * Permissions WHERE expression.
 	 * Available variables: `$action`, `$file`, `$target`.

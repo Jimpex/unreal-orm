@@ -656,4 +656,68 @@ describe("formatChanges", () => {
 		expect(result).toContain("+ Field 'name'");
 		expect(result).toContain("- Field 'age'");
 	});
+
+	test("detects bucket added", () => {
+		const remote: SchemaAST = {
+			tables: [],
+		};
+
+		const local: SchemaAST = {
+			tables: [],
+			buckets: [{ name: "avatars", backend: "memory" }],
+		};
+
+		const changes = compareSchemas(local, remote);
+		expect(changes).toHaveLength(1);
+		expect(changes[0]?.type).toBe("bucket_added");
+		expect(changes[0]?.bucket).toBe("avatars");
+	});
+
+	test("detects bucket removed", () => {
+		const remote: SchemaAST = {
+			tables: [],
+			buckets: [{ name: "avatars", backend: "memory" }],
+		};
+
+		const local: SchemaAST = {
+			tables: [],
+		};
+
+		const changes = compareSchemas(local, remote);
+		expect(changes).toHaveLength(1);
+		expect(changes[0]?.type).toBe("bucket_removed");
+		expect(changes[0]?.bucket).toBe("avatars");
+	});
+
+	test("detects bucket modified", () => {
+		const remote: SchemaAST = {
+			tables: [],
+			buckets: [{ name: "avatars", backend: "memory" }],
+		};
+
+		const local: SchemaAST = {
+			tables: [],
+			buckets: [{ name: "avatars", backend: "memory", readonly: true }],
+		};
+
+		const changes = compareSchemas(local, remote);
+		expect(changes).toHaveLength(1);
+		expect(changes[0]?.type).toBe("bucket_modified");
+		expect(changes[0]?.bucket).toBe("avatars");
+	});
+
+	test("formats bucket changes under Buckets heading", () => {
+		const changes = [
+			{
+				type: "bucket_added" as const,
+				table: "",
+				bucket: "avatars",
+				description: "Bucket 'avatars' will be added",
+			},
+		];
+
+		const result = stripAnsi(formatChanges(changes));
+		expect(result).toContain("Buckets:");
+		expect(result).toContain("+ Bucket 'avatars' will be added");
+	});
 });

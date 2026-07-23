@@ -425,4 +425,104 @@ describe("generateMigrationSurql", () => {
 		expect(surql).toContain("REMOVE FIELD old_field");
 		expect(surql).toContain("DEFINE INDEX name_idx");
 	});
+
+	test("generates bucket DDL before table DDL", () => {
+		const schema: SchemaAST = {
+			tables: [
+				{
+					name: "user",
+					type: "NORMAL",
+					drop: false,
+					schemafull: true,
+					permissions: {},
+					fields: [],
+					indexes: [],
+					events: [],
+				},
+			],
+			buckets: [
+				{
+					name: "avatars",
+					backend: "memory",
+				},
+			],
+		};
+
+		const surql = generateSurqlFromAST(schema);
+		const bucketIndex = surql.indexOf("DEFINE BUCKET avatars");
+		const tableIndex = surql.indexOf("DEFINE TABLE user");
+		expect(bucketIndex).toBeGreaterThan(-1);
+		expect(tableIndex).toBeGreaterThan(-1);
+		expect(bucketIndex).toBeLessThan(tableIndex);
+	});
+
+	test("generates bucket DDL with READONLY and optional backend", () => {
+		const schema: SchemaAST = {
+			tables: [],
+			buckets: [
+				{
+					name: "static",
+					backend: "file:/data/static",
+					readonly: true,
+					permissions: "WHERE $auth.role = 'admin'",
+					comment: "Static assets",
+				},
+				{
+					name: "global_assets",
+				},
+			],
+		};
+
+		const surql = generateSurqlFromAST(schema);
+		expect(surql).toContain(
+			"DEFINE BUCKET static BACKEND 'file:/data/static' READONLY PERMISSIONS WHERE $auth.role = 'admin' COMMENT 'Static assets';",
+		);
+		expect(surql).toContain("DEFINE BUCKET global_assets;");
+		expect(surql).not.toContain("DEFINE BUCKET global_assets BACKEND");
+	});
+
+	test("generates migration statements for bucket changes", () => {
+		const addedBucket = {
+			type: "bucket_added",
+			table: "",
+			bucket: "avatars",
+			newValue: {
+				name: "avatars",
+				backend: "memory",
+			},
+		};
+
+		const removedBucket = {
+			type: "bucket_removed",
+			table: "",
+			bucket: "old_assets",
+		};
+
+		const modifiedBucket = {
+			type: "bucket_modified",
+			table: "",
+			bucket: "static",
+			oldValue: {
+				name: "static",
+				backend: "memory",
+			},
+			newValue: {
+				name: "static",
+				backend: "file:/data/static",
+				readonly: true,
+			},
+		};
+
+		const surql = generateMigrationSurql([
+			addedBucket,
+			removedBucket,
+			modifiedBucket,
+		]);
+
+		expect(surql).toContain("DEFINE BUCKET avatars BACKEND 'memory';");
+		expect(surql).toContain("REMOVE BUCKET old_assets;");
+		expect(surql).toContain(
+			"ALTER BUCKET static READONLY BACKEND 'file:/data/static';",
+		);
+	});
 });

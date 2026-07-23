@@ -29,8 +29,11 @@ export interface BucketOptions {
 	 * The storage backend for the bucket.
 	 * - `"memory"` — non-persistent, in-memory storage.
 	 * - `"file:/path/to/folder"` — persistent disk storage. Requires `SURREAL_BUCKET_FOLDER_ALLOWLIST` to be set.
+	 * - Omit for a global bucket (uses `SURREAL_GLOBAL_BUCKET` / `SURREAL_GLOBAL_BUCKET_ENFORCED`).
 	 */
-	backend: string;
+	backend?: string;
+	/** Whether the bucket is read-only (`READONLY`). */
+	readonly?: boolean;
 	/**
 	 * A SurrealQL `WHERE` expression controlling access to files in this bucket.
 	 * Available variables inside the clause:

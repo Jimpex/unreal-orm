@@ -8,6 +8,7 @@ import {
 	parseFieldDefinition,
 	parseTableDefinition,
 	parseIndexDefinition,
+	parseBucketDefinition,
 } from "../../src";
 
 describe("parseFieldDefinition", () => {
@@ -194,6 +195,35 @@ describe("parseTableDefinition", () => {
 		const result = parseTableDefinition(ql);
 		expect(result.name).toBe("logs");
 		expect(result.schemafull).toBe(false);
+	});
+});
+
+describe("parseBucketDefinition", () => {
+	test("parses bucket with backend", () => {
+		const ql = "DEFINE BUCKET avatars BACKEND 'memory'";
+		const result = parseBucketDefinition(ql);
+		expect(result.name).toBe("avatars");
+		expect(result.backend).toBe("memory");
+		expect(result.readonly).toBeUndefined();
+	});
+
+	test("parses read-only bucket with permissions", () => {
+		const ql =
+			"DEFINE BUCKET static BACKEND 'file:/data/static' READONLY PERMISSIONS FULL COMMENT 'assets'";
+		const result = parseBucketDefinition(ql);
+		expect(result.name).toBe("static");
+		expect(result.backend).toBe("file:/data/static");
+		expect(result.readonly).toBe(true);
+		expect(result.permissions).toBe("FULL");
+		expect(result.comment).toBe("assets");
+	});
+
+	test("parses global bucket without backend", () => {
+		const ql = "DEFINE BUCKET global_assets PERMISSIONS WHERE $auth.role = 'admin'";
+		const result = parseBucketDefinition(ql);
+		expect(result.name).toBe("global_assets");
+		expect(result.backend).toBeUndefined();
+		expect(result.permissions).toBe("WHERE $auth.role = 'admin'");
 	});
 });
 

@@ -6,6 +6,7 @@ import type {
 	IndexAST,
 	SchemaApplicationMethod,
 } from "unreal-orm";
+import { generateBucketAlter } from "unreal-orm";
 
 // Re-export for CLI consumers
 export type { SchemaApplicationMethod };
@@ -26,6 +27,12 @@ export function generateSurqlFromAST(
 ): string {
 	const statements: string[] = [];
 
+	// Generate bucket DDLs first so they exist before any table/field usage
+	for (const bucket of schema.buckets ?? []) {
+		statements.push(generateBucketDdl(bucket, method));
+		statements.push(""); // Empty line between buckets
+	}
+
 	for (const table of schema.tables) {
 		// Generate table DDL
 		statements.push(generateTableDdl(table, method));
@@ -41,13 +48,6 @@ export function generateSurqlFromAST(
 		}
 
 		statements.push(""); // Empty line between tables
-	}
-
-	// Generate bucket DDLs
-	for (const bucket of (schema as SchemaAST & { buckets?: BucketAST[] })
-		.buckets ?? []) {
-		statements.push(generateBucketDdl(bucket, method));
-		statements.push(""); // Empty line between buckets
 	}
 
 	return statements.join("\n");
@@ -188,7 +188,14 @@ function generateBucketDdl(
 	}
 
 	statement += ` ${bucket.name}`;
-	statement += ` BACKEND '${bucket.backend}'`;
+
+	if (bucket.backend) {
+		statement += ` BACKEND '${bucket.backend}'`;
+	}
+
+	if (bucket.readonly) {
+		statement += " READONLY";
+	}
 
 	if (bucket.permissions) {
 		statement += ` PERMISSIONS ${bucket.permissions}`;
@@ -240,6 +247,7 @@ export function generateMigrationSurql(
 		field?: string;
 		index?: string;
 		bucket?: string;
+		oldValue?: unknown;
 		newValue?: unknown;
 	}>,
 ): string {
@@ -310,9 +318,18 @@ export function generateMigrationSurql(
 				break;
 
 			case "bucket_modified":
-				if (change.newValue && typeof change.newValue === "object") {
-					const b = change.newValue as BucketAST;
-					statements.push(generateBucketDdl(b, "OVERWRITE"));
+				if (
+					change.oldValue &&
+					change.newValue &&
+					typeof change.oldValue === "object" &&
+					typeof change.newValue === "object"
+				) {
+					statements.push(
+						generateBucketAlter(
+							change.oldValue as BucketAST,
+							change.newValue as BucketAST,
+						),
+					);
 				}
 				break;
 

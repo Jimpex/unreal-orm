@@ -298,4 +298,33 @@ export const UserDefinitions = [User, idx_user_email];
 		expect(result.content).toContain("// Removed from database");
 		expect(result.content).toContain("// export const idx_user_email");
 	});
+
+	test("should generate Field.file() for file type fields", () => {
+		const existingCode = `import { Table, Field, Index } from 'unreal-orm';
+
+export class User extends Table.normal({
+  name: "user",
+  schemafull: true,
+  fields: {
+    email: Field.string(),
+    username: Field.string(),
+  },
+}) {}
+
+export const UserDefinitions = [User];
+`;
+
+		const dbTable: TableAST = {
+			...baseCodeTable,
+			fields: [
+				...baseCodeTable.fields,
+				{ name: "attachment", type: "file", flex: false, permissions: {} },
+			],
+		};
+
+		const result = smartMergeTableCode(existingCode, dbTable, baseCodeTable);
+
+		expect(result.addedFields).toContain("attachment");
+		expect(result.content).toContain("attachment: Field.file()");
+	});
 });

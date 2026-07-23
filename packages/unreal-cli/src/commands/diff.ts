@@ -97,18 +97,21 @@ function getSummary(changes: import("../diff/compare").SchemaChange[]): {
 	tables: number;
 	fields: number;
 	indexes: number;
+	buckets: number;
 } {
 	const counts = {
 		total: changes.length,
 		tables: 0,
 		fields: 0,
 		indexes: 0,
+		buckets: 0,
 	};
 
 	for (const change of changes) {
 		if (change.type.startsWith("table_")) counts.tables++;
 		else if (change.type.startsWith("field_")) counts.fields++;
 		else if (change.type.startsWith("index_")) counts.indexes++;
+		else if (change.type.startsWith("bucket_")) counts.buckets++;
 	}
 
 	return counts;
@@ -277,6 +280,9 @@ export const diffCommand = new Command()
 				}
 				if (summary.indexes > 0) {
 					parts.push(ui.theme.info(`${summary.indexes} index(es)`));
+				}
+				if (summary.buckets > 0) {
+					parts.push(ui.theme.secondary(`${summary.buckets} bucket(s)`));
 				}
 				if (summary.tables > 0) {
 					parts.push(ui.theme.primary(`${summary.tables} table(s)`));

@@ -8,10 +8,13 @@ import {
 	Table,
 	Field,
 	Index,
+	Bucket,
 	extractSchemaFromDefinables,
 	extractTableFromModel,
 	extractIndexFromDefinition,
+	extractBucketFromDefinition,
 	isModelClass,
+	isBucketDefinition,
 } from "../../src";
 import { surql } from "surrealdb";
 
@@ -312,5 +315,65 @@ describe("extractSchemaFromDefinables", () => {
 		);
 		expect(createdAtField?.value).toBe("time::now()");
 		expect(createdAtField?.readonly).toBe(true);
+	});
+});
+
+describe("Bucket extraction", () => {
+	const AvatarBucket = Bucket.define({
+		name: "avatars",
+		backend: "memory",
+	});
+
+	const StaticBucket = Bucket.define({
+		name: "static",
+		backend: "file:/data/static",
+		readonly: true,
+		permissions: surql`WHERE $auth.role = 'admin'`,
+		comment: "Static assets",
+	});
+
+	const GlobalBucket = Bucket.define({
+		name: "global_assets",
+	});
+
+	test("isBucketDefinition recognizes bucket definitions", () => {
+		expect(isBucketDefinition(AvatarBucket)).toBe(true);
+		expect(isBucketDefinition(User)).toBe(false);
+		expect(isBucketDefinition(emailIndex)).toBe(false);
+		expect(isBucketDefinition({})).toBe(false);
+	});
+
+	test("extractBucketFromDefinition preserves optional backend and readonly", () => {
+		const avatarAst = extractBucketFromDefinition(AvatarBucket);
+		expect(avatarAst.name).toBe("avatars");
+		expect(avatarAst.backend).toBe("memory");
+		expect(avatarAst.readonly).toBeUndefined();
+
+		const staticAst = extractBucketFromDefinition(StaticBucket);
+		expect(staticAst.name).toBe("static");
+		expect(staticAst.backend).toBe("file:/data/static");
+		expect(staticAst.readonly).toBe(true);
+		expect(staticAst.permissions).toBe("WHERE $auth.role = 'admin'");
+		expect(staticAst.comment).toBe("Static assets");
+
+		const globalAst = extractBucketFromDefinition(GlobalBucket);
+		expect(globalAst.name).toBe("global_assets");
+		expect(globalAst.backend).toBeUndefined();
+	});
+
+	test("extractSchemaFromDefinables collects buckets", () => {
+		const schema = extractSchemaFromDefinables([
+			User,
+			AvatarBucket,
+			StaticBucket,
+			GlobalBucket,
+		]);
+
+		expect(schema.buckets).toHaveLength(3);
+		expect(schema.buckets?.map((b) => b.name)).toEqual([
+			"avatars",
+			"static",
+			"global_assets",
+		]);
 	});
 });

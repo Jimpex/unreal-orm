@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { generateCode } from "../src/codegen/generator";
-import type { SchemaAST, FieldAST, TableAST } from "unreal-orm";
+import type { SchemaAST, FieldAST, TableAST, BucketAST } from "unreal-orm";
 
 // Helper to create minimal FieldAST with required fields
 function field(overrides: Partial<FieldAST>): FieldAST {
@@ -480,5 +480,57 @@ describe("generateCode", () => {
 		);
 		expect(code).not.toContain("*:");
 		expect(code).not.toContain("Field.object");
+	});
+
+	test("generates file field", () => {
+		const schema: SchemaAST = {
+			tables: [
+				table({
+					name: "document",
+					schemafull: true,
+					fields: [field({ name: "attachment", type: "file" })],
+				}),
+			],
+		};
+
+		const files = generateCode(schema);
+		const code = files.get("Document.ts");
+
+		expect(code).toContain("attachment: Field.file()");
+	});
+
+	test("generates Buckets.ts with optional backend and readonly", () => {
+		const schema: SchemaAST = {
+			tables: [],
+			buckets: [
+				{
+					name: "avatars",
+					backend: "memory",
+				} as BucketAST,
+				{
+					name: "static",
+					backend: "file:/data/static",
+					readonly: true,
+					permissions: "WHERE $auth.role = 'admin'",
+					comment: "Static assets",
+				} as BucketAST,
+				{
+					name: "global_assets",
+				} as BucketAST,
+			],
+		};
+
+		const files = generateCode(schema);
+		const code = files.get("Buckets.ts");
+
+		expect(code).toBeDefined();
+		expect(code).toContain("import { Bucket } from 'unreal-orm'");
+		expect(code).toContain('name: "avatars"');
+		expect(code).toContain('backend: "memory"');
+		expect(code).toContain('name: "static"');
+		expect(code).toContain('backend: "file:/data/static"');
+		expect(code).toContain("readonly: true");
+		expect(code).toContain('name: "global_assets"');
+		expect(code).not.toContain('name: "global_assets",\n  backend');
 	});
 });

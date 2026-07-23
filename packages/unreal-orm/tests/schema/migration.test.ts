@@ -1,7 +1,16 @@
 // Tests for schema migration, applySchema
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { Field, Index, Table, applySchema } from "../../src";
+import {
+	Field,
+	Index,
+	Table,
+	Bucket,
+	applySchema,
+	compareSchemas,
+	generateMigrationSurql,
+	extractSchemaFromDefinables,
+} from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
 import type { Surreal } from "surrealdb";
 
@@ -50,5 +59,58 @@ describe("Schema Migration", () => {
 		await applySchema(db, [Foo]);
 		const rec = await Foo.create(db, { bar: "baz" });
 		expect(rec.bar).toBe("baz");
+	});
+
+	test("generates migration SQL for bucket changes", () => {
+		const AvatarBucket = Bucket.define({
+			name: "avatars",
+			backend: "memory",
+		});
+
+		const local = extractSchemaFromDefinables([AvatarBucket]);
+		const remote: import("../../src").SchemaAST = { tables: [] };
+
+		const changes = compareSchemas(local, remote);
+		const migration = generateMigrationSurql(changes);
+
+		expect(migration).toContain("DEFINE BUCKET avatars BACKEND 'memory';");
+	});
+
+	test("generates REMOVE BUCKET for removed buckets", () => {
+		const AvatarBucket = Bucket.define({
+			name: "avatars",
+			backend: "memory",
+		});
+
+		const local: import("../../src").SchemaAST = { tables: [] };
+		const remote = extractSchemaFromDefinables([AvatarBucket]);
+
+		const changes = compareSchemas(local, remote);
+		const migration = generateMigrationSurql(changes);
+
+		expect(migration).toContain("REMOVE BUCKET avatars;");
+	});
+
+	test("generates ALTER BUCKET for modified buckets", () => {
+		const StaticBucketOld = Bucket.define({
+			name: "static",
+			backend: "memory",
+		});
+
+		const StaticBucketNew = Bucket.define({
+			name: "static",
+			backend: "file:/data/static",
+			readonly: true,
+		});
+
+		const local = extractSchemaFromDefinables([StaticBucketNew]);
+		const remote = extractSchemaFromDefinables([StaticBucketOld]);
+
+		const changes = compareSchemas(local, remote);
+		const migration = generateMigrationSurql(changes);
+
+		expect(migration).toContain(
+			"ALTER BUCKET static READONLY BACKEND 'file:/data/static';",
+		);
 	});
 });

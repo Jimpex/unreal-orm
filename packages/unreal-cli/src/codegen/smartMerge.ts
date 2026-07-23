@@ -119,8 +119,8 @@ function compareTableSchemas(
 	dbTable: TableAST,
 	codeTable: TableAST,
 ): SchemaChange[] {
-	const dbSchema: SchemaAST = { tables: [dbTable] };
-	const codeSchema: SchemaAST = { tables: [codeTable] };
+	const dbSchema: SchemaAST = { tables: [dbTable], buckets: [] };
+	const codeSchema: SchemaAST = { tables: [codeTable], buckets: [] };
 	return compareSchemas(dbSchema, codeSchema);
 }
 
@@ -179,6 +179,7 @@ function generateFieldTypeFromString(type: string, options: string): string {
 	if (type === "decimal") return `Field.decimal(${opt})`;
 	if (type === "uuid") return `Field.uuid(${opt})`;
 	if (type === "bytes") return `Field.bytes(${opt})`;
+	if (type === "file") return `Field.file(${opt})`;
 	if (type === "any") return `Field.any(${opt})`;
 
 	// Handle array<T>

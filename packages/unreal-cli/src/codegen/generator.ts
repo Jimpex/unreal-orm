@@ -292,6 +292,7 @@ function generateFieldTypeFromString(type: string, options: string): string {
 	if (type === "decimal") return `Field.decimal(${opt})`;
 	if (type === "uuid") return `Field.uuid(${opt})`;
 	if (type === "bytes") return `Field.bytes(${opt})`;
+	if (type === "file") return `Field.file(${opt})`;
 	if (type === "any") return `Field.any(${opt})`;
 
 	// Handle array<T>
@@ -365,7 +366,12 @@ function generateIndexCode(
 function generateBucketCode(bucket: BucketAST): string {
 	let code = `export const ${capitalize(bucket.name)}Bucket = Bucket.define({\n`;
 	code += `  name: "${bucket.name}",\n`;
-	code += `  backend: "${bucket.backend}",\n`;
+	if (bucket.backend) {
+		code += `  backend: "${bucket.backend}",\n`;
+	}
+	if (bucket.readonly) {
+		code += "  readonly: true,\n";
+	}
 	if (bucket.permissions) {
 		code += `  permissions: surql\`${bucket.permissions}\`,\n`;
 	}

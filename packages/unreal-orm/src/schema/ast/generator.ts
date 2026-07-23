@@ -249,7 +249,14 @@ export function generateBucketDdl(
 	}
 
 	statement += ` ${bucket.name}`;
-	statement += ` BACKEND '${bucket.backend}'`;
+
+	if (bucket.backend) {
+		statement += ` BACKEND '${bucket.backend}'`;
+	}
+
+	if (bucket.readonly) {
+		statement += " READONLY";
+	}
 
 	// Add permissions (single WHERE expression)
 	if (bucket.permissions) {
@@ -262,6 +269,53 @@ export function generateBucketDdl(
 	}
 
 	return `${statement};`;
+}
+
+/**
+ * Generates an ALTER BUCKET statement for a bucket modification.
+ * Only emits the clauses that changed between old and new definitions.
+ */
+export function generateBucketAlter(
+	oldBucket: BucketAST,
+	newBucket: BucketAST,
+): string {
+	const parts: string[] = [`ALTER BUCKET ${newBucket.name}`];
+
+	// READONLY can be added or dropped
+	if (newBucket.readonly && !oldBucket.readonly) {
+		parts.push("READONLY");
+	} else if (oldBucket.readonly && !newBucket.readonly) {
+		parts.push("DROP READONLY");
+	}
+
+	// BACKEND can be changed or dropped
+	if (newBucket.backend !== oldBucket.backend) {
+		if (newBucket.backend) {
+			parts.push(`BACKEND '${newBucket.backend}'`);
+		} else if (oldBucket.backend) {
+			parts.push("DROP BACKEND");
+		}
+	}
+
+	// PERMISSIONS can be changed; default is FULL
+	if (newBucket.permissions !== oldBucket.permissions) {
+		if (newBucket.permissions) {
+			parts.push(`PERMISSIONS ${newBucket.permissions}`);
+		} else if (oldBucket.permissions) {
+			parts.push("PERMISSIONS FULL");
+		}
+	}
+
+	// COMMENT can be changed or dropped
+	if (newBucket.comment !== oldBucket.comment) {
+		if (newBucket.comment) {
+			parts.push(`COMMENT '${newBucket.comment.replace(/'/g, "''")}'`);
+		} else if (oldBucket.comment) {
+			parts.push("DROP COMMENT");
+		}
+	}
+
+	return `${parts.join(" ")};`;
 }
 
 // ============================================================================
@@ -288,6 +342,12 @@ export function generateSurqlFromAST(
 ): string {
 	const statements: string[] = [];
 
+	// Generate bucket DDLs first so they exist before any table/field usage
+	for (const bucket of schema.buckets ?? []) {
+		statements.push(generateBucketDdl(bucket, method));
+		statements.push(""); // Empty line between buckets
+	}
+
 	for (const table of schema.tables) {
 		// Generate table DDL
 		statements.push(generateTableDdl(table, method));
@@ -303,12 +363,6 @@ export function generateSurqlFromAST(
 		}
 
 		statements.push(""); // Empty line between tables
-	}
-
-	// Generate bucket DDLs
-	for (const bucket of schema.buckets ?? []) {
-		statements.push(generateBucketDdl(bucket, method));
-		statements.push(""); // Empty line between buckets
 	}
 
 	return statements.join("\n");
@@ -429,6 +483,38 @@ export function generateMigrationSurql(
 						);
 						statements.push(generateIndexDdl(change.table, index, "error"));
 					}
+				}
+				break;
+			}
+
+			case "bucket_added": {
+				if (change.newValue && typeof change.newValue === "object") {
+					const bucket = change.newValue as BucketAST;
+					statements.push(generateBucketDdl(bucket, "error"));
+				}
+				break;
+			}
+
+			case "bucket_removed": {
+				if (change.bucket) {
+					statements.push(`REMOVE BUCKET ${change.bucket};`);
+				}
+				break;
+			}
+
+			case "bucket_modified": {
+				if (
+					change.oldValue &&
+					change.newValue &&
+					typeof change.oldValue === "object" &&
+					typeof change.newValue === "object"
+				) {
+					statements.push(
+						generateBucketAlter(
+							change.oldValue as BucketAST,
+							change.newValue as BucketAST,
+						),
+					);
 				}
 				break;
 			}

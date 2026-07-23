@@ -394,10 +394,12 @@ export function compareSchemas(
 			continue;
 		}
 
-		// Compare backend and permissions
+		// Compare backend, readonly, permissions, and comment
 		if (
 			sourceBucket.backend !== targetBucket.backend ||
-			sourceBucket.permissions !== targetBucket.permissions
+			sourceBucket.readonly !== targetBucket.readonly ||
+			sourceBucket.permissions !== targetBucket.permissions ||
+			sourceBucket.comment !== targetBucket.comment
 		) {
 			changes.push({
 				type: "bucket_modified",

@@ -29,6 +29,18 @@ export const Bucket = {
 	 *   comment: "User upload storage",
 	 * });
 	 *
+	 * // Read-only bucket
+	 * const StaticBucket = Bucket.define({
+	 *   name: "static",
+	 *   backend: "file:/var/data/static",
+	 *   readonly: true,
+	 * });
+	 *
+	 * // Global bucket (no backend, uses SURREAL_GLOBAL_BUCKET)
+	 * const GlobalBucket = Bucket.define({
+	 *   name: "global_assets",
+	 * });
+	 *
 	 * // Apply to the database
 	 * await applySchema(db, [User, AvatarBucket, UploadBucket]);
 	 * ```
