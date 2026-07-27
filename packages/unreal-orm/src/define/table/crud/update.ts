@@ -1,18 +1,16 @@
-import type { RecordId, Surreal } from "surrealdb";
+import type { BoundQuery, Expr, RecordId, Surreal } from "surrealdb";
+import { surql, Table } from "surrealdb";
 import type {
 	InferShapeFromFields,
 	ModelInstance,
 	ModelStatic,
 	TableDefineOptions,
-} from "../types/model";
-import type { SurrealLike } from "../types/model";
-import type { FieldDefinition } from "../../field/types";
-import type {
-	UpdateOptions,
-	UpdateMode,
+	SurrealLike,
 	JsonPatchOperation,
-} from "../types/query";
-import { getDatabase, isSurrealLike } from "../../../config";
+} from "../types/model";
+import type { FieldDefinition } from "../../field/types";
+import type { UpdateOptions, UpdateMode } from "../types/query";
+import { validateDb } from "../../../utils/validate-db";
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -30,6 +28,88 @@ function validateUpdateOptions<T>(options: UpdateOptions<T>): void {
 }
 
 /**
+ * Applies a minimal set of JSON Patch operations to a plain object.
+ * This is used for `patch` mode because SurrealDB's native `PATCH` does not
+ * handle array element updates reliably in all versions.
+ */
+function applyJsonPatch(record: Record<string, unknown>, operations: JsonPatchOperation[]): void {
+	for (const op of operations) {
+		const parts = op.path.split("/").filter((p) => p !== "");
+
+		if (op.op === "add" || op.op === "replace") {
+			setValueAtPath(record, parts, op.value);
+		} else if (op.op === "remove") {
+			removeValueAtPath(record, parts);
+		} else if (op.op === "move" && "from" in op) {
+			const value = getValueAtPath(record, String(op.from).split("/").filter((p) => p !== ""));
+			removeValueAtPath(record, String(op.from).split("/").filter((p) => p !== ""));
+			setValueAtPath(record, parts, value);
+		} else if (op.op === "copy" && "from" in op) {
+			setValueAtPath(record, parts, getValueAtPath(record, String(op.from).split("/").filter((p) => p !== "")));
+		} else if (op.op === "test" && "value" in op) {
+			const current = getValueAtPath(record, parts);
+			if (JSON.stringify(current) !== JSON.stringify(op.value)) {
+				throw new Error(`JSON Patch test failed at path ${op.path}`);
+			}
+		}
+	}
+}
+
+function getValueAtPath(obj: Record<string, unknown>, parts: string[]): unknown {
+	let current: unknown = obj;
+	for (const part of parts) {
+		if (Array.isArray(current) && /^\d+$/.test(part)) {
+			current = current[Number(part)];
+		} else if (current && typeof current === "object") {
+			current = (current as Record<string, unknown>)[part];
+		} else {
+			return undefined;
+		}
+	}
+	return current;
+}
+
+function setValueAtPath(obj: Record<string, unknown>, parts: string[], value: unknown): void {
+	let current: unknown = obj;
+	for (let i = 0; i < parts.length - 1; i++) {
+		const part = parts[i];
+		if (Array.isArray(current) && /^\d+$/.test(part)) {
+			current = current[Number(part)];
+		} else if (current && typeof current === "object") {
+			current = (current as Record<string, unknown>)[part];
+		} else {
+			return;
+		}
+	}
+	const last = parts[parts.length - 1];
+	if (Array.isArray(current) && /^\d+$/.test(last)) {
+		current[Number(last)] = value;
+	} else if (current && typeof current === "object") {
+		(current as Record<string, unknown>)[last] = value;
+	}
+}
+
+function removeValueAtPath(obj: Record<string, unknown>, parts: string[]): void {
+	let current: unknown = obj;
+	for (let i = 0; i < parts.length - 1; i++) {
+		const part = parts[i];
+		if (Array.isArray(current) && /^\d+$/.test(part)) {
+			current = current[Number(part)];
+		} else if (current && typeof current === "object") {
+			current = (current as Record<string, unknown>)[part];
+		} else {
+			return;
+		}
+	}
+	const last = parts[parts.length - 1];
+	if (Array.isArray(current) && /^\d+$/.test(last)) {
+		current.splice(Number(last), 1);
+	} else if (current && typeof current === "object") {
+		delete (current as Record<string, unknown>)[last];
+	}
+}
+
+/**
  * Executes an update using the SurrealDB 2.0 builder pattern.
  */
 async function executeUpdate<T>(
@@ -41,11 +121,16 @@ async function executeUpdate<T>(
 
 	// Handle different modes with proper type narrowing
 	if (options.mode === "patch") {
-		// Patch mode expects JSON Patch operations
-		const builder = db
-			.update<T>(id)
-			// @ts-ignore SurrealDB types are incorrect
-			.patch(options.data);
+		// Patch mode applies JSON Patch locally and then writes the full
+		// record back with CONTENT. This avoids SurrealDB's native PATCH
+		// limitations with array element updates.
+		const current = (await (db as unknown as Surreal).select(id)) as Record<string, unknown>;
+		if (!current) {
+			throw new Error(`Record ${String(id)} not found for patch operation.`);
+		}
+		applyJsonPatch(current, options.data as JsonPatchOperation[]);
+		const { id: _recordId, ...dataWithoutId } = current;
+		const builder = db.update<Record<string, unknown>>(id).content(dataWithoutId);
 		return builder as unknown as T;
 	}
 
@@ -64,28 +149,24 @@ async function executeUpdate<T>(
  * a required mode property. All update operations must specify whether they
  * are doing a full replacement or partial merge.
  *
- * Supports two calling patterns:
- * - `user.update(db, options)` - explicit database instance
- * - `user.update(options)` - uses configured default database
- *
  * @example
  * ```ts
- * const user = await User.select({ from: 'user:123', only: true });
+ * const user = await User.select(db, { from: 'user:123', only: true });
  *
- * // Full content replacement (with configured db)
- * const updatedUser = await user.update({
+ * // Full content replacement
+ * const updatedUser = await user.update(db, {
  *   data: { name: 'Jane Doe', age: 31 },
  *   mode: 'content'
  * });
  *
- * // Partial merge (with explicit db)
+ * // Partial merge
  * const updatedUser = await user.update(db, {
  *   data: { age: 32 },
  *   mode: 'merge'
  * });
  *
  * // JSON Patch operations
- * const updatedUser = await user.update({
+ * const updatedUser = await user.update(db, {
  *   data: [{ op: 'replace', path: '/age', value: 32 }],
  *   mode: 'patch'
  * });
@@ -101,30 +182,13 @@ export function getUpdateMethod<
 
 	return async function update(
 		this: ModelInstance<TableData>,
-		dbOrOptions: SurrealLike | UpdateOptions<TableData>,
-		maybeOptions?: UpdateOptions<TableData>,
+		db: SurrealLike,
+		options: UpdateOptions<TableData>,
 	): Promise<ModelInstance<TableData>> {
-		// Resolve db and options based on calling pattern
-		let db: SurrealLike;
-		let options: UpdateOptions<TableData>;
+		validateDb(db);
 
-		if (isSurrealLike(dbOrOptions)) {
-			// Pattern: update(db, options)
-			db = dbOrOptions;
-			if (maybeOptions === undefined) {
-				throw new Error(
-					"update(db, options) requires options as second argument. " +
-						"Did you mean to use update(options) with a configured database?",
-				);
-			}
-			options = maybeOptions;
-		} else {
-			// Pattern: update(options) - use configured default
-			db = await getDatabase();
-			if (dbOrOptions === undefined || dbOrOptions === null) {
-				throw new Error("update(options) requires options object");
-			}
-			options = dbOrOptions;
+		if (options === undefined || options === null) {
+			throw new Error("update(db, options) requires options object");
 		}
 
 		const ModelClass = this.constructor as ModelStatic<
@@ -153,30 +217,18 @@ export function getUpdateMethod<
  * a required mode property. All update operations must specify whether they
  * are doing a full replacement or partial merge.
  *
- * Supports two calling patterns:
- * - `User.update(db, id, options)` - explicit database instance
- * - `User.update(id, options)` - uses configured default database
- *
  * @example
  * ```ts
- * // Full content replacement (with configured db)
- * const updatedUser = await User.update(recordId, {
+ * // Full content replacement
+ * const updatedUser = await User.update(db, recordId, {
  *   data: { name: 'Jane Doe', age: 31 },
  *   mode: 'content'
  * });
  *
- * // Partial merge (with explicit db)
+ * // Partial merge
  * const updatedUser = await User.update(db, recordId, {
  *   data: { age: 32 },
  *   mode: 'merge'
- * });
- *
- * // With additional options
- * const updatedUser = await User.update(recordId, {
- *   data: { status: 'active' },
- *   mode: 'merge',
- *   output: 'diff',
- *   timeout: '5s'
  * });
  * ```
  *
@@ -196,59 +248,107 @@ export function getStaticUpdateMethod<
 		>,
 	>(
 		this: T,
-		dbOrId: SurrealLike | RecordId,
-		idOrOptions: RecordId | UpdateOptions<TableData>,
-		maybeOptions?: UpdateOptions<TableData>,
+		db: SurrealLike,
+		id: RecordId,
+		options: UpdateOptions<TableData>,
 	): Promise<InstanceType<T>> {
-		// Resolve db, id, and options based on calling pattern
-		let db: SurrealLike;
-		let id: RecordId;
-		let options: UpdateOptions<TableData>;
+		validateDb(db);
 
-		if (isSurrealLike(dbOrId)) {
-			// Pattern: update(db, id, options)
-			db = dbOrId;
-			if (!(idOrOptions instanceof Object && "tb" in idOrOptions)) {
-				throw new Error(
-					"update(db, id, options) requires RecordId as second argument",
-				);
-			}
-			id = idOrOptions as RecordId;
-			if (maybeOptions === undefined) {
-				throw new Error(
-					"update(db, id, options) requires options as third argument",
-				);
-			}
-			options = maybeOptions;
-		} else {
-			// Pattern: update(id, options) - use configured default
-			db = await getDatabase();
-			id = dbOrId;
-			if (idOrOptions === undefined || idOrOptions === null) {
-				throw new Error(
-					"update(id, options) requires options as second argument",
-				);
-			}
-			if (!("mode" in idOrOptions)) {
-				throw new Error(
-					"update(id, options) second argument must be UpdateOptions with 'mode' property",
-				);
-			}
-			options = idOrOptions as UpdateOptions<TableData>;
+		if (!options || !("mode" in options)) {
+			throw new Error(
+				"update(db, id, options) requires UpdateOptions with 'mode' property as third argument",
+			);
 		}
 
-		// Execute the update using the builder pattern
 		const updatedRecord = await executeUpdate<TableData>(db, id, options);
 
 		if (!updatedRecord) {
 			throw new Error(`Failed to update record ${id}.`);
 		}
 
-		// Return hydrated model instance
 		return new this(
 			updatedRecord as TableData & { id: RecordId },
 		) as InstanceType<T>;
 	}
 
 	return update;
+}
+
+// ============================================================================
+// BULK UPDATE METHOD
+// ============================================================================
+
+/**
+ * A factory function that generates the static `updateMany` method for a model.
+ * Updates every record matching the given WHERE clause.
+ *
+ * @example
+ * ```ts
+ * await User.updateMany(db, {
+ *   where: eq('active', false),
+ *   data: { active: true },
+ *   mode: 'merge',
+ * });
+ * ```
+ *
+ * @returns The static `updateMany` method implementation.
+ * @internal
+ */
+export function getUpdateManyMethod<
+	TFields extends Record<string, FieldDefinition<unknown>>,
+>() {
+	type TableData = InferShapeFromFields<TFields>;
+
+	return async function updateMany<
+		T extends ModelStatic<
+			ModelInstance<InferShapeFromFields<TFields>>,
+			TFields,
+			TableDefineOptions<TFields>
+		>,
+	>(
+		this: T,
+		db: SurrealLike,
+		options: {
+			where: BoundQuery | Expr;
+			data: Partial<TableData>;
+			mode: UpdateMode;
+		},
+	): Promise<InstanceType<T>[]> {
+		validateDb(db);
+
+		const tableName = this.getTableName();
+		let whereQuery: BoundQuery;
+
+		if (
+			options.where &&
+			typeof options.where === "object" &&
+			"query" in options.where &&
+			"bindings" in options.where
+		) {
+			whereQuery = options.where as BoundQuery;
+		} else {
+			whereQuery = surql`${options.where as Expr}`;
+		}
+
+		// Build the UPDATE query manually so the mode keyword is embedded as
+		// raw SurrealQL rather than bound as a string parameter.
+		const mode = options.mode.toUpperCase();
+		const sqlString = `UPDATE type::table($table) ${mode} $data WHERE ${whereQuery.query}`;
+		const query: BoundQuery = {
+			query: sqlString,
+			bindings: {
+				table: tableName,
+				data: options.data,
+				...whereQuery.bindings,
+			},
+		};
+
+		const result = (await (db as unknown as Surreal)
+			.query(query.query, query.bindings)
+			.collect()) as unknown as [TableData[]];
+
+		return (result[0] || []).map(
+			(record) => new this(record as TableData & { id: RecordId }),
+		) as InstanceType<T>[];
+	};
 }

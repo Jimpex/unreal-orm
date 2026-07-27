@@ -596,7 +596,11 @@ import "${relativePath}/surreal";`;
 			ui.dim(`  1. Import "${unrealPath}/surreal" in your entry point`),
 		);
 		console.log(ui.dim("  2. Define tables in tables/ directory"));
-		console.log(ui.dim("  3. Use models: await User.select({ limit: 10 })"));
+		console.log(
+			ui.dim(
+				"  3. Use models: const db = await getDatabase(); await User.select(db, { limit: 10 })",
+			),
+		);
 
 		ui.newline();
 		console.log(ui.dim("CLI commands:"));
@@ -703,11 +707,9 @@ function generateSurrealClient(mode: string): string {
 
 	// Imports
 	const imports = isEmbedded
-		? `import { Unreal } from "unreal-orm";
-import { createRemoteEngines, Surreal } from "surrealdb";
+		? `import { createRemoteEngines, Surreal } from "surrealdb";
 import { createNodeEngines } from "@surrealdb/node";`
-		: `import { Unreal } from "unreal-orm";
-import { Surreal } from "surrealdb";`;
+		: `import { Surreal } from "surrealdb";`;
 
 	// Env var declarations
 	const envDeclarations = envVars
@@ -754,15 +756,18 @@ import { Surreal } from "surrealdb";`;
  *
  * ## Setup
  *
- * 1. Import this file once in your app's entry point:
+ * 1. Import getDatabase wherever you need a database connection:
  *    \`\`\`ts
- *    import "./unreal/surreal";
+ *    import { getDatabase } from "./unreal/surreal";
  *    \`\`\`
  *
  * 2. Use ORM models anywhere in your app:
  *    \`\`\`ts
+ *    import { getDatabase } from "./unreal/surreal";
  *    import { User } from "./unreal/tables/User";
- *    const users = await User.select({ limit: 10 });
+ *
+ *    const db = await getDatabase();
+ *    const users = await User.select(db, { limit: 10 });
  *    \`\`\`
  *
  * ## Direct Database Access
@@ -853,13 +858,5 @@ export async function close(): Promise<void> {
 	}
 }
 
-// =============================================================================
-// ORM Configuration
-// =============================================================================
-
-// Configure the ORM to use this database connection.
-// This enables implicit database usage in model methods:
-//   await User.select({ limit: 10 })  // No need to pass db
-Unreal.configure({ getDatabase });
 `;
 }

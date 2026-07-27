@@ -12,21 +12,33 @@ import type {
 	ViewTableOptions,
 } from "../../schema/options";
 import { createBaseModel } from "./base";
-import { getCreateMethod } from "./crud/create";
-import { getDeleteMethod, getStaticDeleteMethod } from "./crud/delete";
+import { getCreateMethod, getRelateMethod } from "./crud/create";
+import {
+	getDeleteMethod,
+	getStaticDeleteMethod,
+	getDeleteManyMethod,
+} from "./crud/delete";
 import { getInsertMethod } from "./crud/insert";
-import { getSelectMethod } from "./crud/select";
-import { getUpdateMethod, getStaticUpdateMethod } from "./crud/update";
+import { getSelectMethod, getCountMethod } from "./crud/select";
+import {
+	getUpdateMethod,
+	getStaticUpdateMethod,
+	getUpdateManyMethod,
+} from "./crud/update";
 
 function defineTable<TFields extends Record<string, FieldDefinition<unknown>>>(
 	options: TableDefineOptions<TFields>,
 ) {
 	const staticMethods = {
 		create: getCreateMethod<TFields>(),
+		relate: getRelateMethod<TFields>(),
 		insert: getInsertMethod<TFields>(),
 		select: getSelectMethod<TFields>(),
+		count: getCountMethod<TFields>(),
 		update: getStaticUpdateMethod<TFields>(),
+		updateMany: getUpdateManyMethod<TFields>(),
 		delete: getStaticDeleteMethod<TFields>(),
+		deleteMany: getDeleteManyMethod<TFields>(),
 	};
 
 	const instanceMethods = {

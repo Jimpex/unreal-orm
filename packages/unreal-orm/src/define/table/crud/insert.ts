@@ -10,7 +10,7 @@ import type {
 } from "../types/model";
 import type { InsertQueryOptions, ReturnType } from "../types/query";
 import type { FieldDefinition } from "../../field/types";
-import { getDatabase, isSurrealLike } from "../../../config";
+import { validateDb } from "../../../utils/validate-db";
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -311,33 +311,13 @@ export function getInsertMethod<
 			TFields,
 			TableDefineOptions<TFields>
 		>,
-		dbOrOptions:
-			| SurrealLike
-			| InsertQueryOptions<TableData, InsertData | InsertData[]>,
-		maybeOptions?: InsertQueryOptions<TableData, InsertData | InsertData[]>,
+		db: SurrealLike,
+		opts: InsertQueryOptions<TableData, InsertData | InsertData[]>,
 	): Promise<unknown> {
-		// Resolve db and options based on calling pattern
-		let db: SurrealLike;
-		let opts: InsertQueryOptions<TableData, InsertData | InsertData[]>;
+		validateDb(db);
 
-		if (isSurrealLike(dbOrOptions)) {
-			// Pattern: insert(db, { data, ...options })
-			db = dbOrOptions;
-			if (!maybeOptions || !("data" in maybeOptions)) {
-				throw new Error(
-					"insert(db, options) requires options with 'data' property.",
-				);
-			}
-			opts = maybeOptions;
-		} else {
-			// Pattern: insert({ data, ...options }) - use configured default
-			db = await getDatabase();
-			if (!dbOrOptions || !("data" in dbOrOptions)) {
-				throw new Error(
-					"insert(options) requires options with 'data' property.",
-				);
-			}
-			opts = dbOrOptions;
+		if (!opts || !("data" in opts)) {
+			throw new Error("insert(db, options) requires options with 'data' property.");
 		}
 
 		const tableName = this.getTableName();

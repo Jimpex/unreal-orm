@@ -26,7 +26,7 @@ export interface OrderByClause {
  * @example
  * ```ts
  * // Type-safe field selection
- * const posts = await Post.select({
+ * const posts = await Post.select(db, {
  *   select: {
  *     title: true,
  *     author: { name: true, email: true },
@@ -35,7 +35,7 @@ export interface OrderByClause {
  * // Type: { title: string; author: { name: string; email: string } }[]
  *
  * // With custom computed field
- * const posts = await Post.select({
+ * const posts = await Post.select(db, {
  *   select: {
  *     title: true,
  *     commentCount: typed<number>(surql`count(<-comment)`),
@@ -43,12 +43,12 @@ export interface OrderByClause {
  * });
  *
  * // String array (pass-through)
- * const posts = await Post.select({
+ * const posts = await Post.select(db, {
  *   select: ['title', 'author.name'],
  * });
  *
  * // Raw SurrealQL
- * const posts = await Post.select({
+ * const posts = await Post.select(db, {
  *   select: surql`title, count(<-comment) AS commentCount`,
  * });
  * ```
@@ -117,7 +117,7 @@ export interface SelectQueryOptions<
 	/** An array of fields to split the results by. */
 	split?: string[];
 	/** An array of fields to group the results by. */
-	groupBy?: string[];
+	groupBy?: (keyof TTable | string)[];
 	/** An array of `OrderByClause` objects to sort the results. */
 	orderBy?: OrderByClause[];
 	/** The maximum number of records to return. */

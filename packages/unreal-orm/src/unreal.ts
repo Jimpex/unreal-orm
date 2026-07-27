@@ -21,14 +21,6 @@
  * @module
  */
 
-import {
-	configure,
-	getDatabase,
-	hasDatabase,
-	clearConfig,
-	type ConfigureOptions,
-} from "./config";
-
 import { applySchema, generateFullSchemaQl } from "./schema/generator";
 
 import {
@@ -58,47 +50,10 @@ import type { SchemaAST, SchemaChange } from "./schema/ast";
 
 /**
  * The Unreal namespace provides a unified API for:
- * - **Configuration**: Database connection setup
  * - **Schema**: DDL generation and application
  * - **AST**: Schema parsing, comparison, and migration
  */
 export const Unreal = {
-	// =========================================================================
-	// CONFIGURATION
-	// =========================================================================
-
-	/**
-	 * Configure the global database connection.
-	 * After calling this, ORM methods can be used without passing `db` explicitly.
-	 *
-	 * @example
-	 * ```ts
-	 * // With factory function (recommended)
-	 * Unreal.configure({ getDatabase: () => connectToDatabase() });
-	 *
-	 * // With pre-connected instance
-	 * Unreal.configure({ database: db });
-	 * ```
-	 */
-	configure,
-
-	/**
-	 * Get the configured database instance.
-	 * @throws Error if no database is configured
-	 */
-	getDatabase,
-
-	/**
-	 * Check if a database is configured.
-	 */
-	hasDatabase,
-
-	/**
-	 * Clear the global database configuration.
-	 * Useful for testing or switching connections.
-	 */
-	clearConfig,
-
 	// =========================================================================
 	// SCHEMA - Generation & Application
 	// =========================================================================
@@ -218,4 +173,4 @@ export const Unreal = {
 } as const;
 
 // Re-export types for convenience
-export type { ConfigureOptions, SurrealLike, SchemaAST, SchemaChange };
+export type { SurrealLike, SchemaAST, SchemaChange };

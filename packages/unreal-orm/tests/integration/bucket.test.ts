@@ -8,7 +8,7 @@ import {
 	extractSchemaFromDefinables,
 } from "../../src";
 import { setupInMemoryDb, teardownDb } from "../utils/dbTestUtils";
-import { RecordId, surql, type Surreal } from "surrealdb";
+import { FileRef, RecordId, surql, type Surreal } from "surrealdb";
 
 let db: Surreal;
 
@@ -205,7 +205,7 @@ describe("Bucket Support", () => {
 			from: new RecordId("user", "fileref_test"),
 			only: true,
 		});
-		expect(user?.avatar?.constructor?.name).toBe("FileRef");
+		expect(user?.avatar).toBeInstanceOf(FileRef);
 		expect(user?.avatar?.bucket).toBe("avatars");
 		expect(user?.avatar?.key).toBe("/fileref-test.txt");
 

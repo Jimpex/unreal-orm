@@ -203,9 +203,9 @@ The `pull` command now features intelligent merging that preserves your customiz
 
 See the [CLI README](https://github.com/Jimpex/unreal-orm/tree/main/packages/unreal-cli) for full documentation.
 
-## New: Implicit Database Support
+## Removed: Implicit Database Support
 
-UnrealORM 1.0.0 alpha introduces optional implicit database connections. Configure your database once, then call CRUD methods without passing `db` explicitly.
+UnrealORM 1.0.0 alpha no longer supports implicit database connections. All CRUD methods now require an explicit `db` argument. This prevents unexpected behavior and keeps the type system simpler.
 
 ### Configuration
 
@@ -216,48 +216,40 @@ bunx @unreal-orm/cli init
 ```
 
 This creates:
-- `unreal/surreal.ts` - Database connection with `Unreal.configure()` call
+- `unreal/surreal.ts` - Database connection and `getDatabase()` helper
 - `unreal.config.json` - Project configuration
 
-The generated `surreal.ts` automatically configures the ORM when imported. Just add this import to your app's entry point:
+Import `getDatabase()` from `unreal/surreal.ts` and pass `db` explicitly:
 
 ```ts
-// In your main.ts, index.ts, or app entry point
-import "./unreal/surreal";
+import { getDatabase } from "./unreal/surreal";
+import { User } from "./unreal/tables/User";
+
+const db = await getDatabase();
+const users = await User.select(db, { limit: 10 });
 ```
 
 ### Usage
 
-All CRUD methods now support two calling patterns:
+All CRUD methods require an explicit `db` argument:
 
 ```ts
-// Pattern 1: Explicit db (always works)
 const users = await User.select(db, { limit: 10 });
 const user = await User.create(db, { name: "John" });
 await user.update(db, { data: { name: "Jane" }, mode: "merge" });
 await user.delete(db);
-
-// Pattern 2: Implicit db (uses configured default)
-const users = await User.select({ limit: 10 });
-const user = await User.create({ name: "John" });
-await user.update({ data: { name: "Jane" }, mode: "merge" });
-await user.delete();
 ```
 
 ### Supported Methods
 
-| Method | Explicit | Implicit |
-| ------ | -------- | -------- |
-| `Model.select(db, options)` | ✓ | `Model.select(options)` |
-| `Model.create(db, data)` | ✓ | `Model.create(data)` |
-| `Model.update(db, id, options)` | ✓ | `Model.update(id, options)` |
-| `Model.delete(db, id)` | ✓ | `Model.delete(id)` |
-| `instance.update(db, options)` | ✓ | `instance.update(options)` |
-| `instance.delete(db)` | ✓ | `instance.delete()` |
-
-<Aside type="tip" title="Best Practice">
-  Use explicit `db` for multiple database connections, client-side transactions, or when you need fine-grained session control. Use implicit `db` for simpler applications or scripts where a single database connection is sufficient.
-</Aside>
+| Method | Requires `db` |
+| ------ | ------------- |
+| `Model.select(db, options)` | ✓ |
+| `Model.create(db, data)` | ✓ |
+| `Model.update(db, id, options)` | ✓ |
+| `Model.delete(db, id)` | ✓ |
+| `instance.update(db, options)` | ✓ |
+| `instance.delete(db)` | ✓ |
 
 ## Step-by-Step Migration
 
@@ -551,7 +543,6 @@ if (!db.isFeatureSupported(Features.Transactions)) {
 - [ ] Test all CRUD operations
 - [ ] Verify type safety with TypeScript compiler
 - [ ] Use `unreal diff` to verify schema sync
-- [ ] (Optional) Run `unreal init` to enable implicit database support
 
 ---
 

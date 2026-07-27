@@ -36,11 +36,11 @@
 	"devDependencies": {
 		"@surrealdb/node": "^3.0.3",
 		"@types/bun": "^1.2.16",
-		"surrealdb": "^2.0.3",
+		"surrealdb": "^2.0.8",
 		"unbuild": "^3.6.1"
 	},
 	"peerDependencies": {
-		"surrealdb": "^2.0.3",
+		"surrealdb": "^2.0.8",
 		"typescript": "^5"
 	},
 	"files": ["dist", "unreal.schema.json", "README.md", "LICENSE"],

@@ -34,7 +34,7 @@
 		"@surrealdb/node": "^3.0.3"
 	},
 	"peerDependencies": {
-		"surrealdb": "^2.0.3",
+		"surrealdb": "^2.0.8",
 		"typescript": "^5"
 	},
 	"keywords": ["surrealdb", "orm", "cli", "schema", "migrations", "unreal-orm"],

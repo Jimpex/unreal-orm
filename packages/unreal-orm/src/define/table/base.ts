@@ -6,11 +6,19 @@ import type {
 	TableDefineOptions,
 } from "./types/model";
 import type { FieldDefinition } from "../field/types";
-import type { getCreateMethod } from "./crud/create";
+import type { getCreateMethod, getRelateMethod } from "./crud/create";
 import type { getInsertMethod } from "./crud/insert";
-import type { getSelectMethod } from "./crud/select";
-import type { getUpdateMethod, getStaticUpdateMethod } from "./crud/update";
-import type { getDeleteMethod, getStaticDeleteMethod } from "./crud/delete";
+import type { getSelectMethod, getCountMethod } from "./crud/select";
+import type {
+	getUpdateMethod,
+	getStaticUpdateMethod,
+	getUpdateManyMethod,
+} from "./crud/update";
+import type {
+	getDeleteMethod,
+	getStaticDeleteMethod,
+	getDeleteManyMethod,
+} from "./crud/delete";
 import { hydrate } from "./hydration";
 
 /**
@@ -32,10 +40,14 @@ export function createBaseModel<
 	options: TableDefineOptions<TFields>,
 	staticMethods: {
 		create: ReturnType<typeof getCreateMethod<TFields>>;
+		relate: ReturnType<typeof getRelateMethod<TFields>>;
 		insert: ReturnType<typeof getInsertMethod<TFields>>;
 		select: ReturnType<typeof getSelectMethod<TFields>>;
+		count: ReturnType<typeof getCountMethod<TFields>>;
 		update: ReturnType<typeof getStaticUpdateMethod<TFields>>;
+		updateMany: ReturnType<typeof getUpdateManyMethod<TFields>>;
 		delete: ReturnType<typeof getStaticDeleteMethod<TFields>>;
+		deleteMany: ReturnType<typeof getDeleteManyMethod<TFields>>;
 	},
 	instanceMethods: {
 		update: ReturnType<typeof getUpdateMethod<TFields>>;
@@ -66,10 +78,14 @@ export function createBaseModel<
 		}
 
 		static create = staticMethods.create;
+		static relate = staticMethods.relate;
 		static insert = staticMethods.insert;
 		static select = staticMethods.select;
+		static count = staticMethods.count;
 		static update = staticMethods.update;
+		static updateMany = staticMethods.updateMany;
 		static delete = staticMethods.delete;
+		static deleteMany = staticMethods.deleteMany;
 
 		/**
 		 * Creates an instance of the model.

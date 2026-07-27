@@ -1,4 +1,5 @@
-import type { RecordId, Surreal } from "surrealdb";
+import type { BoundQuery, Expr, RecordId, Surreal } from "surrealdb";
+import { surql, Table } from "surrealdb";
 import type {
 	InferShapeFromFields,
 	ModelInstance,
@@ -7,24 +8,15 @@ import type {
 	SurrealLike,
 } from "../types/model";
 import type { FieldDefinition } from "../../field/types";
-import { getDatabase, isSurrealLike } from "../../../config";
+import { validateDb } from "../../../utils/validate-db";
 
 /**
  * A factory function that generates the instance `delete` method for a model.
  * This method is responsible for deleting the current record from the database.
  *
- * Supports two calling patterns:
- * - `user.delete(db)` - explicit database instance
- * - `user.delete()` - uses configured default database
- *
  * @example
  * ```ts
- * const user = await User.select({ from: 'user:123', only: true });
- *
- * // With configured db
- * await user.delete();
- *
- * // With explicit db
+ * const user = await User.select(db, { from: 'user:123', only: true });
  * await user.delete(db);
  * ```
  *
@@ -38,10 +30,9 @@ export function getDeleteMethod<
 
 	return async function (
 		this: ModelInstance<TableData>,
-		dbArg?: SurrealLike,
+		db: SurrealLike,
 	): Promise<void> {
-		// Resolve db based on calling pattern
-		const db = dbArg ?? (await getDatabase());
+		validateDb(db);
 
 		const ModelClass = this.constructor as ModelStatic<
 			ModelInstance<TableData>,
@@ -56,16 +47,8 @@ export function getDeleteMethod<
  * A factory function that generates the static `delete` method for a model.
  * This method is responsible for deleting a record from the database by its ID.
  *
- * Supports two calling patterns:
- * - `User.delete(db, id)` - explicit database instance
- * - `User.delete(id)` - uses configured default database
- *
  * @example
  * ```ts
- * // With configured db
- * await User.delete(recordId);
- *
- * // With explicit db
  * await User.delete(db, recordId);
  * ```
  *
@@ -81,34 +64,69 @@ export function getStaticDeleteMethod<
 			TFields,
 			TableDefineOptions<TFields>
 		>,
-	>(
-		this: T,
-		dbOrId: SurrealLike | RecordId,
-		maybeId?: RecordId,
-	): Promise<void> {
-		// Resolve db and id based on calling pattern
-		let db: SurrealLike;
-		let id: RecordId;
-
-		if (isSurrealLike(dbOrId)) {
-			// Pattern: delete(db, id)
-			db = dbOrId;
-			if (maybeId === undefined) {
-				throw new Error(
-					"delete(db, id) requires RecordId as second argument. " +
-						"Did you mean to use delete(id) with a configured database?",
-				);
-			}
-			id = maybeId;
-		} else {
-			// Pattern: delete(id) - use configured default
-			db = await getDatabase();
-			if (dbOrId === undefined || dbOrId === null) {
-				throw new Error("delete(id) requires RecordId argument");
-			}
-			id = dbOrId;
-		}
+	>(this: T, db: SurrealLike, id: RecordId): Promise<void> {
+		validateDb(db);
 
 		await db.delete(id);
+	};
+}
+
+// ============================================================================
+// BULK DELETE METHOD
+// ============================================================================
+
+/**
+ * A factory function that generates the static `deleteMany` method for a model.
+ * Deletes every record matching the given WHERE clause.
+ *
+ * @example
+ * ```ts
+ * await User.deleteMany(db, { where: eq('active', false) });
+ * ```
+ *
+ * @returns The static `deleteMany` method implementation.
+ * @internal
+ */
+export function getDeleteManyMethod<
+	TFields extends Record<string, FieldDefinition<unknown>>,
+>() {
+	return async function <
+		T extends ModelStatic<
+			ModelInstance<InferShapeFromFields<TFields>>,
+			TFields,
+			TableDefineOptions<TFields>
+		>,
+	>(
+		this: T,
+		db: SurrealLike,
+		options: { where: BoundQuery | Expr },
+	): Promise<void> {
+		validateDb(db);
+
+		const tableName = this.getTableName();
+		let whereQuery: BoundQuery;
+
+		if (
+			options.where &&
+			typeof options.where === "object" &&
+			"query" in options.where &&
+			"bindings" in options.where
+		) {
+			whereQuery = options.where as BoundQuery;
+		} else {
+			whereQuery = surql`${options.where as Expr}`;
+		}
+
+		// Build DELETE query manually so the table name is bound safely.
+		const sqlString = `DELETE type::table($table) WHERE ${whereQuery.query}`;
+		const query: BoundQuery = {
+			query: sqlString,
+			bindings: {
+				table: tableName,
+				...whereQuery.bindings,
+			},
+		};
+
+		await (db as unknown as Surreal).query(query.query, query.bindings).collect();
 	};
 }

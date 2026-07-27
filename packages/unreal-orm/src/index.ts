@@ -58,20 +58,6 @@ export { Index } from "./define/index";
 export { Bucket } from "./define/bucket";
 
 /**
- * Configuration functions for global database setup.
- * Enables using ORM methods without passing db explicitly.
- * @see {@link ./config/index.ts}
- */
-export {
-	configure,
-	getDatabase,
-	hasDatabase,
-	clearConfig,
-	isSurrealLike,
-} from "./config";
-export type { ConfigureOptions } from "./config";
-
-/**
  * Schema AST - bidirectional schema transformation.
  * Enables programmatic schema comparison, migration generation, and introspection.
  * @see {@link ./schema/ast/index.ts}

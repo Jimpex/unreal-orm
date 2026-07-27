@@ -128,7 +128,10 @@ export type InferFieldType<T extends FieldDefinition<unknown>> =
  */
 export type CreateData<
 	TFields extends Record<string, FieldDefinition<unknown>>,
-> = Partial<InferShapeFromFields<TFields>>;
+> = Partial<InferShapeFromFields<TFields>> & {
+	/** Optional custom record ID. If omitted, SurrealDB generates an ID. */
+	id?: RecordId | string;
+};
 
 // --- Model Class and Instance Types ---
 
@@ -150,36 +153,11 @@ export declare class BaseTable<TData extends Record<string, unknown>> {
 	constructor(data: TData);
 
 	// ============================================================================
-	// UPDATE - Implicit DB overloads (instance methods)
+	// UPDATE - instance methods
 	// ============================================================================
 
 	/**
-	 * Updates the current record instance using content, merge, or replace mode (implicit db).
-	 * @param options - Update options including data and mode.
-	 * @returns A promise that resolves to the updated model instance.
-	 * @example
-	 * ```ts
-	 * await user.update({ data: { name: 'Jane' }, mode: 'merge' });
-	 * ```
-	 */
-	update(options: {
-		data: Partial<TData>;
-		mode: "content" | "merge" | "replace";
-	}): Promise<this>;
-
-	/**
-	 * Updates the current record instance using JSON Patch operations (implicit db).
-	 * @param options - Update options including patch operations and mode.
-	 * @returns A promise that resolves to the updated model instance.
-	 */
-	update(options: { data: JsonPatchOperation[]; mode: "patch" }): Promise<this>;
-
-	// ============================================================================
-	// UPDATE - Explicit DB overloads (instance methods)
-	// ============================================================================
-
-	/**
-	 * Updates the current record instance using content, merge, or replace mode (explicit db).
+	 * Updates the current record instance using content, merge, or replace mode.
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param options - Update options including data and mode.
 	 * @returns A promise that resolves to the updated model instance.
@@ -198,7 +176,7 @@ export declare class BaseTable<TData extends Record<string, unknown>> {
 	): Promise<this>;
 
 	/**
-	 * Updates the current record instance using JSON Patch operations (explicit db).
+	 * Updates the current record instance using JSON Patch operations.
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param options - Update options including patch operations and mode.
 	 * @returns A promise that resolves to the updated model instance.
@@ -217,21 +195,11 @@ export declare class BaseTable<TData extends Record<string, unknown>> {
 	): Promise<this>;
 
 	// ============================================================================
-	// DELETE - Implicit and Explicit DB overloads (instance methods)
+	// DELETE - instance methods
 	// ============================================================================
 
 	/**
-	 * Deletes the current record instance from the database (implicit db).
-	 * @returns A promise that resolves when the record is deleted.
-	 * @example
-	 * ```ts
-	 * await user.delete();
-	 * ```
-	 */
-	delete(): Promise<void>;
-
-	/**
-	 * Deletes the current record instance from the database (explicit db).
+	 * Deletes the current record instance from the database.
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @returns A promise that resolves when the record is deleted.
 	 * @example
@@ -277,22 +245,7 @@ export type ModelStatic<
 	getTableName(): string;
 
 	/**
-	 * Creates a new record in the database (implicit db).
-	 * Uses the globally configured database connection.
-	 * @param data - The data to create the record with.
-	 * @returns A promise that resolves to the created model instance.
-	 * @example
-	 * ```ts
-	 * const user = await User.create({ name: 'John', email: 'john@example.com' });
-	 * ```
-	 */
-	create<T extends ModelStatic<TInstance, TFields, TOptions>>(
-		this: T,
-		data: CreateData<TFields>,
-	): Promise<InstanceType<T>>;
-
-	/**
-	 * Creates a new record in the database (explicit db).
+	 * Creates a new record in the database.
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param data - The data to create the record with.
 	 * @returns A promise that resolves to the created model instance.
@@ -307,57 +260,39 @@ export type ModelStatic<
 		data: CreateData<TFields>,
 	): Promise<InstanceType<T>>;
 
-	// ============================================================================
-	// INSERT - Implicit DB overloads (uses configured default database)
-	// ============================================================================
-
 	/**
-	 * Inserts a single record using INSERT statement (implicit db).
-	 * @param options - Insert options including data to insert.
-	 * @returns A promise that resolves to the inserted model instance.
+	 * Relates two records for an edge/relation table.
+	 * @param db - A SurrealDB connection or transaction object.
+	 * @param options - Relation options including `from`, `to`, and optional edge data.
+	 * @returns A promise that resolves to the created edge instance.
 	 * @example
 	 * ```ts
-	 * const user = await User.insert({
-	 *   data: { name: 'John', email: 'john@example.com' },
+	 * const follow = await Follow.relate(db, {
+	 *   from: user.id,
+	 *   to: post.id,
+	 *   data: { since: new Date() },
+	 *   orUpdate: true,
 	 * });
 	 * ```
 	 */
-	insert<T extends ModelStatic<TInstance, TFields, TOptions>>(
+	relate<T extends ModelStatic<TInstance, TFields, TOptions>>(
 		this: T,
-		options: import("./query").InsertQueryOptions<
-			InferShapeFromFields<TFields>,
-			CreateData<TFields>
-		>,
+		db: SurrealLike,
+		options: {
+			from: RecordId;
+			to: RecordId;
+			data?: Record<string, unknown>;
+			orUpdate?: boolean;
+			id?: RecordId | string;
+		},
 	): Promise<InstanceType<T>>;
 
-	/**
-	 * Bulk inserts multiple records using INSERT statement (implicit db).
-	 * @param options - Insert options including array of data to insert.
-	 * @returns A promise that resolves to an array of inserted model instances.
-	 * @example
-	 * ```ts
-	 * const users = await User.insert({
-	 *   data: [
-	 *     { name: 'John', email: 'john@example.com' },
-	 *     { name: 'Jane', email: 'jane@example.com' },
-	 *   ],
-	 * });
-	 * ```
-	 */
-	insert<T extends ModelStatic<TInstance, TFields, TOptions>>(
-		this: T,
-		options: import("./query").InsertQueryOptions<
-			InferShapeFromFields<TFields>,
-			CreateData<TFields>[]
-		>,
-	): Promise<InstanceType<T>[]>;
-
 	// ============================================================================
-	// INSERT - Explicit DB overloads
+	// INSERT - overloads
 	// ============================================================================
 
 	/**
-	 * Inserts a single record using INSERT statement (explicit db).
+	 * Inserts a single record using INSERT statement.
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param options - Insert options including data to insert.
 	 * @returns A promise that resolves to the inserted model instance.
@@ -378,7 +313,7 @@ export type ModelStatic<
 	): Promise<InstanceType<T>>;
 
 	/**
-	 * Bulk inserts multiple records using INSERT statement (explicit db).
+	 * Bulk inserts multiple records using INSERT statement.
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param options - Insert options including array of data to insert.
 	 * @returns A promise that resolves to an array of inserted model instances.
@@ -402,119 +337,11 @@ export type ModelStatic<
 	): Promise<InstanceType<T>[]>;
 
 	// ============================================================================
-	// SELECT - Implicit DB overloads (uses configured default database)
+	// SELECT - overloads
 	// ============================================================================
 
 	/**
-	 * Selects all full model instances from the table (implicit db).
-	 * @returns A promise that resolves to an array of all model instances.
-	 * @example
-	 * ```ts
-	 * const allUsers = await User.select();
-	 * ```
-	 */
-	select(this: ModelStatic<TInstance, TFields, TOptions>): Promise<TInstance[]>;
-
-	/**
-	 * Selects records with GROUP BY aggregation (implicit db).
-	 */
-	select(
-		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields> & {
-			groupBy: string[];
-		},
-	): Promise<Record<string, unknown>[]>;
-
-	/**
-	 * Selects records with VALUE clause - returns array of values (implicit db).
-	 */
-	select(
-		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields> & {
-			value: string;
-		},
-	): Promise<unknown[]>;
-
-	/**
-	 * Selects and omits fields from a single record (implicit db).
-	 */
-	select<TOmit extends OmitSelect<TFields>>(
-		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: Omit<
-			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
-			"omit"
-		> & {
-			omit: TOmit;
-			only: true;
-		},
-	): Promise<InferOmitResult<TFields, TOmit> | undefined>;
-
-	select<TOmit extends OmitSelect<TFields>>(
-		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: Omit<
-			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
-			"omit"
-		> & {
-			omit: TOmit;
-		},
-	): Promise<InferOmitResult<TFields, TOmit>[]>;
-
-	/**
-	 * Selects with type-safe field selection object (implicit db).
-	 * Returns inferred type based on selected fields.
-	 */
-	/**
-	 * Selects specified fields from a single record (implicit db).
-	 */
-	select<TSelect extends FieldSelect<TFields>>(
-		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: Omit<
-			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
-			"select"
-		> & {
-			select: TSelect extends DeepValidateSelect<TFields, TSelect>
-				? TSelect
-				: DeepValidateSelect<TFields, TSelect>;
-			only: true;
-		},
-	): Promise<InferSelectResult<TFields, TSelect> | undefined>;
-
-	select<TSelect extends FieldSelect<TFields>>(
-		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: Omit<
-			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
-			"select"
-		> & {
-			select: TSelect extends DeepValidateSelect<TFields, TSelect>
-				? TSelect
-				: DeepValidateSelect<TFields, TSelect>;
-		},
-	): Promise<InferSelectResult<TFields, TSelect>[]>;
-
-	/**
-	 * Selects a single full model instance (implicit db).
-	 */
-	select(
-		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields> & {
-			only: true;
-		},
-	): Promise<TInstance | undefined>;
-
-	/**
-	 * Selects multiple full model instances with options (implicit db).
-	 */
-	select(
-		this: ModelStatic<TInstance, TFields, TOptions>,
-		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
-	): Promise<TInstance[]>;
-
-	// ============================================================================
-	// SELECT - Explicit DB overloads
-	// ============================================================================
-
-	/**
-	 * Selects all full model instances from the table (explicit db).
+	 * Selects all full model instances from the table.
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @returns A promise that resolves to an array of all model instances.
 	 * @example
@@ -528,18 +355,7 @@ export type ModelStatic<
 	): Promise<TInstance[]>;
 
 	/**
-	 * Selects records with GROUP BY aggregation (explicit db).
-	 */
-	select(
-		this: ModelStatic<TInstance, TFields, TOptions>,
-		db: SurrealLike,
-		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields> & {
-			groupBy: string[];
-		},
-	): Promise<Record<string, unknown>[]>;
-
-	/**
-	 * Selects records with VALUE clause - returns array of values (explicit db).
+	 * Selects records with VALUE clause - returns array of values.
 	 */
 	select(
 		this: ModelStatic<TInstance, TFields, TOptions>,
@@ -550,16 +366,13 @@ export type ModelStatic<
 	): Promise<unknown[]>;
 
 	/**
-	 * Selects records with type-safe OMIT clause (explicit db).
+	 * Selects and omits fields from a single record.
 	 * Returns all fields except the omitted ones with proper type inference.
 	 * @example
 	 * ```ts
 	 * const users = await User.select(db, { omit: { password: true } });
 	 * // Type: Omit<User, 'password'>[]
 	 * ```
-	 */
-	/**
-	 * Selects and omits fields from a single record (explicit db).
 	 */
 	select<TOmit extends OmitSelect<TFields>>(
 		this: ModelStatic<TInstance, TFields, TOptions>,
@@ -585,7 +398,7 @@ export type ModelStatic<
 	): Promise<InferOmitResult<TFields, TOmit>[]>;
 
 	/**
-	 * Selects records with OMIT clause using string array (explicit db).
+	 * Selects records with OMIT clause using string array.
 	 * Less type-safe than object format.
 	 */
 	select(
@@ -597,7 +410,7 @@ export type ModelStatic<
 	): Promise<Partial<InferShapeFromFields<TFields>>[]>;
 
 	/**
-	 * Selects with type-safe field selection object (explicit db).
+	 * Selects with type-safe field selection object.
 	 * Returns inferred type based on selected fields.
 	 * @example
 	 * ```ts
@@ -613,9 +426,6 @@ export type ModelStatic<
 	 * });
 	 * // Type: { title: string; commentCount: number }[]
 	 * ```
-	 */
-	/**
-	 * Selects specified fields from a single record (explicit db).
 	 */
 	select<TSelect extends FieldSelect<TFields>>(
 		this: ModelStatic<TInstance, TFields, TOptions>,
@@ -643,7 +453,7 @@ export type ModelStatic<
 	): Promise<InferSelectResult<TFields, TSelect>[]>;
 
 	/**
-	 * Selects a single full model instance (explicit db).
+	 * Selects a single full model instance.
 	 */
 	select(
 		this: ModelStatic<TInstance, TFields, TOptions>,
@@ -654,7 +464,7 @@ export type ModelStatic<
 	): Promise<TInstance | undefined>;
 
 	/**
-	 * Selects multiple full model instances with options (explicit db).
+	 * Selects multiple full model instances with options.
 	 */
 	select(
 		this: ModelStatic<TInstance, TFields, TOptions>,
@@ -662,43 +472,44 @@ export type ModelStatic<
 		options: SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
 	): Promise<TInstance[]>;
 
-	// ============================================================================
-	// UPDATE - Implicit DB overloads
-	// ============================================================================
-
 	/**
-	 * Updates a record using content, merge, or replace mode (implicit db).
-	 * @param id - The record ID to update.
-	 * @param options - Update options including data and mode.
-	 * @returns A promise that resolves to the updated model instance.
+	 * Groups records without a type-safe projection. Returns raw aggregation rows.
+	 * @example
+	 * ```ts
+	 * const byCity = await User.select(db, { groupBy: ['city'] });
+	 * ```
 	 */
-	update<T extends ModelStatic<TInstance, TFields, TOptions>>(
-		this: T,
-		id: RecordId,
-		options: {
-			data: Partial<InferShapeFromFields<TFields>>;
-			mode: "content" | "merge" | "replace";
+	select(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		db: SurrealLike,
+		options: Omit<SelectQueryOptions<InferShapeFromFields<TFields>, TFields>, "select"> & {
+			groupBy: (keyof TFields | string)[];
 		},
-	): Promise<InstanceType<T>>;
+	): Promise<Record<string, unknown>[]>;
 
 	/**
-	 * Updates a record using JSON Patch operations (implicit db).
-	 * @param id - The record ID to update.
-	 * @param options - Update options including patch operations and mode.
-	 * @returns A promise that resolves to the updated model instance.
+	 * Counts records matching the optional filter.
+	 * @param db - A SurrealDB connection or transaction object.
+	 * @param options - Optional where filter and grouping.
+	 * @returns A promise that resolves to the count, or grouped count results.
+	 * @example
+	 * ```ts
+	 * const total = await User.count(db);
+	 * const byCity = await User.count(db, { by: ['city'] });
+	 * ```
 	 */
-	update<T extends ModelStatic<TInstance, TFields, TOptions>>(
-		this: T,
-		id: RecordId,
-		options: { data: JsonPatchOperation[]; mode: "patch" },
-	): Promise<InstanceType<T>>;
+	count(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		db: SurrealLike,
+		options?: { where?: BoundQuery | Expr; by?: (keyof TFields | string)[] },
+	): Promise<number | Record<string, unknown>[]>;
 
 	// ============================================================================
-	// UPDATE - Explicit DB overloads
+	// UPDATE - overloads
 	// ============================================================================
 
 	/**
-	 * Updates a record using content, merge, or replace mode (explicit db).
+	 * Updates a single record by ID using content, merge, or replace mode.
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param id - The record ID to update.
 	 * @param options - Update options including data and mode.
@@ -729,7 +540,7 @@ export type ModelStatic<
 	): Promise<InstanceType<T>>;
 
 	/**
-	 * Updates a record using JSON Patch operations (explicit db).
+	 * Updates a single record by ID using JSON Patch operations.
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param id - The record ID to update.
 	 * @param options - Update options including patch operations and mode.
@@ -749,30 +560,36 @@ export type ModelStatic<
 		options: { data: JsonPatchOperation[]; mode: "patch" },
 	): Promise<InstanceType<T>>;
 
-	// ============================================================================
-	// DELETE - Implicit DB overload
-	// ============================================================================
-
 	/**
-	 * Deletes a record from the database (implicit db).
-	 * @param id - The record ID to delete.
-	 * @returns A promise that resolves when the record is deleted.
+	 * Bulk updates records matching a WHERE clause.
+	 * @param db - A SurrealDB connection or transaction object.
+	 * @param options - Update options including where filter, data, and mode.
+	 * @returns A promise that resolves to an array of updated model instances.
 	 * @example
 	 * ```ts
-	 * await User.delete('user:123');
+	 * await User.updateMany(db, {
+	 *   where: eq('active', false),
+	 *   data: { active: true },
+	 *   mode: 'merge',
+	 * });
 	 * ```
 	 */
-	delete<T extends ModelStatic<TInstance, TFields, TOptions>>(
+	updateMany<T extends ModelStatic<TInstance, TFields, TOptions>>(
 		this: T,
-		id: RecordId,
-	): Promise<void>;
+		db: SurrealLike,
+		options: {
+			where: BoundQuery | Expr;
+			data: Partial<InferShapeFromFields<TFields>>;
+			mode: "content" | "merge" | "replace";
+		},
+	): Promise<InstanceType<T>[]>;
 
 	// ============================================================================
-	// DELETE - Explicit DB overload
+	// DELETE - overloads
 	// ============================================================================
 
 	/**
-	 * Deletes a record from the database (explicit db).
+	 * Deletes a single record from the database.
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param id - The record ID to delete.
 	 * @returns A promise that resolves when the record is deleted.
@@ -785,6 +602,22 @@ export type ModelStatic<
 		this: T,
 		db: SurrealLike,
 		id: RecordId,
+	): Promise<void>;
+
+	/**
+	 * Bulk deletes records matching a WHERE clause.
+	 * @param db - A SurrealDB connection or transaction object.
+	 * @param options - Delete options including the where filter.
+	 * @returns A promise that resolves when the records are deleted.
+	 * @example
+	 * ```ts
+	 * await User.deleteMany(db, { where: eq('active', false) });
+	 * ```
+	 */
+	deleteMany(
+		this: ModelStatic<TInstance, TFields, TOptions>,
+		db: SurrealLike,
+		options: { where: BoundQuery | Expr },
 	): Promise<void>;
 };
 

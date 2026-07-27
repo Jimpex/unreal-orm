@@ -31,10 +31,7 @@ async function setupTestDb() {
   // Connect to an isolated in-memory instance
   await db.connect('mem://');
   await db.use({ namespace: 'test', database: 'test' });
-  
-  // Configure the ORM to use this instance globally
-  Unreal.configure({ database: db });
-  
+
   return db;
 }
 ```
@@ -62,8 +59,8 @@ beforeAll(async () => {
 });
 
 test('should fail if email is invalid', async () => {
-  const db = Unreal.getDatabase();
-  
+  const db = await setupTestDb();
+
   await expect(User.create(db, {
     name: 'Alice',
     email: 'invalid-email', // This should trigger Field assertion
@@ -79,13 +76,13 @@ Testing permissions is critical. You can simulate different users by "signing in
 
 ```ts
 test('user should not be able to delete others posts', async () => {
-  const db = Unreal.getDatabase();
-  
+  const db = await setupTestDb();
+
   // 1. Create a post as User A
   const post = await Post.create(db, { title: 'Secret', author: 'user:A' });
-  
+
   // 2. Try to delete as User B (simulated via vars)
-  // Note: In real scenarios, you would use scope auth, 
+  // Note: In real scenarios, you would use scope auth,
   // but for raw logic testing you can use $auth vars.
   await expect(db.query('DELETE $id', { id: post.id, auth: { id: 'user:B' } }))
     .rejects.toThrow();
@@ -95,5 +92,5 @@ test('user should not be able to delete others posts', async () => {
 ## 💡 Best Practices
 
 1. **Namespace Isolation**: Use a unique database/namespace name for each test runner if running in parallel.
-2. **Global Configuration**: Use `Unreal.configure` in a global setup file to avoid passing the `db` instance everywhere.
+2. **Explicit Database**: Pass the `db` instance explicitly to all model methods for clear, testable connections.
 3. **Snapshot Testing**: Use `Unreal.ast.extractSchema()` to snapshot your schema and prevent accidental DDL changes.

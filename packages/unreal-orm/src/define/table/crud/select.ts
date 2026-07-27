@@ -16,7 +16,7 @@ import type {
 	InferOmitResult,
 } from "../types/select";
 import type { FieldDefinition } from "../../field/types";
-import { getDatabase, isSurrealLike } from "../../../config";
+import { validateDb } from "../../../utils/validate-db";
 
 /**
  * Global counter for unique binding keys to avoid collisions within a single query.
@@ -379,6 +379,47 @@ function buildQuery<TTable>(
 		sqlString += ` ${buildOrderByClause(opts.orderBy)}`;
 	}
 
+	// SurrealDB in-memory has a known issue where LIMIT/START is applied
+	// before ORDER BY, so we wrap ORDER BY queries with pagination in a subquery.
+	const needsSubquery =
+		opts.orderBy &&
+		opts.orderBy.length > 0 &&
+		(opts.limit !== undefined || opts.start !== undefined) &&
+		!opts.value &&
+		!opts.only &&
+		!opts.explain;
+
+	if (needsSubquery) {
+		const innerSql = sqlString;
+		let outerSql = `SELECT * FROM (${innerSql})`;
+
+		if (opts.limit !== undefined) {
+			const limitKey = getUniqueKey("limit");
+			outerSql += ` LIMIT $${limitKey}`;
+			bindings[limitKey] = opts.limit;
+		}
+
+		if (opts.start !== undefined) {
+			const startKey = getUniqueKey("start");
+			outerSql += ` START $${startKey}`;
+			bindings[startKey] = opts.start;
+		}
+
+		if (opts.fetch && opts.fetch.length > 0) {
+			outerSql += ` FETCH ${opts.fetch.join(", ")}`;
+		}
+
+		if (opts.timeout) {
+			outerSql += ` TIMEOUT ${opts.timeout}`;
+		}
+
+		if (opts.explain) {
+			outerSql += " EXPLAIN";
+		}
+
+		return { queryString: outerSql, bindings, isDirectIdQuery };
+	}
+
 	// LIMIT clause
 	if (opts.limit !== undefined) {
 		const limitKey = getUniqueKey("limit");
@@ -489,8 +530,6 @@ async function executeAndProcessQuery<T, ModelInstanceType, TTable>(
 export type SelectMethod<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 > = {
-	// ── With explicit db ─────────────────────────────────────────────────────
-
 	// select: + only: true  →  single narrowed result
 	<TSelect extends FieldSelect<TFields>>(
 		db: SurrealLike,
@@ -539,59 +578,17 @@ export type SelectMethod<
 		},
 	): Promise<ModelInstance<InferShapeFromFields<TFields>> | undefined>;
 
+	// groupBy without projection  →  raw aggregation results
+	(
+		db: SurrealLike,
+		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "select"> & {
+			groupBy: string[];
+		},
+	): Promise<Record<string, unknown>[]>;
+
 	// no only / plain  →  model instance array
 	(
-		db?: SurrealLike,
-		opts?: SelectQueryOptions<InferShapeFromFields<TFields>>,
-	): Promise<ModelInstance<InferShapeFromFields<TFields>>[]>;
-
-	// ── Without explicit db (uses configured default) ─────────────────────
-
-	// select: + only: true  →  single narrowed result (no db)
-	<TSelect extends FieldSelect<TFields>>(
-		opts: Omit<
-			SelectQueryOptions<InferShapeFromFields<TFields>>,
-			"select" | "only"
-		> & {
-			select: TSelect;
-			only: true;
-		},
-	): Promise<InferSelectResult<TFields, TSelect> | undefined>;
-
-	// select: (no only)  →  array of narrowed results (no db)
-	<TSelect extends FieldSelect<TFields>>(
-		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "select"> & {
-			select: TSelect;
-		},
-	): Promise<InferSelectResult<TFields, TSelect>[]>;
-
-	// omit: + only: true  →  single omit result (no db)
-	<TOmit extends OmitSelect<TFields>>(
-		opts: Omit<
-			SelectQueryOptions<InferShapeFromFields<TFields>>,
-			"omit" | "only"
-		> & {
-			omit: TOmit;
-			only: true;
-		},
-	): Promise<InferOmitResult<TFields, TOmit> | undefined>;
-
-	// omit: (no only)  →  array of omit results (no db)
-	<TOmit extends OmitSelect<TFields>>(
-		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "omit"> & {
-			omit: TOmit;
-		},
-	): Promise<InferOmitResult<TFields, TOmit>[]>;
-
-	// only: true (no projection, no db)  →  single model instance
-	(
-		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "only"> & {
-			only: true;
-		},
-	): Promise<ModelInstance<InferShapeFromFields<TFields>> | undefined>;
-
-	// no opts (no db)  →  model instance array
-	(
+		db: SurrealLike,
 		opts?: SelectQueryOptions<InferShapeFromFields<TFields>>,
 	): Promise<ModelInstance<InferShapeFromFields<TFields>>[]>;
 };
@@ -605,45 +602,35 @@ export type SelectMethod<
  * This versatile method handles querying for records with options for filtering, sorting, pagination, and more.
  * It can return either hydrated model instances or raw query results, depending on the options provided.
  *
- * Supports two calling patterns:
- * - `User.select(db, options)` - explicit database instance
- * - `User.select(options)` - uses configured default database
- *
  * @example
  * ```ts
- * // Basic select all (with configured db)
- * const users = await User.select();
- *
- * // Basic select all (with explicit db)
+ * // Basic select all
  * const users = await User.select(db);
  *
  * // Find by ID (returns a single instance or undefined)
- * const user = await User.select({ from: 'user:1', only: true });
+ * const user = await User.select(db, { from: 'user:1', only: true });
  *
  * // Simple filtering
- * const activeUsers = await User.select({ where: surql`isActive = true` });
- *
- * // Parameterized filtering
- * const youngUsers = await User.select({
- *   where: surql`age < $maxAge`,
- *   vars: { maxAge: 30 }
- * });
+ * const activeUsers = await User.select(db, { where: surql`isActive = true` });
  *
  * // Sorting and pagination
- * const sortedUsers = await User.select({
+ * const sortedUsers = await User.select(db, {
  *   orderBy: [{ field: 'name', order: 'ASC' }],
  *   limit: 10,
  *   start: 20
  * });
  *
  * // Fetching related records
- * const usersWithPosts = await User.select({ fetch: ['posts'] });
+ * const usersWithPosts = await User.select(db, { fetch: ['posts'] });
  *
  * // Custom projection (returns raw data, not model instances)
- * const userNames = await User.select({ select: ['name'] });
+ * const userNames = await User.select(db, { select: ['name'] });
  *
- * // With explicit db (always works)
- * const users = await User.select(db, { limit: 10 });
+ * // Grouped aggregation
+ * const byCity = await User.select(db, {
+ *   select: { city: true, total: typed<number>(surql`count()`) },
+ *   groupBy: ['city'],
+ * });
  * ```
  *
  * @returns The static `select` method implementation.
@@ -658,29 +645,14 @@ export function getSelectMethod<
 			TFields,
 			TableDefineOptions<TFields>
 		>,
-		dbOrOptions?:
-			| SurrealLike
-			| SelectQueryOptions<InferShapeFromFields<(typeof this)["_fields"]>>,
-		maybeOptions?: SelectQueryOptions<
+		db: SurrealLike,
+		options?: SelectQueryOptions<
 			InferShapeFromFields<(typeof this)["_fields"]>
 		>,
 	): Promise<unknown> {
-		// Resolve db and options based on calling pattern
-		let db: SurrealLike;
-		let opts: SelectQueryOptions<
-			InferShapeFromFields<(typeof this)["_fields"]>
-		>;
+		validateDb(db);
 
-		if (isSurrealLike(dbOrOptions)) {
-			// Pattern: select(db, options?)
-			db = dbOrOptions;
-			opts = maybeOptions || {};
-		} else {
-			// Pattern: select(options?) - use configured default
-			db = await getDatabase();
-			opts = dbOrOptions || {};
-		}
-
+		const opts = options || {};
 		const tableName = this.getTableName();
 
 		// Build the complete query string and bindings
@@ -698,4 +670,87 @@ export function getSelectMethod<
 	// at implementation level; the public signature is precisely typed via
 	// SelectMethod<TFields> with 12 overloads.
 	return selectImpl as unknown as SelectMethod<TFields>;
+}
+
+// ============================================================================
+// COUNT METHOD
+// ============================================================================
+
+/**
+ * A factory function that generates the static `count` method for a model class.
+ *
+ * Supports unfiltered counts, filtered counts, and grouped counts.
+ *
+ * @example
+ * ```ts
+ * const total = await User.count(db);
+ * const active = await User.count(db, { where: eq('active', true) });
+ * const byCity = await User.count(db, { by: ['city'] });
+ * ```
+ *
+ * @returns The static `count` method implementation.
+ * @internal
+ */
+export function getCountMethod<
+	TFields extends Record<string, FieldDefinition<unknown>>,
+>() {
+	return async function count(
+		this: ModelStatic<
+			ModelInstance<InferShapeFromFields<TFields>>,
+			TFields,
+			TableDefineOptions<TFields>
+		>,
+		db: SurrealLike,
+		options?: {
+			where?: BoundQuery | Expr;
+			by?: (keyof TFields | string)[];
+		},
+	): Promise<number | Record<string, unknown>[]> {
+		validateDb(db);
+
+		const tableName = this.getTableName();
+		const by = options?.by;
+		const selectClause =
+			by && by.length > 0 ? `${by.join(", ")}, count()` : "count()";
+
+		let sqlString = `SELECT ${selectClause} FROM type::table($table)`;
+		const bindings: Record<string, unknown> = { table: tableName };
+
+		if (options?.where) {
+			let whereQuery: BoundQuery;
+
+			if (
+				options.where &&
+				typeof options.where === "object" &&
+				"query" in options.where &&
+				"bindings" in options.where
+			) {
+				whereQuery = options.where as BoundQuery;
+			} else {
+				whereQuery = surql`${options.where as Expr}`;
+			}
+
+			sqlString += ` WHERE ${whereQuery.query}`;
+			Object.assign(bindings, whereQuery.bindings);
+		}
+
+		if (by && by.length > 0) {
+			sqlString += ` GROUP BY ${by.join(", ")}`;
+		} else {
+			// Without a GROUP BY, SurrealDB returns count() per row.
+			// GROUP ALL collapses the result set into a single total.
+			sqlString += " GROUP ALL";
+		}
+
+		const result = (await (db as unknown as Surreal)
+			.query(sqlString, bindings)
+			.collect()) as unknown as unknown[];
+
+		if (by && by.length > 0) {
+			return (result[0] as Record<string, unknown>[]) || [];
+		}
+
+		const row = result[0] as { count: number }[] | undefined;
+		return row?.[0]?.count ?? 0;
+	};
 }
