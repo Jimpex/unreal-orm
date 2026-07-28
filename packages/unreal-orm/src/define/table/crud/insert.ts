@@ -1,16 +1,16 @@
-import type { Surreal, BoundQuery, Expr } from "surrealdb";
-import { surql, RecordId } from "surrealdb";
+import type { BoundQuery, Expr, Surreal } from "surrealdb";
+import { RecordId, surql } from "surrealdb";
+import { validateDb } from "../../../utils/validate-db";
+import type { FieldDefinition } from "../../field/types";
 import type {
-	ModelStatic,
+	CreateData,
 	InferShapeFromFields,
 	ModelInstance,
-	TableDefineOptions,
+	ModelStatic,
 	SurrealLike,
-	CreateData,
+	TableDefineOptions,
 } from "../types/model";
 import type { InsertQueryOptions, ReturnType } from "../types/query";
-import type { FieldDefinition } from "../../field/types";
-import { validateDb } from "../../../utils/validate-db";
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -317,7 +317,9 @@ export function getInsertMethod<
 		validateDb(db);
 
 		if (!opts || !("data" in opts)) {
-			throw new Error("insert(db, options) requires options with 'data' property.");
+			throw new Error(
+				"insert(db, options) requires options with 'data' property.",
+			);
 		}
 
 		const tableName = this.getTableName();

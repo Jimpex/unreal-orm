@@ -1,25 +1,27 @@
 import type { RecordId } from "surrealdb";
+import { RangeId as createRangeId } from "../../query/range";
+import type { FieldDefinition } from "../field/types";
+import type { getCreateMethod, getRelateMethod } from "./crud/create";
+import type {
+	getDeleteManyMethod,
+	getDeleteMethod,
+	getStaticDeleteMethod,
+} from "./crud/delete";
+import type { getInsertMethod } from "./crud/insert";
+import type { getCountMethod, getSelectMethod } from "./crud/select";
+import type {
+	getStaticUpdateMethod,
+	getUpdateManyMethod,
+	getUpdateMethod,
+} from "./crud/update";
+import type { getUpsertMethod } from "./crud/upsert";
+import { hydrate } from "./hydration";
 import type {
 	InferShapeFromFields,
 	ModelInstance,
 	ModelStatic,
 	TableDefineOptions,
 } from "./types/model";
-import type { FieldDefinition } from "../field/types";
-import type { getCreateMethod, getRelateMethod } from "./crud/create";
-import type { getInsertMethod } from "./crud/insert";
-import type { getSelectMethod, getCountMethod } from "./crud/select";
-import type {
-	getUpdateMethod,
-	getStaticUpdateMethod,
-	getUpdateManyMethod,
-} from "./crud/update";
-import type {
-	getDeleteMethod,
-	getStaticDeleteMethod,
-	getDeleteManyMethod,
-} from "./crud/delete";
-import { hydrate } from "./hydration";
 
 /**
  * Creates the base class for a model, combining the schema definition with generated
@@ -40,6 +42,7 @@ export function createBaseModel<
 	options: TableDefineOptions<TFields>,
 	staticMethods: {
 		create: ReturnType<typeof getCreateMethod<TFields>>;
+		upsert: ReturnType<typeof getUpsertMethod<TFields>>;
 		relate: ReturnType<typeof getRelateMethod<TFields>>;
 		insert: ReturnType<typeof getInsertMethod<TFields>>;
 		select: ReturnType<typeof getSelectMethod<TFields>>;
@@ -78,6 +81,7 @@ export function createBaseModel<
 		}
 
 		static create = staticMethods.create;
+		static upsert = staticMethods.upsert;
 		static relate = staticMethods.relate;
 		static insert = staticMethods.insert;
 		static select = staticMethods.select;
@@ -86,6 +90,7 @@ export function createBaseModel<
 		static updateMany = staticMethods.updateMany;
 		static delete = staticMethods.delete;
 		static deleteMany = staticMethods.deleteMany;
+		static RangeId = () => createRangeId(options.name);
 
 		/**
 		 * Creates an instance of the model.

@@ -11,8 +11,8 @@ import type {
 	BucketAST,
 	FieldAST,
 	IndexAST,
-	TableAST,
 	PermissionsAST,
+	TableAST,
 } from "./types";
 
 // ============================================================================
@@ -225,7 +225,7 @@ export function parseFieldDefinition(ql: string): FieldAST {
  * ```
  */
 export function parseIndexDefinition(ql: string): IndexAST {
-	// Format: DEFINE INDEX name ON [TABLE] table COLUMNS col1, col2 UNIQUE
+	// Format: DEFINE INDEX name ON [TABLE] table [FIELDS|COLUMNS col1, col2] [UNIQUE|COUNT|FULLTEXT ANALYZER ...]
 	const nameMatch = ql.match(
 		/DEFINE\s+INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:OVERWRITE\s+)?(\w+)\s+ON\s+(?:TABLE\s+)?\w+/i,
 	);
@@ -236,20 +236,35 @@ export function parseIndexDefinition(ql: string): IndexAST {
 
 	// Support both FIELDS and COLUMNS keywords
 	const columnsMatch = ql.match(
-		/\s(?:FIELDS|COLUMNS)\s+(.*?)(?:\s+(?:UNIQUE|SEARCH|MTREE|HNSW|COMMENT)|$)/i,
+		/\s(?:FIELDS|COLUMNS)\s+(.*?)(?:\s+(?:UNIQUE|FULLTEXT|SEARCH|COUNT|COMMENT|CONCURRENTLY|DEFER|HNSW|MTREE)|$)/i,
 	);
 	const columns = columnsMatch?.[1]
 		? columnsMatch[1].split(",").map((c) => c.trim())
 		: [];
 
 	const unique = hasKeyword(ql, "UNIQUE");
-	const search = ql.includes("SEARCH ANALYZER");
+	const count = hasKeyword(ql, "COUNT");
+	const concurrently = hasKeyword(ql, "CONCURRENTLY");
+	const defer = hasKeyword(ql, "DEFER");
+
+	// Full-text search: supports both "SEARCH ANALYZER" (pre-3.0) and "FULLTEXT ANALYZER" (3.0+)
+	const ftsMatch = ql.match(/(?:SEARCH|FULLTEXT)\s+ANALYZER\s+(\w+)/i);
+	const search = ql.includes("SEARCH ANALYZER") || ql.includes("FULLTEXT");
+	const analyzer = ftsMatch?.[1];
+	const bm25 = hasKeyword(ql, "BM25");
+	const highlights = hasKeyword(ql, "HIGHLIGHTS");
 
 	return {
 		name: name || "unknown_index",
 		columns,
 		unique,
-		search,
+		count: count || undefined,
+		concurrently: concurrently || undefined,
+		defer: defer || undefined,
+		search: search || undefined,
+		analyzer,
+		bm25: bm25 || undefined,
+		highlights: highlights || undefined,
 	};
 }
 
@@ -298,9 +313,7 @@ export function parseBucketDefinition(ql: string): BucketAST {
 	const readonly = /\bREADONLY\b/i.test(ql);
 
 	// Extract PERMISSIONS expression (everything after PERMISSIONS until COMMENT or end)
-	const permMatch = ql.match(
-		/\bPERMISSIONS\s+(.+?)\s*(?:COMMENT\s+|$)/i,
-	);
+	const permMatch = ql.match(/\bPERMISSIONS\s+(.+?)\s*(?:COMMENT\s+|$)/i);
 	const permissions = permMatch?.[1] ? permMatch[1].trim() : undefined;
 
 	// Extract COMMENT value

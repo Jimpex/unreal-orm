@@ -1,14 +1,23 @@
-import type { RecordId, Table, BoundQuery, Expr } from "surrealdb";
+import type {
+	BoundQuery,
+	Expr,
+	RecordId,
+	RecordIdRange,
+	StringRecordId,
+	Table,
+} from "surrealdb";
+import type { FieldProxy } from "../../../query/field-proxy";
 import type { FieldDefinition } from "../../field/types";
-import type { SelectOption, OmitSelect, TypedExpr } from "./select";
+import type { OmitSelect, SelectOption, TypedExpr } from "./select";
 
 /**
  * Defines a single clause for an `ORDER BY` statement.
  * @example { field: 'name', order: 'ASC' }
+ * @example { field: surql`views + likes`, order: 'DESC' } — computed expression
  */
 export interface OrderByClause {
-	/** The field to order by. */
-	field: string;
+	/** The field or expression to order by. Accepts a field name string or a computed Expr/BoundQuery. */
+	field: string | Expr | BoundQuery;
 	/** The sort direction. */
 	order?: "ASC" | "DESC" | "asc" | "desc";
 	/** If true, performs string collation. */
@@ -106,14 +115,36 @@ export interface SelectQueryOptions<
 	 */
 	value?: string;
 
-	/** The table or record ID to select from. Defaults to the model's table. Supports Table, RecordId, BoundQuery, or raw Expr for advanced use cases. */
-	from?: Table | RecordId | BoundQuery | Expr;
+	/** The table or record ID to select from. Defaults to the model's table.
+	 * Supports multiple formats:
+	 * - `Table` — select from a table
+	 * - `RecordId` — select a single record by ID (no table scan)
+	 * - `RecordId[]` — select multiple records by ID (no table scan)
+	 * - `{ range: [RecordId, RecordId] }` — select a range of records by ID order
+	 * - `BoundQuery` / `Expr` — raw SurrealQL for advanced use cases
+	 */
+	from?:
+		| Table
+		| RecordId
+		| RecordId[]
+		| { range: [RecordId, RecordId] }
+		| RecordIdRange
+		| StringRecordId
+		| BoundQuery
+		| Expr;
 	/** If true, returns only the first record from the result set. */
 	only?: boolean;
 	/** The `WITH` clause for the query, specifying index usage. */
 	with?: { indexes: string[] } | { noIndex: true };
-	/** The `WHERE` clause for the query. Use surql templates or SurrealDB expressions for type-safe parameter binding. */
-	where?: BoundQuery | Expr;
+	/**
+	 * The `WHERE` clause for the query.
+	 * - Use a `surql` template or an `Expr` for raw SurrealQL.
+	 * - Pass a callback receiving typed field references for type-safe query building.
+	 */
+	where?:
+		| BoundQuery
+		| Expr
+		| ((fields: FieldProxy<TFields>) => BoundQuery | Expr);
 	/** An array of fields to split the results by. */
 	split?: string[];
 	/** An array of fields to group the results by. */
@@ -144,8 +175,15 @@ export interface SelectQueryOptions<
 /**
  * Defines the update mode for SurrealDB 2.0 builder pattern.
  * Determines how the update operation will modify the record.
+ *
+ * - `content` — Full content replacement (`UPDATE ... CONTENT $data`)
+ * - `merge` — Partial merge (`UPDATE ... MERGE $data`)
+ * - `replace` — Full replacement (`UPDATE ... REPLACE $data`)
+ * - `patch` — JSON Patch operations (RFC 6902)
+ * - `set` — Field-level computed expressions (`UPDATE ... SET field = expr, ...`)
+ *   Allows atomic operations like `views = views + 1` or `name = string::lowercase(name)`.
  */
-export type UpdateMode = "content" | "merge" | "replace" | "patch";
+export type UpdateMode = "content" | "merge" | "replace" | "patch" | "set";
 
 /**
  * JSON Patch operation for patch mode (RFC 6902)
@@ -183,7 +221,7 @@ export interface JsonPatchOperation {
  */
 export type StandardUpdateOptions<TTable> = {
 	data: Partial<TTable>;
-	mode: Exclude<UpdateMode, "patch">;
+	mode: Exclude<UpdateMode, "patch" | "set">;
 };
 
 export type PatchUpdateOptions = {
@@ -191,18 +229,37 @@ export type PatchUpdateOptions = {
 	mode: "patch";
 };
 
+/**
+ * Options for `set` mode — field-level computed expressions.
+ * Each key is a field name, each value can be a plain value, `Expr`, `BoundQuery`, or `ColumnRef`.
+ * @example
+ * ```ts
+ * await Post.update(db, postId, {
+ *   mode: 'set',
+ *   data: { views: surql`views + 1`, title: 'New Title' },
+ * });
+ * ```
+ */
+export type SetUpdateOptions<TTable> = {
+	data: Partial<Record<keyof TTable, unknown>> | Record<string, unknown>;
+	mode: "set";
+};
+
 export type UpdateOptions<TTable> =
 	| StandardUpdateOptions<TTable>
-	| PatchUpdateOptions;
+	| PatchUpdateOptions
+	| SetUpdateOptions<TTable>;
 
 export type UpdateOptionsForMode<
 	TTable,
 	TMode extends UpdateMode,
 > = TMode extends "patch"
 	? PatchUpdateOptions
-	: StandardUpdateOptions<TTable> & {
-			mode: Exclude<UpdateMode, "patch"> & TMode;
-		};
+	: TMode extends "set"
+		? SetUpdateOptions<TTable>
+		: StandardUpdateOptions<TTable> & {
+				mode: Exclude<UpdateMode, "patch" | "set"> & TMode;
+			};
 
 /**
  * Defines the options available for a `COUNT` query.

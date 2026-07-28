@@ -1,36 +1,38 @@
 import type {
-	TableDefineOptions,
 	ModelInstance,
 	ModelStatic,
+	TableDefineOptions,
 } from "./types/model";
 
-import type { FieldDefinition } from "../field/types";
 import type {
 	NormalTableOptions,
 	RelationTableFields,
 	RelationTableOptions,
 	ViewTableOptions,
 } from "../../schema/options";
+import type { FieldDefinition } from "../field/types";
 import { createBaseModel } from "./base";
 import { getCreateMethod, getRelateMethod } from "./crud/create";
 import {
+	getDeleteManyMethod,
 	getDeleteMethod,
 	getStaticDeleteMethod,
-	getDeleteManyMethod,
 } from "./crud/delete";
 import { getInsertMethod } from "./crud/insert";
-import { getSelectMethod, getCountMethod } from "./crud/select";
+import { getCountMethod, getSelectMethod } from "./crud/select";
 import {
-	getUpdateMethod,
 	getStaticUpdateMethod,
 	getUpdateManyMethod,
+	getUpdateMethod,
 } from "./crud/update";
+import { getUpsertMethod } from "./crud/upsert";
 
 function defineTable<TFields extends Record<string, FieldDefinition<unknown>>>(
 	options: TableDefineOptions<TFields>,
 ) {
 	const staticMethods = {
 		create: getCreateMethod<TFields>(),
+		upsert: getUpsertMethod<TFields>(),
 		relate: getRelateMethod<TFields>(),
 		insert: getInsertMethod<TFields>(),
 		select: getSelectMethod<TFields>(),

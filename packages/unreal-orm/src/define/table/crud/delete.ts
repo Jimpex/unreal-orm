@@ -1,14 +1,16 @@
-import type { BoundQuery, Expr, RecordId, Surreal } from "surrealdb";
-import { surql, Table } from "surrealdb";
+import type { Expr, RecordId } from "surrealdb";
+import { BoundQuery, Table, surql } from "surrealdb";
+import type { FieldProxy } from "../../../query/field-proxy";
+import { createFieldProxy } from "../../../query/field-proxy";
+import { validateDb } from "../../../utils/validate-db";
+import type { FieldDefinition } from "../../field/types";
 import type {
 	InferShapeFromFields,
 	ModelInstance,
 	ModelStatic,
-	TableDefineOptions,
 	SurrealLike,
+	TableDefineOptions,
 } from "../types/model";
-import type { FieldDefinition } from "../../field/types";
-import { validateDb } from "../../../utils/validate-db";
 
 /**
  * A factory function that generates the instance `delete` method for a model.
@@ -99,14 +101,22 @@ export function getDeleteManyMethod<
 	>(
 		this: T,
 		db: SurrealLike,
-		options: { where: BoundQuery | Expr },
+		options: {
+			where:
+				| BoundQuery
+				| Expr
+				| ((fields: FieldProxy<TFields>) => BoundQuery | Expr);
+		},
 	): Promise<void> {
 		validateDb(db);
 
 		const tableName = this.getTableName();
 		let whereQuery: BoundQuery;
 
-		if (
+		if (typeof options.where === "function") {
+			const proxy = createFieldProxy(this._fields);
+			whereQuery = surql`${options.where(proxy as FieldProxy<TFields>)}`;
+		} else if (
 			options.where &&
 			typeof options.where === "object" &&
 			"query" in options.where &&
@@ -119,14 +129,11 @@ export function getDeleteManyMethod<
 
 		// Build DELETE query manually so the table name is bound safely.
 		const sqlString = `DELETE type::table($table) WHERE ${whereQuery.query}`;
-		const query: BoundQuery = {
-			query: sqlString,
-			bindings: {
-				table: tableName,
-				...whereQuery.bindings,
-			},
-		};
+		const query = new BoundQuery(sqlString, {
+			table: tableName,
+			...whereQuery.bindings,
+		});
 
-		await (db as unknown as Surreal).query(query.query, query.bindings).collect();
+		await db.query(query.query, query.bindings).collect();
 	};
 }

@@ -7,22 +7,22 @@
  * @module
  */
 
-import type {
-	SchemaAST,
-	TableAST,
-	FieldAST,
-	IndexAST,
-	PermissionsAST,
-	BucketAST,
-} from "./types";
-import type { AnyModelClass } from "../../define/table/types/model";
+import type { BucketDefinition } from "../../define/bucket/types";
 import type {
 	FieldDefinition,
 	InternalFieldDef,
 } from "../../define/field/types";
 import type { IndexDefinition } from "../../define/index/types";
-import type { BucketDefinition } from "../../define/bucket/types";
+import type { AnyModelClass } from "../../define/table/types/model";
 import type { Definable } from "../../define/types";
+import type {
+	BucketAST,
+	FieldAST,
+	IndexAST,
+	PermissionsAST,
+	SchemaAST,
+	TableAST,
+} from "./types";
 
 // ============================================================================
 // TYPE GUARDS
@@ -53,7 +53,7 @@ export function isIndexDefinition(value: unknown): value is IndexDefinition {
 		obj._type === "index" &&
 		typeof obj.name === "string" &&
 		"table" in obj &&
-		Array.isArray(obj.fields)
+		(obj.count === true || Array.isArray(obj.fields))
 	);
 }
 
@@ -277,15 +277,21 @@ export function extractIndexFromDefinition(indexDef: IndexDefinition): {
 } {
 	const index: IndexAST = {
 		name: indexDef.name,
-		columns: indexDef.fields,
+		columns: indexDef.fields ?? [],
 		unique: indexDef.unique ?? false,
 	};
 
 	// Add optional properties only if they exist
+	if (indexDef.count) index.count = true;
+	if (indexDef.concurrently) index.concurrently = true;
+	if (indexDef.defer) index.defer = true;
+	if (indexDef.search) index.search = true;
 	if (indexDef.analyzer) {
 		index.search = true;
 		index.analyzer = indexDef.analyzer;
 	}
+	if (indexDef.bm25) index.bm25 = true;
+	if (indexDef.highlights) index.highlights = true;
 	if (indexDef.comment) index.comment = indexDef.comment;
 
 	return {

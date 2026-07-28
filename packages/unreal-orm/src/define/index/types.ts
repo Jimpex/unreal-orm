@@ -21,12 +21,24 @@ export interface IndexDefinition {
 	name: string;
 	/** The model class the index belongs to. */
 	table: AnyModelClass;
-	/** The fields to be included in the index. */
-	fields: string[];
+	/** The fields to be included in the index. Not required for COUNT indexes. */
+	fields?: string[];
 	/** If true, creates a unique index. */
 	unique?: boolean;
-	/** The search analyzer to use for the index. */
+	/** If true, creates a COUNT index that maintains a running total for fast `count()` queries. */
+	count?: boolean;
+	/** If true, creates the index concurrently without blocking other operations. */
+	concurrently?: boolean;
+	/** If true, defers index updates to a background queue for high-throughput ingestion. Cannot be used with unique indexes. */
+	defer?: boolean;
+	/** If true, creates a full-text search index. */
+	search?: boolean;
+	/** The search analyzer to use for a full-text search index. */
 	analyzer?: string;
+	/** Whether to enable BM25 ranking for full-text search. */
+	bm25?: boolean;
+	/** Whether to enable keyword highlighting for full-text search. */
+	highlights?: boolean;
 	/** A comment describing the index. */
 	comment?: string;
 }

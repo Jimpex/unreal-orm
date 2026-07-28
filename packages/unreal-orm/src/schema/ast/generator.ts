@@ -7,14 +7,14 @@
  * @module
  */
 
+import type { SchemaChange } from "./compare";
 import type {
-	SchemaAST,
-	TableAST,
+	BucketAST,
 	FieldAST,
 	IndexAST,
-	BucketAST,
+	SchemaAST,
+	TableAST,
 } from "./types";
-import type { SchemaChange } from "./compare";
 
 // ============================================================================
 // TYPES
@@ -206,17 +206,38 @@ function generateIndexDdl(
 		statement += ` ${method}`;
 	}
 
-	statement += ` ${index.name} ON TABLE ${tableName} FIELDS ${index.columns.join(", ")}`;
+	statement += ` ${index.name} ON TABLE ${tableName}`;
 
-	if (index.unique) {
-		statement += " UNIQUE";
+	// COUNT indexes don't use FIELDS clause
+	if (index.count) {
+		statement += " COUNT";
+	} else {
+		statement += ` FIELDS ${index.columns.join(", ")}`;
+
+		if (index.unique) {
+			statement += " UNIQUE";
+		}
+
+		if (index.search) {
+			statement += " FULLTEXT";
+			if (index.analyzer) {
+				statement += ` ANALYZER ${index.analyzer}`;
+			}
+			if (index.bm25) {
+				statement += " BM25";
+			}
+			if (index.highlights) {
+				statement += " HIGHLIGHTS";
+			}
+		}
 	}
 
-	if (index.search) {
-		statement += " SEARCH";
-		if (index.analyzer) {
-			statement += ` ANALYZER ${index.analyzer}`;
-		}
+	if (index.concurrently) {
+		statement += " CONCURRENTLY";
+	}
+
+	if (index.defer) {
+		statement += " DEFER";
 	}
 
 	// Add COMMENT

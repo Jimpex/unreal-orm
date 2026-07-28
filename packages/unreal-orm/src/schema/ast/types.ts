@@ -84,10 +84,20 @@ export interface IndexAST {
 	columns: string[];
 	/** Whether the index enforces uniqueness */
 	unique: boolean;
+	/** Whether this is a COUNT index for fast table counts */
+	count?: boolean;
+	/** Whether to build the index concurrently */
+	concurrently?: boolean;
+	/** Whether to defer index updates to a background queue */
+	defer?: boolean;
 	/** Whether this is a full-text search index */
 	search?: boolean;
 	/** Search analyzer name */
 	analyzer?: string;
+	/** Whether to enable BM25 ranking for full-text search */
+	bm25?: boolean;
+	/** Whether to enable keyword highlighting for full-text search */
+	highlights?: boolean;
 	/** Whether this is a vector index */
 	vector?: boolean;
 	/** Index comment */

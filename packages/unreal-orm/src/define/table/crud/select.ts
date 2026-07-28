@@ -1,22 +1,36 @@
-import type { Surreal, BoundQuery, Expr } from "surrealdb";
-import { RecordId, surql } from "surrealdb";
 import type {
-	ModelStatic,
+	BoundQuery,
+	Expr,
+	RecordId,
+	RecordIdValue,
+	Surreal,
+} from "surrealdb";
+import {
+	BoundIncluded,
+	RecordIdRange,
+	StringRecordId,
+	surql,
+	toSurrealqlString,
+} from "surrealdb";
+import type { FieldProxy } from "../../../query/field-proxy";
+import { createFieldProxy } from "../../../query/field-proxy";
+import { validateDb } from "../../../utils/validate-db";
+import type { FieldDefinition } from "../../field/types";
+import type {
 	InferShapeFromFields,
 	ModelInstance,
-	TableDefineOptions,
+	ModelStatic,
 	SurrealLike,
+	TableDefineOptions,
 } from "../types/model";
-import type { SelectQueryOptions, OrderByClause } from "../types/query";
+import type { OrderByClause, SelectQueryOptions } from "../types/query";
 import type {
-	TypedExpr,
 	FieldSelect,
+	InferOmitResult,
 	InferSelectResult,
 	OmitSelect,
-	InferOmitResult,
+	TypedExpr,
 } from "../types/select";
-import type { FieldDefinition } from "../../field/types";
-import { validateDb } from "../../../utils/validate-db";
 
 /**
  * Global counter for unique binding keys to avoid collisions within a single query.
@@ -157,14 +171,29 @@ function buildSelectFields(
 
 /**
  * Builds the ORDER BY clause from OrderByClause objects.
- * Handles field, direction, collation, and numeric sorting options.
+ * Handles field (string or Expr/BoundQuery), direction, collation, and numeric sorting options.
  * @param orderBy - Array of order by clause objects.
+ * @param bindings - Bindings object to merge any BoundQuery bindings into.
  * @returns Formatted ORDER BY clause string.
  * @internal
  */
-function buildOrderByClause(orderBy: OrderByClause[]): string {
+function buildOrderByClause(
+	orderBy: OrderByClause[],
+	bindings: Record<string, unknown>,
+): string {
 	const orderByClauses = orderBy.map((ob) => {
-		let clause = String(ob.field);
+		let clause: string;
+		if (typeof ob.field === "string") {
+			clause = ob.field;
+		} else if (isBoundQuery(ob.field)) {
+			clause = ob.field.query;
+			Object.assign(bindings, ob.field.bindings);
+		} else {
+			// Expr — convert to BoundQuery
+			const bound = surql`${ob.field as Expr}`;
+			clause = bound.query;
+			Object.assign(bindings, bound.bindings);
+		}
 		if (ob.collate) clause += " COLLATE";
 		if (ob.numeric) clause += " NUMERIC";
 		if (ob.order) clause += ` ${ob.order.toUpperCase()}`;
@@ -178,7 +207,15 @@ function buildOrderByClause(orderBy: OrderByClause[]): string {
  * @returns Object with selectClause string and any bindings from computed fields.
  * @internal
  */
-function buildSelectClause<TTable>(opts: SelectQueryOptions<TTable>): {
+function buildSelectClause<
+	TTable,
+	TFields extends Record<string, FieldDefinition<unknown>> = Record<
+		string,
+		FieldDefinition<unknown>
+	>,
+>(
+	opts: SelectQueryOptions<TTable, TFields>,
+): {
 	selectClause: string;
 	selectBindings: Record<string, unknown>;
 } {
@@ -267,8 +304,14 @@ function buildSelectClause<TTable>(opts: SelectQueryOptions<TTable>): {
  * Assembles all clauses in the correct order: SELECT, FROM, WITH, WHERE, SPLIT, GROUP BY, ORDER BY, LIMIT, START, FETCH, TIMEOUT, PARALLEL, TEMPFILES, EXPLAIN.
  * Returns raw query string and bindings to avoid BoundQuery module resolution issues.
  */
-function buildQuery<TTable>(
-	opts: SelectQueryOptions<TTable>,
+function buildQuery<
+	TTable,
+	TFields extends Record<string, FieldDefinition<unknown>> = Record<
+		string,
+		FieldDefinition<unknown>
+	>,
+>(
+	opts: SelectQueryOptions<TTable, TFields>,
 	tableName: string,
 ): {
 	queryString: string;
@@ -284,11 +327,14 @@ function buildQuery<TTable>(
 
 	// Handle FROM clause - use type::table() for string table names to avoid module issues
 	if (opts.from) {
-		// Check if it's a RecordId-like object (has tb and id properties)
+		// Check if it's a RecordId-like object (has table and id properties)
 		if (
 			opts.from &&
 			typeof opts.from === "object" &&
-			"tb" in opts.from &&
+			!Array.isArray(opts.from) &&
+			!("range" in opts.from) &&
+			!("query" in opts.from) &&
+			"table" in opts.from &&
 			"id" in opts.from
 		) {
 			// RecordId - bind directly
@@ -296,6 +342,50 @@ function buildQuery<TTable>(
 			const recordKey = getUniqueKey("record");
 			sqlString += ` $${recordKey}`;
 			bindings[recordKey] = opts.from;
+		} else if (
+			opts.from &&
+			typeof opts.from === "object" &&
+			Array.isArray(opts.from) &&
+			opts.from.length > 0 &&
+			opts.from[0] != null &&
+			"table" in opts.from[0]
+		) {
+			// RecordId[] — select multiple records by ID (no table scan)
+			// SurrealDB syntax: FROM [$r1, $r2, ...]
+			isDirectIdQuery = true;
+			const ids = opts.from as RecordId[];
+			const keys: string[] = [];
+			for (const rid of ids) {
+				const key = getUniqueKey("record");
+				keys.push(`$${key}`);
+				bindings[key] = rid;
+			}
+			sqlString += ` [${keys.join(", ")}]`;
+		} else if (
+			opts.from instanceof RecordIdRange ||
+			opts.from instanceof StringRecordId
+		) {
+			// RecordIdRange or StringRecordId from Range/RangeId builders
+			isDirectIdQuery = true;
+			sqlString += ` ${toSurrealqlString(opts.from)}`;
+		} else if (
+			opts.from &&
+			typeof opts.from === "object" &&
+			!Array.isArray(opts.from) &&
+			"range" in opts.from &&
+			Array.isArray((opts.from as { range: unknown }).range)
+		) {
+			// { range: [startId, endId] } — record ID range (table:start..end)
+			isDirectIdQuery = true;
+			const range = (opts.from as { range: [RecordId, RecordId] }).range;
+			const startRid = range[0];
+			const endRid = range[1];
+			const idRange = new RecordIdRange(
+				startRid.table,
+				new BoundIncluded(startRid.id as RecordIdValue),
+				new BoundIncluded(endRid.id as RecordIdValue),
+			);
+			sqlString += ` ${toSurrealqlString(idRange)}`;
 		} else if (
 			opts.from &&
 			typeof opts.from === "object" &&
@@ -376,7 +466,7 @@ function buildQuery<TTable>(
 
 	// ORDER BY clause
 	if (opts.orderBy && opts.orderBy.length > 0) {
-		sqlString += ` ${buildOrderByClause(opts.orderBy)}`;
+		sqlString += ` ${buildOrderByClause(opts.orderBy, bindings)}`;
 	}
 
 	// SurrealDB in-memory has a known issue where LIMIT/START is applied
@@ -468,11 +558,19 @@ function buildQuery<TTable>(
  * Returns either raw data (for projections/grouping) or hydrated model instances.
  * Uses string query with bindings to avoid BoundQuery module resolution issues.
  */
-async function executeAndProcessQuery<T, ModelInstanceType, TTable>(
+async function executeAndProcessQuery<
+	T,
+	ModelInstanceType,
+	TTable,
+	TFields extends Record<string, FieldDefinition<unknown>> = Record<
+		string,
+		FieldDefinition<unknown>
+	>,
+>(
 	db: SurrealLike,
 	queryString: string,
 	bindings: Record<string, unknown>,
-	opts: SelectQueryOptions<TTable>,
+	opts: SelectQueryOptions<TTable, TFields>,
 	ModelClass: new (data: T) => ModelInstanceType,
 ): Promise<unknown> {
 	const shouldReturnRawData =
@@ -492,8 +590,7 @@ async function executeAndProcessQuery<T, ModelInstanceType, TTable>(
 	}
 
 	// Use string query with bindings, then collect results
-	const queryBuilder = (db as unknown as Surreal).query(queryString, bindings);
-	const result = (await queryBuilder.collect()) as unknown as unknown[];
+	const result = await db.query<unknown[]>(queryString, bindings).collect();
 
 	if (opts.only) {
 		// Single record query with ONLY - returns single object, not array
@@ -534,7 +631,7 @@ export type SelectMethod<
 	<TSelect extends FieldSelect<TFields>>(
 		db: SurrealLike,
 		opts: Omit<
-			SelectQueryOptions<InferShapeFromFields<TFields>>,
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
 			"select" | "only"
 		> & {
 			select: TSelect;
@@ -545,7 +642,10 @@ export type SelectMethod<
 	// select: (no only)  →  array of narrowed results
 	<TSelect extends FieldSelect<TFields>>(
 		db: SurrealLike,
-		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "select"> & {
+		opts: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
+			"select"
+		> & {
 			select: TSelect;
 		},
 	): Promise<InferSelectResult<TFields, TSelect>[]>;
@@ -554,7 +654,7 @@ export type SelectMethod<
 	<TOmit extends OmitSelect<TFields>>(
 		db: SurrealLike,
 		opts: Omit<
-			SelectQueryOptions<InferShapeFromFields<TFields>>,
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
 			"omit" | "only"
 		> & {
 			omit: TOmit;
@@ -565,7 +665,10 @@ export type SelectMethod<
 	// omit: (no only)  →  array of omit results
 	<TOmit extends OmitSelect<TFields>>(
 		db: SurrealLike,
-		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "omit"> & {
+		opts: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
+			"omit"
+		> & {
 			omit: TOmit;
 		},
 	): Promise<InferOmitResult<TFields, TOmit>[]>;
@@ -573,7 +676,10 @@ export type SelectMethod<
 	// only: true (no projection)  →  single model instance
 	(
 		db: SurrealLike,
-		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "only"> & {
+		opts: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
+			"only"
+		> & {
 			only: true;
 		},
 	): Promise<ModelInstance<InferShapeFromFields<TFields>> | undefined>;
@@ -581,7 +687,10 @@ export type SelectMethod<
 	// groupBy without projection  →  raw aggregation results
 	(
 		db: SurrealLike,
-		opts: Omit<SelectQueryOptions<InferShapeFromFields<TFields>>, "select"> & {
+		opts: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
+			"select"
+		> & {
 			groupBy: string[];
 		},
 	): Promise<Record<string, unknown>[]>;
@@ -589,7 +698,7 @@ export type SelectMethod<
 	// no only / plain  →  model instance array
 	(
 		db: SurrealLike,
-		opts?: SelectQueryOptions<InferShapeFromFields<TFields>>,
+		opts?: SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
 	): Promise<ModelInstance<InferShapeFromFields<TFields>>[]>;
 };
 
@@ -646,24 +755,35 @@ export function getSelectMethod<
 			TableDefineOptions<TFields>
 		>,
 		db: SurrealLike,
-		options?: SelectQueryOptions<
-			InferShapeFromFields<(typeof this)["_fields"]>
-		>,
+		options?: SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
 	): Promise<unknown> {
 		validateDb(db);
 
-		const opts = options || {};
 		const tableName = this.getTableName();
+		let queryOpts: SelectQueryOptions<
+			InferShapeFromFields<TFields>,
+			TFields
+		> = options || {};
+
+		// Convert typed where callback to an expression the query builder can embed.
+		if (typeof options?.where === "function") {
+			const proxy = createFieldProxy(this._fields);
+			const whereExpr = (
+				options.where as (fields: FieldProxy<TFields>) => BoundQuery | Expr
+			)(proxy as FieldProxy<TFields>);
+			queryOpts = { ...options, where: whereExpr };
+		}
 
 		// Build the complete query string and bindings
-		const { queryString, bindings } = buildQuery(opts, tableName);
+		const { queryString, bindings } = buildQuery(queryOpts, tableName);
 
 		// Execute query and process results
 		return executeAndProcessQuery<
 			InferShapeFromFields<(typeof this)["_fields"]>,
 			InstanceType<typeof this>,
-			InferShapeFromFields<(typeof this)["_fields"]>
-		>(db, queryString, bindings, opts, this);
+			InferShapeFromFields<(typeof this)["_fields"]>,
+			TFields
+		>(db, queryString, bindings, queryOpts, this);
 	};
 
 	// Cast to the fully-overloaded type. The body returns Promise<unknown>
@@ -702,7 +822,10 @@ export function getCountMethod<
 		>,
 		db: SurrealLike,
 		options?: {
-			where?: BoundQuery | Expr;
+			where?:
+				| BoundQuery
+				| Expr
+				| ((fields: FieldProxy<TFields>) => BoundQuery | Expr);
 			by?: (keyof TFields | string)[];
 		},
 	): Promise<number | Record<string, unknown>[]> {
@@ -719,7 +842,10 @@ export function getCountMethod<
 		if (options?.where) {
 			let whereQuery: BoundQuery;
 
-			if (
+			if (typeof options.where === "function") {
+				const proxy = createFieldProxy(this._fields);
+				whereQuery = surql`${options.where(proxy as FieldProxy<TFields>)}`;
+			} else if (
 				options.where &&
 				typeof options.where === "object" &&
 				"query" in options.where &&
@@ -742,15 +868,15 @@ export function getCountMethod<
 			sqlString += " GROUP ALL";
 		}
 
-		const result = (await (db as unknown as Surreal)
-			.query(sqlString, bindings)
-			.collect()) as unknown as unknown[];
+		const result = await db
+			.query<[Record<string, unknown>[]]>(sqlString, bindings)
+			.collect();
 
 		if (by && by.length > 0) {
-			return (result[0] as Record<string, unknown>[]) || [];
+			return result[0] || [];
 		}
 
-		const row = result[0] as { count: number }[] | undefined;
-		return row?.[0]?.count ?? 0;
+		const row = result[0];
+		return (row?.[0]?.count as number) ?? 0;
 	};
 }

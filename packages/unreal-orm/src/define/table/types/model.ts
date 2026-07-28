@@ -1,4 +1,6 @@
 import type { BoundQuery, Expr, RecordId, Surreal } from "surrealdb";
+import type { FieldProxy } from "../../../query/field-proxy";
+import type { RangeIdStart } from "../../../query/range";
 import type { FieldDefinition } from "../../field/types";
 import type { JsonPatchOperation, SelectQueryOptions } from "./query";
 import type {
@@ -130,7 +132,7 @@ export type CreateData<
 	TFields extends Record<string, FieldDefinition<unknown>>,
 > = Partial<InferShapeFromFields<TFields>> & {
 	/** Optional custom record ID. If omitted, SurrealDB generates an ID. */
-	id?: RecordId | string;
+	id?: RecordId;
 };
 
 // --- Model Class and Instance Types ---
@@ -261,6 +263,37 @@ export type ModelStatic<
 	): Promise<InstanceType<T>>;
 
 	/**
+	 * Creates or updates a record using `UPSERT`.
+	 * If a record with the same unique index value exists, it updates that record
+	 * instead of creating a new one. This leverages index-based lookup, making it
+	 * much more performant than `UPDATE ... WHERE` on unique-indexed fields.
+	 * @param db - A SurrealDB connection or transaction object.
+	 * @param options - Upsert options including data and optional custom ID.
+	 * @returns A promise that resolves to the created or updated model instance.
+	 * @example
+	 * ```ts
+	 * // Create or update by unique email index
+	 * const user = await User.upsert(db, {
+	 *   data: { email: 'bob@bob.com', name: 'Bob Bobson' },
+	 * });
+	 *
+	 * // With explicit record ID
+	 * const user = await User.upsert(db, {
+	 *   id: 'user:bob',
+	 *   data: { email: 'bob@bob.com', name: 'Bob Bobson' },
+	 * });
+	 * ```
+	 */
+	upsert<T extends ModelStatic<TInstance, TFields, TOptions>>(
+		this: T,
+		db: SurrealLike,
+		options: {
+			data: CreateData<TFields>;
+			id?: RecordId;
+		},
+	): Promise<InstanceType<T>>;
+
+	/**
 	 * Relates two records for an edge/relation table.
 	 * @param db - A SurrealDB connection or transaction object.
 	 * @param options - Relation options including `from`, `to`, and optional edge data.
@@ -283,7 +316,7 @@ export type ModelStatic<
 			to: RecordId;
 			data?: Record<string, unknown>;
 			orUpdate?: boolean;
-			id?: RecordId | string;
+			id?: RecordId;
 		},
 	): Promise<InstanceType<T>>;
 
@@ -482,7 +515,10 @@ export type ModelStatic<
 	select(
 		this: ModelStatic<TInstance, TFields, TOptions>,
 		db: SurrealLike,
-		options: Omit<SelectQueryOptions<InferShapeFromFields<TFields>, TFields>, "select"> & {
+		options: Omit<
+			SelectQueryOptions<InferShapeFromFields<TFields>, TFields>,
+			"select"
+		> & {
 			groupBy: (keyof TFields | string)[];
 		},
 	): Promise<Record<string, unknown>[]>;
@@ -501,7 +537,13 @@ export type ModelStatic<
 	count(
 		this: ModelStatic<TInstance, TFields, TOptions>,
 		db: SurrealLike,
-		options?: { where?: BoundQuery | Expr; by?: (keyof TFields | string)[] },
+		options?: {
+			where?:
+				| BoundQuery
+				| Expr
+				| ((fields: FieldProxy<TFields>) => BoundQuery | Expr);
+			by?: (keyof TFields | string)[];
+		},
 	): Promise<number | Record<string, unknown>[]>;
 
 	// ============================================================================
@@ -578,7 +620,10 @@ export type ModelStatic<
 		this: T,
 		db: SurrealLike,
 		options: {
-			where: BoundQuery | Expr;
+			where:
+				| BoundQuery
+				| Expr
+				| ((fields: FieldProxy<TFields>) => BoundQuery | Expr);
 			data: Partial<InferShapeFromFields<TFields>>;
 			mode: "content" | "merge" | "replace";
 		},
@@ -617,8 +662,24 @@ export type ModelStatic<
 	deleteMany(
 		this: ModelStatic<TInstance, TFields, TOptions>,
 		db: SurrealLike,
-		options: { where: BoundQuery | Expr },
+		options: {
+			where:
+				| BoundQuery
+				| Expr
+				| ((fields: FieldProxy<TFields>) => BoundQuery | Expr);
+		},
 	): Promise<void>;
+
+	/**
+	 * Builds a record ID range for this table.
+	 * @example
+	 * ```ts
+	 * const users = await User.select(db, {
+	 *   from: User.RangeId().from(2).toInclusive(4),
+	 * });
+	 * ```
+	 */
+	RangeId(): RangeIdStart;
 };
 
 // --- Placeholders for Any Model ---

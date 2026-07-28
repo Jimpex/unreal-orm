@@ -108,6 +108,76 @@ export type {
 
 // #endregion
 
+// #region Query Builder
+
+/**
+ * Type-safe SurrealQL expression builder. Use these helpers inside `where` callbacks
+ * on `select`, `count`, `updateMany`, and `deleteMany`.
+ */
+export {
+	createFieldProxy,
+	and,
+	or,
+	not,
+	eq,
+	ne,
+	gt,
+	gte,
+	lt,
+	lte,
+	exact,
+	isNone,
+	isNotNone,
+	isNull,
+	isNotNull,
+	isTrue,
+	isFalse,
+	inside,
+	outside,
+	intersects,
+	matches,
+	isIn,
+	isNotIn,
+	containsAny,
+	containsAll,
+	containsNone,
+	add,
+	subtract,
+	multiply,
+	divide,
+	modulo,
+	out,
+	in_,
+	in_ as in,
+	both,
+	count,
+	sum,
+	avg,
+	min,
+	max,
+	countIn,
+	countOut,
+} from "./query/field-proxy";
+export { Range, RangeId, NONE, UNBOUNDED } from "./query/range";
+export type {
+	ColumnRef,
+	StringColumn,
+	NumberColumn,
+	DateTimeColumn,
+	ArrayColumn,
+	FieldProxy,
+	FunctionNamespace,
+	StringNamespace,
+	MathNamespace,
+	ArrayNamespace,
+	TimeNamespace,
+	MetaNamespace,
+	RecordNamespace,
+	TypeNamespace,
+} from "./query/field-proxy";
+
+// #endregion
+
 // #region Type Definitions
 
 /**
@@ -118,7 +188,7 @@ export type { FieldDefinition, FieldOptions } from "./define/field/types";
 /**
  * The type definition for a database index.
  */
-export type { IndexDefinition } from "./define/index/types";
+export type { IndexDefinition, IndexDefineOptions } from "./define/index/types";
 
 /**
  * Type definitions for bucket definitions and their options.
@@ -137,6 +207,7 @@ export type {
 	UpdateMode,
 	StandardUpdateOptions,
 	PatchUpdateOptions,
+	SetUpdateOptions,
 	UpdateOptionsForMode,
 	JsonPatchOperation,
 	CountQueryOptions,
