@@ -1,0 +1,68 @@
+---
+title: Schema Application
+description: Generate and apply SurrealQL schemas from TypeScript models.
+sidebar_position: 4
+---
+
+# Schema Application
+
+After you define tables, fields, indexes, and buckets, you turn them into SurrealQL and apply them to a database.
+
+## `applySchema`
+
+```ts
+import { applySchema } from 'unreal-orm';
+import { User, UserEmailIndex, Post, Follow } from './tables';
+
+await applySchema(db, [User, Post, Follow, UserEmailIndex]);
+```
+
+`applySchema` walks the definitions and emits `DEFINE TABLE`, `DEFINE FIELD`, `DEFINE INDEX`, and `DEFINE BUCKET` statements in dependency order. The `db` argument is any SurrealDB-like object, such as a `Surreal` client or a transaction.
+
+## Application methods
+
+Both `applySchema` and the `generate*` functions accept an optional `method` argument:
+
+- `'error'` (default) — throw if the table already exists.
+- `'IF NOT EXISTS'` — emit `DEFINE ... IF NOT EXISTS`.
+- `'OVERWRITE'` — emit `DEFINE ... OVERWRITE`.
+
+```ts
+await applySchema(db, [User], 'IF NOT EXISTS');
+```
+
+## Generating DDL without applying it
+
+```ts
+import { generateFullSchemaQl, generateTableSchemaQl } from 'unreal-orm';
+
+// All definables
+const fullDdl = generateFullSchemaQl([User, UserEmailIndex]);
+
+// One table
+const tableDdl = generateTableSchemaQl(User);
+```
+
+This is useful for inspecting the generated SurrealQL, writing manual migrations, or running schema changes through a CI gate.
+
+## The `Unreal` namespace
+
+`Unreal` bundles the most common schema utilities into one import.
+
+```ts
+import { Unreal } from 'unreal-orm';
+
+await Unreal.applySchema(db, [User, Post]);
+const ddl = Unreal.generateSchema([User, Post]);
+```
+
+For programmatic schema work the `Unreal.ast` object exposes parsing, extraction, comparison, and migration helpers.
+
+```ts
+import { Unreal } from 'unreal-orm';
+
+const ast = Unreal.ast.extractSchema([User, Post]);
+const changes = Unreal.ast.compareSchemas(localAst, remoteAst);
+```
+
+See [Migrations](../advanced/migrations/) for the full AST workflow.

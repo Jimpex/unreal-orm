@@ -1,0 +1,79 @@
+---
+title: Indexes
+description: Define and use database indexes with UnrealORM.
+sidebar_position: 3
+---
+
+# Indexes
+
+Indexes are defined separately from tables and passed to `applySchema` alongside the model classes. Use `Index.define` and pass a thunk that returns the target model; this avoids circular import problems.
+
+```ts
+import { Index } from 'unreal-orm';
+import { User } from './User';
+
+const UserEmailIndex = Index.define(() => User, {
+  name: 'user_email_idx',
+  fields: ['email'],
+  unique: true,
+});
+```
+
+## Index options
+
+```ts
+Index.define(() => User, {
+  name: 'user_email_idx',
+  fields: ['email'],
+  unique: true,
+  concurrently: true,   // CREATE INDEX ... CONCURRENTLY
+  defer: false,           // defer index updates to a background queue
+  comment: 'Unique email index',
+})
+```
+
+| Option | Purpose |
+|---|---|
+| `name` | Index name in the database. |
+| `fields` | Array of field names to index. |
+| `unique` | Enforce uniqueness across the indexed columns. |
+| `count` | Build a `COUNT` index for fast `count()` queries. |
+| `search` | Build a full-text `SEARCH` index. |
+| `analyzer` | Analyzer to use with a search index. |
+| `bm25` | Enable BM25 ranking on a search index. |
+| `highlights` | Enable keyword highlighting on a search index. |
+| `concurrently` | Create the index without blocking writes. |
+| `defer` | Use a background queue for index updates. |
+| `comment` | Optional index comment. |
+
+## Unique and composite indexes
+
+```ts
+const UserNameIndex = Index.define(() => User, {
+  name: 'user_name_idx',
+  fields: ['firstName', 'lastName'],
+  unique: true,
+});
+```
+
+## Full-text search
+
+```ts
+const PostContentIndex = Index.define(() => Post, {
+  name: 'post_content_idx',
+  fields: ['title', 'content'],
+  search: true,
+  analyzer: 'english',
+  bm25: true,
+});
+```
+
+Use the index in a query:
+
+```ts
+const results = await Post.select(db, {
+  where: surql`title @@ 'database' OR content @@ 'database'`,
+});
+```
+
+See the [Full-Text Search](../advanced/full-text-search/) guide for a deeper dive.

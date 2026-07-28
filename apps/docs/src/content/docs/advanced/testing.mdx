@@ -1,0 +1,78 @@
+---
+title: Testing
+description: Fast in-memory unit tests with SurrealDB and UnrealORM.
+sidebar_position: 5
+---
+
+# Testing
+
+SurrealDB can run fully in-memory, which makes UnrealORM models easy to test without Docker.
+
+## Test setup
+
+```ts
+import { Surreal } from 'surrealdb';
+import { createNodeEngines } from '@surrealdb/node';
+import { applySchema } from 'unreal-orm';
+import { User, Post } from './tables';
+
+async function setupTestDb() {
+  const db = new Surreal({ engines: { ...createNodeEngines() } });
+  await db.connect('mem://', {
+    namespace: 'test',
+    database: 'test',
+  });
+  await applySchema(db, [User, Post]);
+  return db;
+}
+```
+
+## Example tests
+
+```ts
+import { test, expect, beforeAll } from 'vitest';
+import { RecordId } from 'surrealdb';
+import { User } from './tables';
+
+let db: Surreal;
+
+beforeAll(async () => {
+  db = await setupTestDb();
+});
+
+test('creates a user', async () => {
+  const user = await User.create(db, { name: 'Alice', email: 'alice@example.com' });
+  expect(user.name).toBe('Alice');
+  expect(user.id).toBeInstanceOf(RecordId);
+});
+
+test('enforces email assertion', async () => {
+  await expect(
+    User.create(db, { name: 'Bad', email: 'not-an-email' })
+  ).rejects.toThrow();
+});
+```
+
+## Isolation
+
+For parallel test runners, use a unique namespace per worker:
+
+```ts
+await db.connect('mem://', {
+  namespace: `test-${process.pid}`,
+  database: 'test',
+});
+```
+
+Or create a new `Surreal` instance per test and reconnect each time.
+
+## Snapshotting the schema
+
+You can snapshot the schema DDL to catch accidental changes:
+
+```ts
+import { Unreal } from 'unreal-orm';
+
+const ddl = Unreal.generateFullSchemaQl([User, Post]);
+expect(ddl).toMatchSnapshot();
+```

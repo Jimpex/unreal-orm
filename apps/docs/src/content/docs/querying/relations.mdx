@@ -1,0 +1,104 @@
+---
+title: Relations and Graph Traversal
+description: Record links, edges, and graph traversal.
+sidebar_position: 5
+---
+
+# Relations and Graph Traversal
+
+SurrealDB is a graph database, so UnrealORM distinguishes between a record **link** and a graph **edge**.
+
+## Record links
+
+A `Field.record` stores a `RecordId` pointer. It does not enforce referential integrity by default.
+
+```ts
+class Post extends Table.normal({
+  name: 'post',
+  fields: {
+    author: Field.record(() => User),
+  },
+}) {}
+```
+
+Create a post with a link:
+
+```ts
+const post = await Post.create(db, {
+  title: 'Hello',
+  author: user.id,
+});
+```
+
+Expand the link at query time:
+
+```ts
+const posts = await Post.select(db, {
+  select: { title: true, author: { name: true } },
+  fetch: ['author'],
+});
+```
+
+### References with referential integrity
+
+Enable the experimental `record_references` capability and use `reference`:
+
+```ts
+author: Field.record(() => User, {
+  reference: { onDelete: 'cascade' },
+})
+```
+
+## Graph edges
+
+A relation table must declare `in` and `out` fields:
+
+```ts
+class Follow extends Table.relation({
+  name: 'follow',
+  schemafull: true,
+  fields: {
+    in: Field.record(() => User),
+    out: Field.record(() => User),
+    since: Field.datetime({ default: surql`time::now()` }),
+  },
+}) {}
+```
+
+Create an edge:
+
+```ts
+const follow = await Follow.relate(db, {
+  from: alice.id,
+  to: bob.id,
+  orUpdate: true,
+});
+```
+
+## Traversing edges in queries
+
+Use `surql` for graph paths inside `typed()` or `where`:
+
+```ts
+// Followers of a user
+const followers = await User.select(db, {
+  select: {
+    name: true,
+    followerNames: typed<string[]>(surql`<-follow.in.name`),
+  },
+  where: (f) => f.id.eq(alice.id),
+  only: true,
+});
+
+// Users that alice follows
+const following = await User.select(db, {
+  select: {
+    name: true,
+    follows: typed<string[]>(surql`->follow->user.name`),
+  },
+  where: (f) => f.id.eq(alice.id),
+  only: true,
+});
+```
+
+For complex graph work you can always fall back to raw `surql` or combine the field proxy with `surql` templates.

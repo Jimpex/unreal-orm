@@ -11,8 +11,12 @@ This guide covers common structural patterns you might encounter while building 
 Use a singleton table when you need global configuration that only has one record (e.g., app settings, maintenance flags).
 
 ```ts
+import { Table, Field, Index } from 'unreal-orm';
+import { surql } from 'surrealdb';
+
 class AppSettings extends Table.normal({
   name: 'app_settings',
+  schemafull: true,
   fields: {
     siteName: Field.string(),
     maintenanceMode: Field.bool({ default: surql`false` }),
@@ -37,6 +41,7 @@ Best for simple filtering where you don't need to store extra data about the tag
 ```ts
 class BlogPost extends Table.normal({
   name: 'post',
+  schemafull: true,
   fields: {
     title: Field.string(),
     tags: Field.array(Field.string()),
@@ -58,6 +63,7 @@ The parent-child pattern is common for categories, folders, or comment threads.
 ```ts
 class Category extends Table.normal({
   name: 'category',
+  schemafull: true,
   fields: {
     name: Field.string(),
     parent: Field.option(Field.record(() => Category)),
@@ -82,6 +88,7 @@ A polymorphic link is a field that can point to multiple different types of tabl
 ```ts
 class ActivityFeed extends Table.normal({
   name: 'activity',
+  schemafull: true,
   fields: {
     action: Field.string(),
     // Link to either a User or an Organization

@@ -1,0 +1,69 @@
+---
+title: Migrations and Schema Diff
+description: Compare schemas and generate migrations with UnrealORM.
+sidebar_position: 6
+---
+
+# Migrations and Schema Diff
+
+UnrealORM exposes the `Unreal.ast` namespace for comparing your TypeScript models against the live database schema or another schema definition.
+
+## Extract an AST from models
+
+```ts
+import { Unreal } from 'unreal-orm';
+import { User, Post } from './tables';
+
+const localAst = Unreal.ast.extractSchema([User, Post]);
+```
+
+## Parse SurrealQL definitions
+
+```ts
+const tableAst = Unreal.ast.parseTable('DEFINE TABLE user SCHEMAFULL');
+const fieldAst = Unreal.ast.parseField('DEFINE FIELD email ON user TYPE string ASSERT string::is::email($value)');
+const indexAst = Unreal.ast.parseIndex('DEFINE INDEX user_email_idx ON user FIELDS email UNIQUE');
+```
+
+## Compare schemas
+
+```ts
+const localAst = Unreal.ast.extractSchema([User, Post]);
+const remoteAst = await db.query<[SchemaAST]>(surql`INFO FOR DB`); // simplified
+
+const changes = Unreal.ast.compare(localAst, remoteAst);
+```
+
+`compare` returns a list of `SchemaChange` objects describing added, removed, and modified tables, fields, and indexes.
+
+## Generate migration DDL
+
+```ts
+const migration = Unreal.ast.generateMigration(changes);
+await db.query(surql`${migration}`);
+```
+
+## Using the CLI
+
+```bash
+# See a diff between local models and the database
+bunx unreal diff
+
+# Apply local schema to the database
+bunx unreal push
+
+# Pull an existing database schema into TypeScript
+bunx unreal pull
+```
+
+Common options:
+
+```bash
+bunx unreal diff \
+  --url ws://localhost:8000 \
+  -u root -p root \
+  -n test -d test \
+  --auth-level root
+```
+
+Use `--detailed` for field-level changes.

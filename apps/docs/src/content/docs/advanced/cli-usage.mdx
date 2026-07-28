@@ -1,0 +1,100 @@
+---
+title: CLI Usage
+description: Common commands, connection resolution, and automation patterns.
+sidebar_position: 8
+---
+
+# CLI Usage
+
+The UnrealORM CLI is `@unreal-orm/cli`, usually run through `bunx`, `npx`, or `pnpm dlx` as `unreal`.
+
+## Install
+
+```bash
+bun add -D @unreal-orm/cli
+```
+
+## Commands
+
+| Command | Purpose |
+|---|---|
+| `unreal init` | Scaffold `unreal.config.json`, `unreal/surreal.ts`, and sample models. |
+| `unreal push` | Apply TypeScript models to the database. |
+| `unreal pull` | Introspect the database and generate TypeScript models. |
+| `unreal diff` | Compare local models with the database schema. |
+| `unreal mermaid` | Generate a Mermaid ERD from code, the database, or a `.surql` file. |
+| `unreal view` | Browse records interactively. |
+| `unreal docs` | Open the docs or generate context files. |
+| `unreal github` | Open the repository on GitHub. |
+
+## Connection resolution
+
+Every database command resolves the connection in this order:
+
+1. **CLI flags** — `--url`, `-u`/`--username`, `-p`/`--password`, `-n`/`--namespace`, `-d`/`--database`, `--auth-level`, `--embedded`
+2. **`unreal/surreal.ts`** — auto-loaded from the configured `unreal/` folder
+3. **Interactive prompt** — if no flags and no `surreal.ts` are found
+
+## Fully automated push
+
+```bash
+bunx unreal push \
+  --url ws://localhost:8000 \
+  -u root -p secret \
+  -n production -d myapp \
+  --auth-level root \
+  -y
+```
+
+## Connection from a file
+
+```bash
+# Use the connection defined in unreal/surreal.ts
+bunx unreal push
+```
+
+## Diff options
+
+```bash
+# Show detailed field-level changes
+bunx unreal diff --detailed
+
+# Use embedded in-memory SurrealDB
+bunx unreal diff --embedded mem://
+```
+
+## Embedded mode
+
+For quick tests without a server:
+
+```bash
+bunx unreal push --embedded mem:// -y
+```
+
+Use `--embedded` with a file path for disk persistence:
+
+```bash
+bunx unreal push --embedded file:/tmp/mydb -y
+```
+
+## Project layout expected by the CLI
+
+```
+my-project/
+├── unreal.config.json
+├── unreal/
+│   ├── surreal.ts
+│   └── tables/
+└── package.json
+```
+
+`unreal.config.json` only contains the path to the `unreal/` folder:
+
+```json
+{
+  "$schema": "./node_modules/unreal-orm/schema.json",
+  "path": "./unreal"
+}
+```
+
+For per-command details, see the generated [CLI Reference](../cli/).

@@ -1,0 +1,100 @@
+---
+title: Models and Tables
+description: Define normal tables, relation tables, and views.
+sidebar_position: 1
+---
+
+# Models and Tables
+
+Everything in UnrealORM starts with `Table`. The factory returns a base class that you extend. Each model knows its table name, fields, and SurrealDB type.
+
+## Table types
+
+`Table` has three factories:
+
+- `Table.normal(...)` — a standard `DEFINE TABLE`.
+- `Table.relation(...)` — a `DEFINE TABLE ... TYPE RELATION`, used for graph edges.
+- `Table.view<T>(...)` — a `DEFINE TABLE ... AS SELECT` pre-computed view.
+
+```ts
+import { Table, Field } from 'unreal-orm';
+import { surql } from 'surrealdb';
+
+class User extends Table.normal({
+  name: 'user',
+  schemafull: true,
+  fields: {
+    name: Field.string(),
+  },
+}) {}
+
+class Likes extends Table.relation({
+  name: 'likes',
+  schemafull: true,
+  fields: {
+    in: Field.record(() => User),
+    out: Field.record(() => Post),
+    createdAt: Field.datetime({ default: surql`time::now()` }),
+  },
+}) {}
+
+class AdultUsers extends Table.view<{ name: string; age: number }>({
+  name: 'adult_users',
+  as: surql`SELECT name, age FROM user WHERE age >= 18`,
+}) {}
+```
+
+## Table options
+
+| Option | Purpose |
+|---|---|
+| `name` | The table name in SurrealDB. |
+| `schemafull` | If `true`, only declared fields are allowed. |
+| `fields` | The field definitions (see [Fields and Types](../fields-and-types/)). |
+| `permissions` | Row-level `SELECT`/`CREATE`/`UPDATE`/`DELETE` clauses. |
+| `changefeed` | Enable `DEFINE TABLE ... CHANGEFEED`. |
+| `drop` | Generate `DEFINE TABLE ... DROP`. |
+| `comment` | Optional table comment. |
+
+## Custom methods
+
+Because `Table.normal` returns a class, you can add instance and static methods directly in the class body.
+
+```ts
+class User extends Table.normal({ ... }) {
+  getDisplayName() {
+    return `${this.name} <${this.email}>`;
+  }
+
+  static async findByEmail(db: SurrealLike, email: string) {
+    return User.select(db, { where: surql`email = ${email}`, limit: 1 });
+  }
+}
+```
+
+## Indexes
+
+Indexes are defined separately and linked via a thunk to avoid circular imports.
+
+```ts
+import { Index } from 'unreal-orm';
+
+const UserEmailIndex = Index.define(() => User, {
+  name: 'user_email_idx',
+  fields: ['email'],
+  unique: true,
+});
+```
+
+Pass both models and indexes to `applySchema`.
+
+## Views
+
+Views are read-only tables produced by a `SELECT` statement. They have no fields of their own; the generic type argument describes the returned shape.
+
+```ts
+class AdultUsers extends Table.view<{ name: string }>({
+  name: 'adult_users',
+  as: surql`SELECT name FROM user WHERE age >= 18`,
+}) {}
+```

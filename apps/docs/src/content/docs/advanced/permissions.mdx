@@ -1,0 +1,85 @@
+---
+title: Security and Permissions
+description: Row-level and field-level permissions with $auth.
+sidebar_position: 1
+---
+
+# Security and Permissions
+
+SurrealDB has a built-in permissions system. UnrealORM exposes it through `permissions` on tables and fields. Values are either `true` (always allowed), `false` (never allowed), or a `surql` expression that evaluates to a boolean.
+
+## Row-level security
+
+```ts
+import { Table, Field } from 'unreal-orm';
+import { surql } from 'surrealdb';
+
+class Post extends Table.normal({
+  name: 'post',
+  schemafull: true,
+  fields: {
+    title: Field.string(),
+    content: Field.string(),
+    author: Field.record(() => User),
+  },
+  permissions: {
+    select: true,
+    create: surql`$auth.id != NONE`,
+    update: surql`author = $auth.id`,
+    delete: surql`author = $auth.id`,
+  },
+}) {}
+```
+
+## Field-level permissions
+
+Hide or protect individual fields:
+
+```ts
+class User extends Table.normal({
+  name: 'user',
+  fields: {
+    name: Field.string(),
+    email: Field.string({
+      permissions: {
+        select: surql`id = $auth.id`,
+        update: surql`id = $auth.id`,
+      },
+    }),
+  },
+}) {}
+```
+
+## The $auth variable
+
+`$auth` is the currently authenticated record. Its exact shape depends on how you sign in. With scope authentication it is the record from the scope's `user` table:
+
+```ts
+await db.connect('ws://localhost:8000', {
+  namespace: 'app',
+  database: 'app',
+  authentication: {
+    access: 'user',
+    variables: {
+      email: 'alice@example.com',
+      password: 'password',
+    },
+  },
+});
+```
+
+> **Note**: Pass authentication details directly to `.connect()` so the SDK can automatically re-authenticate on reconnect. Using separate `.signin()` calls means tokens will not be refreshed automatically.
+
+After sign in, `$auth.id` is the `RecordId` of the authenticated user.
+
+## Testing permissions
+
+Use the in-memory engine and set `$auth` through query bindings for fast unit tests:
+
+```ts
+await expect(
+  db.query(surql`DELETE $id`, { id: post.id, auth: { id: new RecordId('user', 'bob') } })
+).rejects.toThrow();
+```
+
+For real integration tests, sign in as different users and run the ORM calls against a clean `mem://` database.

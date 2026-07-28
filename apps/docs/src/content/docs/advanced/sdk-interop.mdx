@@ -1,0 +1,68 @@
+---
+title: SDK Interoperability
+description: Using raw SurrealQL and the surrealdb SDK alongside UnrealORM.
+sidebar_position: 7
+---
+
+# SDK Interoperability
+
+UnrealORM intentionally does not wrap all of SurrealDB. When a feature is not supported, use the `surrealdb` SDK directly and pass the same `db` instance to the ORM.
+
+## When to drop to raw SurrealQL
+
+| Feature | UnrealORM support | Recommended approach |
+|---|---|---|
+| Events (`DEFINE EVENT`) | Not supported | Use `db.query` with a `surql` template |
+| Triggers | Not supported | Use `db.query` with a `surql` template |
+| Custom functions (`DEFINE FUNCTION`) | Not supported | Use `db.query` with a `surql` template |
+| Users and scopes (`DEFINE USER`, `DEFINE ACCESS`) | Not supported | Use `db.query(...)` or `.connect()` with `authentication` |
+| Live queries (`LIVE SELECT`) | Not supported | Use `db.live(...)` from the SDK |
+| Vector indexes | Not supported | Use raw `DEFINE INDEX ... MTREE` or `HNSW` |
+| Time-series tables | Not supported | Use raw `DEFINE TABLE ... TYPE TIMESERIES` |
+| Complex graph queries | Partial | Use `surql` templates inside `typed()` or `where` |
+
+## Example: live queries
+
+```ts
+import { surql } from 'surrealdb';
+
+const { unsubscribe } = await db.live(surql`LIVE SELECT * FROM post`, (action, result) => {
+  console.log(action, result);
+});
+```
+
+## Example: custom functions
+
+```ts
+await db.query(surql`
+  DEFINE FUNCTION fn::score($base::number, $multiplier::number) {
+    RETURN $base * $multiplier;
+  }
+`);
+```
+
+Then use the function in a `surql` expression within an UnrealORM query:
+
+```ts
+const posts = await Post.select(db, {
+  select: {
+    title: true,
+    score: typed<number>(surql`fn::score(views, 2)`),
+  },
+});
+```
+
+## Transactions
+
+Use the `surrealdb` SDK transaction API. UnrealORM methods accept any SurrealDB-like `db`, including a transaction object.
+
+```ts
+await db.transaction(async (tx) => {
+  const user = await User.create(tx, { name: 'Alice' });
+  await Post.create(tx, { title: 'Hello', author: user.id });
+});
+```
+
+## Keep the ORM as the happy path
+
+For day-to-day table, field, index, and CRUD work, use UnrealORM. For experimental or unsupported features, write the raw SurrealQL once and keep the ORM for the rest of the app.

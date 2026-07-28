@@ -1,0 +1,123 @@
+---
+title: Fields and Types
+description: Field builders and options in UnrealORM.
+sidebar_position: 2
+---
+
+# Fields and Types
+
+`Field` is a factory object with one method per SurrealDB type. Every method returns a `FieldDefinition` that a `Table` uses to generate `DEFINE FIELD` statements.
+
+## Primitive fields
+
+```ts
+import { Field } from 'unreal-orm';
+
+const userFields = {
+  name: Field.string(),
+  age: Field.int(),
+  rating: Field.float(),
+  balance: Field.decimal(),
+  active: Field.bool(),
+  createdAt: Field.datetime(),
+  ttl: Field.duration(),
+  avatar: Field.bytes(),
+  token: Field.uuid(),
+};
+```
+
+## Links and files
+
+```ts
+const userFields = {
+  // Record link to user table
+  author: Field.record(() => User),
+
+  // File pointer into a bucket (requires --allow-experimental files)
+  avatar: Field.file(),
+};
+```
+
+## Collections and nested data
+
+```ts
+const userFields = {
+  tags: Field.array(Field.string()),
+  roles: Field.set(Field.string()),
+  meta: Field.object({
+    visits: Field.int(),
+    lastVisit: Field.datetime(),
+  }),
+};
+```
+
+`Field.array` and `Field.set` accept a length limit:
+
+```ts
+Field.array(Field.string(), { length: 5 })  // exactly 5 elements
+```
+
+> Note: `max` is deprecated. Use `length` for the exact element count.
+
+## Optional fields
+
+SurrealDB fields are required by default. Wrap a field with `Field.option(...)` to allow `NONE`:
+
+```ts
+bio: Field.option(Field.string())
+```
+
+## Special field types
+
+```ts
+// A fixed literal value, e.g. status must be "active" or "banned"
+status: Field.literal("active" as const)
+
+// A union of types
+value: Field.union([Field.int(), Field.string()])
+
+// A custom SurrealQL type string not yet covered by a builder
+custom: Field.custom<string>('string')
+
+// Any value; useful for schemaless parts
+metadata: Field.any()
+```
+
+## Geometry
+
+```ts
+location: Field.geometry('point')
+// or 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'collection', 'feature'
+```
+
+## Field options
+
+All builders accept `FieldOptions`:
+
+```ts
+Field.string({
+  default: surql`''`,             // default value for new records
+  value: surql`time::now()`,      // computed on every create/update
+  assert: surql`string::len($value) > 0`,  // validation expression
+  readonly: true,                 // prevents manual updates
+  permissions: {
+    select: surql`id = $auth.id`,
+    update: surql`id = $auth.id`,
+  },
+  comment: 'User display name',
+})
+```
+
+## Record links with references
+
+By default `Field.record` stores a `RecordId` without referential integrity. You can enable the experimental `REFERENCE` feature:
+
+```ts
+author: Field.record(() => User, {
+  reference: {
+    onDelete: 'cascade', // or 'ignore'
+  },
+})
+```
+
+This requires SurrealDB to be started with `--allow-experimental record_references`.

@@ -1,0 +1,96 @@
+---
+title: Installation
+description: Install SurrealDB, the UnrealORM package, and the CLI.
+sidebar_position: 2
+---
+
+# Installation
+
+You need three things: a running SurrealDB instance, the `unreal-orm` package in your app, and the `@unreal-orm/cli` package for schema workflows.
+
+## 1. Run SurrealDB
+
+For local development the easiest option is Docker:
+
+```bash
+docker run --rm -p 8000:8000 surrealdb/surrealdb:latest start
+```
+
+For in-memory unit tests you can also use the embedded engine:
+
+```bash
+bun add surrealdb @surrealdb/node
+```
+
+```ts
+import { Surreal } from 'surrealdb';
+import { createNodeEngines } from '@surrealdb/node';
+
+const db = new Surreal({ engines: { ...createNodeEngines() } });
+await db.connect('mem://');
+```
+
+## 2. Add UnrealORM to your project
+
+```bash
+bun add surrealdb unreal-orm
+bun add -D @unreal-orm/cli
+```
+
+`unreal-orm` is the runtime library. `@unreal-orm/cli` provides the `unreal` command-line tool.
+
+## 3. Initialize a project
+
+```bash
+bunx unreal init
+```
+
+This creates:
+
+```
+my-project/
+├── unreal.config.json
+├── unreal/
+│   ├── surreal.ts      # connection setup
+│   └── tables/         # your model files
+```
+
+`unreal.config.json` only points at the `unreal/` folder. Connection details live in `unreal/surreal.ts` so you can import them in your app and tests.
+
+## 4. Configure the connection
+
+Edit `unreal/surreal.ts`:
+
+```ts
+import { Surreal } from 'surrealdb';
+
+const db = new Surreal();
+
+export async function connect() {
+  await db.connect('ws://localhost:8000', {
+    namespace: 'test',
+    database: 'test',
+    authentication: { username: 'root', password: 'root' },
+  });
+  return db;
+}
+
+export default db;
+```
+
+> **Important**: Pass `namespace`, `database`, and `authentication` directly to `.connect()`. If you use separate `.use()` and `.signin()` calls, the SDK will not automatically re-authenticate or refresh tokens on reconnect.
+
+## 5. Apply your first schema
+
+After you add model files under `unreal/tables/`, push them to the database:
+
+```bash
+bunx unreal push
+```
+
+Use `bunx unreal pull` to generate TypeScript models from an existing database, and `bunx unreal diff` to compare the two.
+
+## Next steps
+
+- [Quickstart](./quickstart/) — build a minimal blog schema.
+- [Capabilities](./capabilities/) — full feature matrix.

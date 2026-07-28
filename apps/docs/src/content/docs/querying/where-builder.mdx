@@ -1,0 +1,123 @@
+---
+title: Where Builder
+description: Type-safe comparison and logical operators for WHERE clauses.
+sidebar_position: 6
+---
+
+# Where Builder
+
+The `where` option on `select`, `count`, `updateMany`, and `deleteMany` can be a callback that receives a typed field proxy. This lets you write type-safe comparisons and let UnrealORM generate the SurrealQL.
+
+## Comparison operators
+
+```ts
+User.select(db, {
+  where: (f) => f.age.gte(18).and(f.name.eq('Alice')),
+});
+```
+
+| Operator | Purpose |
+|---|---|
+| `eq(value)` | `=` |
+| `ne(value)` | `!=` |
+| `gt(value)` | `>` |
+| `gte(value)` | `>=` |
+| `lt(value)` | `<` |
+| `lte(value)` | `<=` |
+| `exact(value)` | `==` (exact match) |
+| `isNone()` | `= NONE` |
+| `isNotNone()` | `!= NONE` |
+| `isNull()` | `= NULL` |
+| `isNotNull()` | `!= NULL` |
+| `isTrue()` | `= true` |
+| `isFalse()` | `= false` |
+
+## Logical operators
+
+```ts
+User.select(db, {
+  where: (f) =>
+    f.age.gte(18)
+      .and(f.active.isTrue())
+      .or(f.role.eq('admin')),
+});
+```
+
+Use `and(...)` and `or(...)` from `unreal-orm` to combine separate proxies:
+
+```ts
+import { and, or } from 'unreal-orm';
+
+User.select(db, {
+  where: (f) =>
+    and(
+      f.age.gte(18),
+      or(f.active.isTrue(), f.role.eq('admin')),
+    ),
+});
+```
+
+## Collection operators
+
+```ts
+User.select(db, {
+  where: (f) => f.role.isIn(['admin', 'editor']),
+});
+
+Post.select(db, {
+  where: (f) => f.tags.containsAny(['news', 'tech']),
+});
+```
+
+| Operator | Purpose |
+|---|---|
+| `inside(range)` | `INSIDE` |
+| `outside(range)` | `OUTSIDE` |
+| `intersects(geometry)` | `INTERSECTS` |
+| `matches(value)` | `~` (matches pattern) |
+| `isIn(values)` | `IN` |
+| `isNotIn(values)` | `NOT IN` |
+| `containsAny(values)` | `CONTAINSANY` |
+| `containsAll(values)` | `CONTAINSALL` |
+| `containsNone(values)` | `CONTAINSNONE` |
+
+## Math and functions
+
+```ts
+Post.select(db, {
+  where: (f) => f.views.add(1).gt(100),
+});
+```
+
+| Operator | Purpose |
+|---|---|
+| `add(v)` | `+` |
+| `subtract(v)` | `-` |
+| `multiply(v)` | `*` |
+| `divide(v)` | `/` |
+| `modulo(v)` | `%` |
+
+## Graph helpers
+
+```ts
+User.select(db, {
+  where: (f) => f.out('follow').eq(bob.id),
+});
+```
+
+Use `out(relation)`, `in_` (aliased as `in`), and `both(relation)` for graph traversal helpers.
+
+## Aggregations
+
+```ts
+import { count, sum } from 'unreal-orm';
+
+Post.select(db, {
+  select: {
+    title: true,
+    likeCount: typed<number>(count('->like->user')),
+  },
+});
+```
+
+For anything not covered by the proxy, use a `surql` template inside `where` or `typed`.

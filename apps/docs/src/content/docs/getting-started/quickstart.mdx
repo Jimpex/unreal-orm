@@ -1,0 +1,143 @@
+---
+title: Quickstart
+description: Define tables, push the schema, and run type-safe queries.
+sidebar_position: 3
+---
+
+# Quickstart
+
+This guide creates a tiny blog schema: `User`, `Post`, and a `Follow` relation.
+
+## 1. Define the tables
+
+`unreal/tables/User.ts`
+
+```ts
+import { Table, Field, Index } from 'unreal-orm';
+import { surql } from 'surrealdb';
+
+export class User extends Table.normal({
+  name: 'user',
+  schemafull: true,
+  fields: {
+    name: Field.string(),
+    email: Field.string({ assert: surql`string::is::email($value)` }),
+    createdAt: Field.datetime({ default: surql`time::now()`, readonly: true }),
+  },
+}) {
+  getDisplayName() {
+    return `${this.name} <${this.email}>`;
+  }
+}
+
+export const UserEmailIndex = Index.define(() => User, {
+  name: 'user_email_idx',
+  fields: ['email'],
+  unique: true,
+});
+
+export const UserDefinitions = [User, UserEmailIndex];
+```
+
+`unreal/tables/Post.ts`
+
+```ts
+import { Table, Field } from 'unreal-orm';
+import { surql } from 'surrealdb';
+import { User } from './User';
+
+export class Post extends Table.normal({
+  name: 'post',
+  schemafull: true,
+  fields: {
+    title: Field.string(),
+    content: Field.string(),
+    author: Field.record(() => User),
+    publishedAt: Field.datetime({ default: surql`time::now()` }),
+  },
+}) {}
+
+// Optionally make a field optional with Field.option()
+// summary: Field.option(Field.string()),
+```
+
+`unreal/tables/Follow.ts`
+
+```ts
+import { Table, Field } from 'unreal-orm';
+import { surql } from 'surrealdb';
+import { User } from './User';
+
+export class Follow extends Table.relation({
+  name: 'follow',
+  schemafull: true,
+  fields: {
+    in: Field.record(() => User),
+    out: Field.record(() => User),
+    since: Field.datetime({ default: surql`time::now()` }),
+  },
+}) {}
+```
+
+`unreal/tables/index.ts`
+
+```ts
+export { User, UserDefinitions } from './User';
+export { Post } from './Post';
+export { Follow } from './Follow';
+```
+
+## 2. Aggregate and apply the schema
+
+`unreal/surreal.ts` exposes a `connect` function. Apply the schema once on startup:
+
+```ts
+import { applySchema } from 'unreal-orm';
+import { connect } from './surreal';
+import * as models from './tables';
+
+const db = await connect();
+await applySchema(db, [models.User, models.UserEmailIndex, models.Post, models.Follow]);
+```
+
+## 3. Create and query records
+
+```ts
+import { RecordId } from 'surrealdb';
+import { db } from './surreal';
+import { User, Post, Follow } from './tables';
+
+const alice = await User.create(db, { name: 'Alice', email: 'alice@example.com' });
+const bob = await User.create(db, { name: 'Bob', email: 'bob@example.com' });
+
+const post = await Post.create(db, {
+  title: 'Hello world',
+  content: 'My first post',
+  author: alice.id,
+});
+
+await Follow.relate(db, { from: alice.id, to: bob.id });
+
+const posts = await Post.select(db, {
+  select: { title: true, author: { name: true, email: true } },
+  fetch: ['author'],
+});
+```
+
+## 4. Use the CLI
+
+```bash
+# Push the schema
+bunx unreal push
+
+# Pull an existing database back into models
+bunx unreal pull
+
+# See what changed
+bunx unreal diff
+```
+
+## What next?
+
+- [Models and Tables](../concepts/models-and-tables/) — how `Table.normal`, `Table.relation`, and `Table.view` work.
+- [Fields and Types](../concepts/fields-and-types/) — every field builder.

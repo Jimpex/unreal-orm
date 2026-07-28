@@ -13,14 +13,14 @@ The primary tools for schema management are `unreal pull`, `unreal push`, and `u
 ### 1. Pulling existing schema
 Use `unreal pull` to generate ORM models from an existing SurrealDB instance. 
 
-**Pro-tip:** Flags are completely optional! If you just run `unreal pull`, the CLI will interactively prompt you for connection details or let you pick from your `unreal.config.ts`.
+**Pro-tip:** Flags are completely optional! If you just run `unreal pull`, the CLI will interactively prompt you for connection details or load them from your `unreal/surreal.ts`.
 
 ```bash
-# Automated/Pattern usage:
-bun unreal pull --url http://localhost:8000 --user root --pass root --ns test --db test
+# Automated/CI usage:
+unreal pull --url ws://localhost:8000 -u root -p root -n test -d test
 
 # Interactive/Convenient usage:
-bun unreal pull
+unreal pull
 ```
 
 ### 2. Pushing your models
@@ -29,7 +29,7 @@ Once you've defined or modified your `Table.normal` classes, use `unreal push` t
 ```bash
 bun unreal push
 ```
-*(This uses your `unreal.config.ts` for connection details)*
+*(This uses your `unreal/surreal.ts` for connection details)*
 
 ### 3. Reviewing changes with `diff`
 Before applying changes, use `unreal diff` to see what has changed between your current models and the live database.
@@ -71,5 +71,5 @@ const sql = Unreal.generateFullSchemaQl([User, Post]);
 ## 💡 Best Practices
 
 1. **Model-First approach**: Let your TypeScript code be the "source of truth".
-2. **Version Control your Schema**: Always check in your `unreal.config.ts` and consider checking in a generated `schema.surql` for documentation.
+2. **Version Control your Schema**: Always check in your `unreal.config.json` and consider checking in a generated `schema.surql` for documentation.
 3. **Use SCHEMAFULL**: Always set `schemafull: true` on your tables to ensure SurrealDB enforces your type definitions.

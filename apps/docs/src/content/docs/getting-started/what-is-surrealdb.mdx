@@ -1,0 +1,60 @@
+---
+title: What is SurrealDB?
+description: The concepts you need before using UnrealORM.
+sidebar_position: 1
+---
+
+# What is SurrealDB?
+
+UnrealORM is a type-safe TypeScript ORM for [SurrealDB](https://surrealdb.com). Before you write your first model, it helps to know a few SurrealDB ideas that the ORM is built on.
+
+## Multi-model, not multi-database
+
+SurrealDB stores records as documents, but also treats relationships as first-class graph edges. You can query across documents and graph links in a single statement. UnrealORM maps this to normal TypeScript classes and relation classes.
+
+## Schemafull and schemaless
+
+SurrealDB tables can be:
+
+- **Schemaless** — records can have any fields.
+- **Schemafull** — only fields defined in `DEFINE FIELD` are allowed.
+
+UnrealORM defaults to schemafull tables because its main value is type-safe schema definitions.
+
+## Record IDs
+
+Every record has a unique `id` such as `user:ic7c1frczl1tw552yl4u` or `user:john`. In TypeScript these are represented as `RecordId<'user'>` instances from the `surrealdb` SDK.
+
+```ts
+import { RecordId } from 'surrealdb';
+
+const id: RecordId<'user'> = new RecordId('user', 'john');
+```
+
+## Record links and graph edges
+
+- A **record link** is a field that holds a `RecordId` pointing to another table, e.g. `record<user>`.
+- A **graph edge** (or relation) is a record in an edge table with mandatory `in` and `out` fields. It is created with `RELATE user:john->follows->user:jane`.
+
+UnrealORM models both with `Field.record(...)` and `Table.relation(...)`.
+
+## SurrealQL
+
+SurrealDB is queried with SurrealQL, a SQL-like language that also supports graph traversal and nested documents. UnrealORM generates SurrealQL from your TypeScript definitions and lets you drop back to raw `surql` templates whenever you need to.
+
+```ts
+import { surql } from 'surrealdb';
+
+const query = surql`SELECT * FROM user WHERE email = $email`;
+```
+
+## Why an ORM?
+
+SurrealQL is powerful but string-based. UnrealORM gives you:
+
+- Type-safe model definitions that generate `DEFINE TABLE`, `DEFINE FIELD`, and `DEFINE INDEX` statements.
+- Type-safe `SELECT`, `INSERT`, `UPDATE`, and `COUNT` helpers.
+- Type-safe field projections and query builders.
+- A clear path to raw SurrealQL when the ORM does not cover a feature.
+
+The next page walks through installing SurrealDB and the UnrealORM tooling.

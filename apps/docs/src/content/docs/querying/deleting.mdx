@@ -1,0 +1,55 @@
+---
+title: Deleting Records
+description: delete and deleteMany with filters.
+sidebar_position: 4
+---
+
+# Deleting Records
+
+Models expose both instance and static `delete` methods, plus a `deleteMany` helper.
+
+## Delete by id
+
+```ts
+await User.delete(db, userId);
+```
+
+## Instance delete
+
+```ts
+const user = await User.create(db, { ... });
+await user.delete(db);
+```
+
+## Delete by filter
+
+```ts
+await User.delete(db, {
+  where: (f) => f.inactive.isTrue(),
+});
+```
+
+## Delete many
+
+```ts
+await User.deleteMany(db, {
+  where: (f) => f.createdAt.lt(surql`time::now() - 1y`),
+});
+```
+
+## Soft deletes
+
+The ORM does not enforce soft deletes. Implement them with a flag and a static helper:
+
+```ts
+class Post extends Table.normal({
+  name: 'post',
+  fields: {
+    isDeleted: Field.bool({ default: surql`false` }),
+  },
+}) {
+  static async allActive(db) {
+    return this.select(db, { where: (f) => f.isDeleted.isFalse() });
+  }
+}
+```

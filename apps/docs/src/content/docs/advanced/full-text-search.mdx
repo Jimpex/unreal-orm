@@ -1,0 +1,53 @@
+---
+title: Full-Text Search
+description: Define and query full-text search indexes.
+sidebar_position: 2
+---
+
+# Full-Text Search
+
+SurrealDB supports full-text search through `DEFINE INDEX ... SEARCH`. UnrealORM exposes this via `Index.define` with `search: true`.
+
+## Define a search index
+
+```ts
+import { Table, Field, Index } from 'unreal-orm';
+
+class Post extends Table.normal({
+  name: 'post',
+  schemafull: true,
+  fields: {
+    title: Field.string(),
+    content: Field.string(),
+  },
+}) {}
+
+const PostSearchIndex = Index.define(() => Post, {
+  name: 'post_search_idx',
+  fields: ['title', 'content'],
+  search: true,
+  analyzer: 'english',
+  bm25: true,
+  highlights: true,
+});
+```
+
+## Query the index
+
+Use SurrealQL's full-text operators in a `surql` template:
+
+```ts
+const posts = await Post.select(db, {
+  where: surql`title @@ 'surreal' OR content @@ 'surreal'`,
+});
+```
+
+## Limitations
+
+UnrealORM does not generate full-text analyzers. Define them with raw SurrealQL if you need custom tokenizers:
+
+```ts
+await db.query(surql`DEFINE ANALYZER english TOKENIZERS blank,class FILTERS lowercase,snowball(english)`);
+```
+
+See the [SurrealDB full-text search documentation](https://surrealdb.com/docs/learn/data-models/full-text-search/overview) for more details on operators and analyzers.

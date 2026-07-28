@@ -1,0 +1,49 @@
+---
+title: SurrealQL Mapping
+description: How SurrealDB concepts map to UnrealORM APIs.
+sidebar_position: 5
+---
+
+# SurrealQL Mapping
+
+If you already know SurrealDB, this table shows where each concept lives in UnrealORM.
+
+## Schema definitions
+
+| SurrealDB statement | UnrealORM API |
+|---|---|
+| `DEFINE TABLE user SCHEMAFULL` | `Table.normal({ name: 'user', schemafull: true, ... })` |
+| `DEFINE TABLE follows TYPE RELATION` | `Table.relation({ name: 'follow', ... })` |
+| `DEFINE TABLE adult_users AS SELECT ...` | `Table.view<T>({ name: 'adult_users', as: ... })` |
+| `DEFINE FIELD name ON user TYPE string` | `name: Field.string()` |
+| `DEFINE FIELD tags ON post TYPE array<string>` | `tags: Field.array(Field.string())` |
+| `DEFINE FIELD author ON post TYPE record<user>` | `author: Field.record(() => User)` |
+| `DEFINE INDEX user_email ON user FIELDS email UNIQUE` | `Index.define(() => User, { ... })` |
+| `DEFINE BUCKET avatars AS MEMORY` | `Bucket.define({ name: 'avatars', backend: 'memory' })` |
+
+## Data operations
+
+| SurrealDB operation | UnrealORM method |
+|---|---|
+| `CREATE user CONTENT { ... }` | `User.create(db, { ... })` |
+| `INSERT INTO user [{ ... }]` | `User.insert({ data: [{ ... }] })` |
+| `SELECT ... FROM user WHERE ...` | `User.select(db, { where: ..., select: ... })` |
+| `UPDATE user CONTENT/MERGE/...` | `User.update(db, id, { data: ..., mode: '...' })` |
+| `DELETE user WHERE ...` | `User.delete(db, { where: ... })` |
+| `RELATE user:a->follows->user:b` | `Follow.relate(db, { from: idA, to: idB })` |
+
+## Expressions
+
+Most clauses that accept a `WHERE` or `assert` value can be a raw `surql` template or a type-safe field-proxy expression.
+
+```ts
+// Raw SurrealQL
+User.select(db, { where: surql`email = ${email}` })
+
+// Type-safe field proxy
+User.select(db, {
+  where: (f) => f.email.eq(email),
+})
+```
+
+The field proxy and the `surql` template are not mutually exclusive. Use the proxy for common comparisons and `surql` for anything the proxy does not yet express.

@@ -1,0 +1,59 @@
+---
+title: Geospatial Data
+description: Geometry fields and spatial queries.
+sidebar_position: 3
+---
+
+# Geospatial Data
+
+SurrealDB can store and query GeoJSON-like geometry. UnrealORM provides `Field.geometry(...)` with a typed `GeometryType`.
+
+## Geometry types
+
+```ts
+import { Table, Field } from 'unreal-orm';
+
+class Place extends Table.normal({
+  name: 'place',
+  schemafull: true,
+  fields: {
+    name: Field.string(),
+    location: Field.geometry('point'),
+    boundary: Field.geometry('polygon'),
+    route: Field.geometry('linestring'),
+  },
+}) {}
+```
+
+Supported types: `point`, `linestring`, `polygon`, `multipoint`, `multilinestring`, `multipolygon`, `collection`, and `feature`.
+
+## Inserting geometry
+
+Use `surrealdb` geometry helpers or raw values:
+
+```ts
+await Place.create(db, {
+  name: 'Office',
+  location: { type: 'Point', coordinates: [-0.1276, 51.5074] },
+});
+```
+
+## Spatial queries
+
+Use `surql` for distance, intersection, and containment checks:
+
+```ts
+const nearby = await Place.select(db, {
+  where: surql`geo::distance(location, { type: 'Point', coordinates: [-0.1276, 51.5074] }) < 10_000`,
+});
+```
+
+The `where` builder also exposes `intersects` when you are comparing geometry columns:
+
+```ts
+Place.select(db, {
+  where: (f) => f.boundary.intersects(area),
+});
+```
+
+For advanced spatial operations, write the expression directly in `surql`.

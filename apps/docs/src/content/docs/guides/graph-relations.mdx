@@ -14,10 +14,12 @@ In Unreal ORM, relation tables are defined using `Table.relation()`. They requir
 Suppose we have `User` and `Project` models. We want to track which users are "members" of which projects, and include their "role" on that specific project.
 
 ```ts
-import Table, { Field } from 'unreal-orm';
+import { Table, Field } from 'unreal-orm';
+import { surql } from 'surrealdb';
 
 class MemberOf extends Table.relation({
   name: 'member_of',
+  schemafull: true,
   fields: {
     // The source (User)
     in: Field.record(() => User),
@@ -32,13 +34,13 @@ class MemberOf extends Table.relation({
 
 ### Creating an Edge
 
-To create a relationship, you create an instance of the edge model just like any other record.
+Use the dedicated `.relate()` method on relation tables to create edges:
 
 ```ts
-await MemberOf.create(db, {
-  in: userId,
-  out: projectId,
-  role: 'admin',
+const membership = await MemberOf.relate(db, {
+  from: userId,
+  to: projectId,
+  data: { role: 'admin' },
 });
 ```
 
@@ -108,7 +110,7 @@ const projects = await Project.select(db, {
 
 For a deep dive into how SurrealDB handles graph data, check out the official documentation:
 
-- [**SurrealDB Graph Models**](https://surrealdb.com/docs/surrealdb/models/graph) — Details on IDs, Edges, and Graph Traversal.
+- [**SurrealDB Graph Models**](https://surrealdb.com/docs/learn/data-models/graph/overview) — Details on IDs, Edges, and Graph Traversal.
 
 ---
 

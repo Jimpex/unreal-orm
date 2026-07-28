@@ -1,0 +1,109 @@
+---
+title: Selecting Records
+description: Type-safe SELECT queries with projection, filtering, and joins.
+sidebar_position: 1
+---
+
+# Selecting Records
+
+Every model has a static `select` method that generates a `SELECT` query. The `select` option is the key to type-safe projections.
+
+## All records
+
+```ts
+const users = await User.select(db);
+```
+
+## Projection
+
+```ts
+const names = await User.select(db, {
+  select: { name: true, email: true },
+});
+// Type: { name: string; email: string }[]
+```
+
+## Nested records
+
+```ts
+const posts = await Post.select(db, {
+  select: { title: true, author: { name: true, email: true } },
+  fetch: ['author'],
+});
+// author is expanded into { name: string; email: string }
+```
+
+## Select all plus a relation
+
+```ts
+const posts = await Post.select(db, {
+  select: { '*': true, author: { name: true } },
+  fetch: ['author'],
+});
+```
+
+## Computed fields
+
+Use the `typed` helper to give a SurrealQL expression a TypeScript type:
+
+```ts
+import { typed } from 'unreal-orm';
+
+const posts = await Post.select(db, {
+  select: {
+    title: true,
+    commentCount: typed<number>(surql`count(<-comment)`),
+  },
+});
+```
+
+## Omit fields
+
+```ts
+const users = await User.select(db, {
+  omit: { password: true },
+});
+// Type: Omit<User, 'password'>[]
+```
+
+## Filtering
+
+```ts
+const users = await User.select(db, {
+  where: (f) => f.age.gte(18).and(f.active.isTrue()),
+});
+```
+
+Or raw SurrealQL:
+
+```ts
+const users = await User.select(db, {
+  where: surql`age >= 18 AND active = true`,
+});
+```
+
+## Ordering and pagination
+
+```ts
+const posts = await Post.select(db, {
+  orderBy: [{ field: 'createdAt', order: 'DESC' }],
+  start: 20,
+  limit: 10,
+});
+```
+
+## Other options
+
+```ts
+Post.select(db, {
+  from: new RecordId('post', 'abc'),  // single record
+  only: true,                         // SELECT ... FROM ONLY
+  groupBy: ['author'],                // GROUP BY
+  split: ['tags'],                    // SPLIT AT
+  timeout: '30s',
+  explain: true,
+  DEBUG: true,
+});
+```
+
+See [Where Builder](./where-builder/) for every field-proxy operator.

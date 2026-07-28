@@ -1,0 +1,59 @@
+---
+title: File Storage
+description: Buckets and file fields.
+sidebar_position: 4
+---
+
+# File Storage
+
+SurrealDB can store file references through `DEFINE BUCKET` and `DEFINE FIELD ... TYPE file`. This is an experimental feature in SurrealDB — start the server with `--allow-experimental files`.
+
+## Define a bucket
+
+```ts
+import { Table, Field, Bucket, applySchema } from 'unreal-orm';
+import { surql } from 'surrealdb';
+
+const AvatarsBucket = Bucket.define({
+  name: 'avatars',
+  backend: 'memory',
+});
+
+class User extends Table.normal({
+  name: 'user',
+  schemafull: true,
+  fields: {
+    name: Field.string(),
+    avatar: Field.file(),
+  },
+}) {}
+
+await applySchema(db, [User, AvatarsBucket]);
+```
+
+`backend` can be `memory`, `file:/path`, or omitted for the global bucket.
+
+## Storing and reading files
+
+A `file` field accepts a file URL string in the form `f"bucket:key"`:
+
+```ts
+const user = await User.create(db, {
+  name: 'Alice',
+  avatar: 'f"avatars:alice.png"',
+});
+```
+
+When read from the database, `avatar` is a `FileRef` with `.bucket` and `.key` properties.
+
+## Permissions on buckets
+
+```ts
+const UploadsBucket = Bucket.define({
+  name: 'uploads',
+  backend: 'file:/var/data/uploads',
+  permissions: surql`WHERE $auth.role = 'admin' OR $action = 'get'`,
+});
+```
+
+`$action` is the file operation (`get`, `put`, `head`, `delete`).

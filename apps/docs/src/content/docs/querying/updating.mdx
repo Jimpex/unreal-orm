@@ -1,0 +1,90 @@
+---
+title: Updating Records
+description: content, merge, replace, patch, and set update modes.
+sidebar_position: 3
+---
+
+# Updating Records
+
+Updates in UnrealORM require an explicit `mode` so the generated SurrealQL is clear.
+
+## `content` — full replacement
+
+```ts
+await User.update(db, userId, {
+  data: { name: 'New Name' },
+  mode: 'content',
+});
+```
+
+## `merge` — partial update
+
+```ts
+await User.update(db, userId, {
+  data: { name: 'New Name' },
+  mode: 'merge',
+});
+```
+
+## `replace` — full record replacement
+
+```ts
+await User.update(db, userId, {
+  data: { name: 'New Name', email: 'new@example.com' },
+  mode: 'replace',
+});
+```
+
+## `set` — computed expressions
+
+```ts
+await Post.update(db, postId, {
+  mode: 'set',
+  data: {
+    views: surql`views + 1`,
+    updatedAt: new Date(),
+  },
+});
+```
+
+You can also use `ColumnRef` values from the field proxy.
+
+## `patch` — JSON Patch
+
+```ts
+await User.update(db, userId, {
+  mode: 'patch',
+  data: [
+    { op: 'replace', path: '/name', value: 'New Name' },
+  ],
+});
+```
+
+## Instance update
+
+Model instances also have an `update` method:
+
+```ts
+const user = await User.select(db, { only: true, where: (f) => f.id.eq(userId) });
+await user.update(db, { data: { name: 'New Name' }, mode: 'merge' });
+```
+
+## Updating many records
+
+```ts
+await User.updateMany(db, {
+  where: (f) => f.active.isFalse(),
+  data: { active: true },
+  mode: 'merge',
+});
+```
+
+## Return values
+
+```ts
+const updated = await User.update(db, userId, {
+  data: { name: 'New Name' },
+  mode: 'merge',
+  return: 'AFTER',
+});
+```

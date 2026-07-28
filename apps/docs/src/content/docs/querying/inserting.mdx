@@ -1,0 +1,89 @@
+---
+title: Creating and Inserting Records
+description: create, insert, bulk inserts, and duplicate handling.
+sidebar_position: 2
+---
+
+# Creating and Inserting Records
+
+UnrealORM exposes two static methods for adding data: `create` and `insert`.
+
+## `create`
+
+`create` maps to SurrealDB `CREATE ... RETURN AFTER` and returns a hydrated model instance.
+
+```ts
+const user = await User.create(db, {
+  name: 'Alice',
+  email: 'alice@example.com',
+});
+
+console.log(user.id); // RecordId<'user'>
+```
+
+You can pass a custom id:
+
+```ts
+await User.create(db, {
+  id: new RecordId('user', 'alice'),
+  name: 'Alice',
+});
+```
+
+## `insert`
+
+`insert` maps to `INSERT INTO` and is useful for bulk loading or when you need `IGNORE` or `ON DUPLICATE KEY UPDATE` behavior.
+
+```ts
+const users = await User.insert(db, {
+  data: [
+    { name: 'Alice', email: 'alice@example.com' },
+    { name: 'Bob', email: 'bob@example.com' },
+  ],
+});
+```
+
+### Ignore duplicates
+
+```ts
+await User.insert(db, {
+  data: { id: new RecordId('user', 'alice'), name: 'Alice' },
+  ignore: true,
+});
+```
+
+### On duplicate
+
+```ts
+await User.insert(db, {
+  data: { id: new RecordId('user', 'alice'), name: 'Alice' },
+  onDuplicate: { updatedAt: new Date() },
+});
+
+// Or raw SurrealQL
+await User.insert(db, {
+  data: { id: new RecordId('user', 'alice'), name: 'Alice' },
+  onDuplicate: surql`visits += 1, lastSeen = time::now()`,
+});
+```
+
+### Relation inserts
+
+For relation tables `insert` can emit `INSERT RELATION`:
+
+```ts
+await Follow.insert(db, {
+  data: { id: new RecordId('follow', 'a-b'), in: userA.id, out: userB.id },
+});
+```
+
+## Return clause
+
+Both methods support a `return` option:
+
+```ts
+const names = await User.insert(db, {
+  data: { name: 'Alice' },
+  return: { value: 'name' },
+});
+```
