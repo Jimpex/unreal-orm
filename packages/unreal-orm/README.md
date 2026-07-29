@@ -16,6 +16,7 @@
   <a href="https://unreal-orm.jimpex.dev"><b>Documentation</b></a> •
   <a href="https://unreal-orm.jimpex.dev/guides/unreal-orm-tutorial"><b>Tutorial</b></a> •
   <a href="https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha"><b>Migration Guide</b></a> •
+  <a href="https://unreal-orm.jimpex.dev/guides/migrating-to-alpha"><b>Migration Guide</b></a> •
   <a href="https://github.com/Jimpex/unreal-orm/discussions"><b>Discussions</b></a>
 </div>
 
@@ -28,6 +29,7 @@ A modern, type-safe ORM for SurrealDB. Native SurrealDB power, full TypeScript s
 UnrealORM builds on top of the official `surrealdb` package, providing a TypeScript ORM experience while preserving full access to SurrealDB's native features. Define your schema once in code, and the ORM handles type inference, DDL generation, and schema synchronization.
 
 > **Note:** UnrealORM 1.0.0-alpha.x requires SurrealDB's 2.0 (alpha) JS SDK. If you're using 1.x of their SDK, install [unreal-orm@0.6.0](https://www.npmjs.com/package/unreal-orm/v/0.6.0) instead. To upgrade, see the [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha).
+> **Note:** UnrealORM 1.0.0-alpha.x requires SurrealDB's 2.0 (alpha) JS SDK. If you're using 1.x of their SDK, install [unreal-orm@0.6.0](https://www.npmjs.com/package/unreal-orm/v/0.6.0) instead. To upgrade, see the [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-alpha).
 
 ## Quick Start
 
@@ -53,18 +55,22 @@ This will:
 ```bash
 # Using bun
 bun add unreal-orm@latest surrealdb@alpha
+bun add unreal-orm@latest surrealdb@latest
 bun add -D @unreal-orm/cli@latest
 
 # Using pnpm
 pnpm add unreal-orm@latest surrealdb@alpha
+pnpm add unreal-orm@latest surrealdb@latest
 pnpm add -D @unreal-orm/cli@latest
 
 # Using npm
 npm install unreal-orm@latest surrealdb@alpha
+npm install unreal-orm@latest surrealdb@latest
 npm install -D @unreal-orm/cli@latest
 
 # Using yarn
 yarn add unreal-orm@latest surrealdb@alpha
+yarn add unreal-orm@latest surrealdb@latest
 yarn add -D @unreal-orm/cli@latest
 ```
 
@@ -76,6 +82,7 @@ yarn add -D @unreal-orm/cli@latest
 - **Schema sync** — Generate DDL from code with `applySchema()`, or generate code from database with `unreal pull`
 - **Relations** — Typed record links with automatic hydration via `fetch`
 - **Native SurrealQL** — Use `surql` templates and functional expressions directly in queries and field definitions
+- **Native SurrealQL & query builder** — Use `surql` templates and functional expressions directly, or filter with typed field proxies in `select`, `count`, `updateMany`, and `deleteMany`
 - **Indexes** — Define unique, composite, and search indexes with full type safety
 - **Custom methods** — Add instance and static methods to your models
 - **CLI tools** — `init`, `pull`, `push`, `diff`, `mermaid` for schema management
@@ -85,6 +92,7 @@ yarn add -D @unreal-orm/cli@latest
 ```ts
 import { Surreal, surql } from "surrealdb";
 import Table, { Field, Index, applySchema } from "unreal-orm";
+import { Table, Field, Index, Unreal } from "unreal-orm";
 
 // Define a User model with validation and custom methods
 class User extends Table.normal({
@@ -122,9 +130,15 @@ async function main() {
   await db.connect("ws://localhost:8000");
   await db.signin({ username: "root", password: "root" });
   await db.use({ namespace: "test", database: "test" });
+  await db.connect("ws://localhost:8000", {
+    namespace: "test",
+    database: "test",
+    authentication: { username: "root", password: "root" },
+  });
 
   // Apply schema to database
   await applySchema(db, [User, idx_user_email, Post]);
+  await Unreal.applySchema(db, [User, idx_user_email, Post]);
 
   // Create records
   const user = await User.create(db, {
@@ -211,6 +225,7 @@ After `init`, the CLI is installed as a dev dependency and can be run via `bunx 
 - [Capabilities](https://unreal-orm.jimpex.dev/getting-started/capabilities/) — Supported SurrealDB features
 - [API Reference](https://unreal-orm.jimpex.dev/api/) — Full API documentation
 - [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha) — Upgrading from 0.x
+- [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-alpha) — Upgrading from 0.x
 
 ## Community
 

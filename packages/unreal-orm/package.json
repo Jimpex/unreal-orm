@@ -41,7 +41,7 @@
 	},
 	"peerDependencies": {
 		"surrealdb": "^2.0.8",
-		"typescript": "^5"
+		"typescript": "^7.0.2"
 	},
 	"files": ["dist", "unreal.schema.json", "README.md", "LICENSE"],
 	"repository": {

@@ -5,18 +5,33 @@ template: splash
 hero:
   tagline: Type-safe SurrealDB queries with TypeScript without abstractions
   image:
-    file: ../../assets/houston.webp
+    html: |
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" stroke="var(--hd-foreground)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:100%;height:auto">
+        <rect x="20" y="20" width="160" height="160" rx="20" fill="var(--hd-white)" stroke-dasharray="8 6"/>
+        <path d="M60 70 v60 a40 25 0 0 0 80 0 v-60 a40 25 0 0 0 -80 0" fill="var(--hd-accent)"/>
+        <ellipse cx="100" cy="70" rx="40" ry="25" fill="var(--hd-accent)"/>
+        <line x1="60" y1="110" x2="140" y2="110"/>
+        <line x1="60" y1="125" x2="140" y2="125"/>
+        <polyline points="55,150 45,160 55,170" fill="var(--hd-white)"/>
+        <polyline points="85,150 95,160 85,170" fill="var(--hd-white)"/>
+        <circle cx="150" cy="150" r="15" fill="var(--hd-white)"/>
+        <path d="M100 120 q 25 20 50 30"/>
+      </svg>
   actions:
     - text: Get Started
-      link: /getting-started/readme/
+      link: /getting-started/installation/
       icon: right-arrow
+    - text: Tutorial
+      link: /guides/unreal-orm-tutorial/
+      icon: open-book
+      variant: minimal
     - text: View on GitHub
       link: https://github.com/jimpex/unreal-orm
       icon: github
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
 ## Key Features
 
@@ -30,35 +45,102 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 	<Card title="Schema Generation" icon="setting">
 		Generate valid SurrealDB schema definitions directly from your TypeScript code.
 	</Card>
-	<Card title="Query Building" icon="open-book">
-		Type-safe query building that mirrors SurrealQL syntax while providing autocomplete and type checking.
+	<Card title="Query Builder" icon="open-book">
+		Type-safe query building with typed field proxies, IntelliSense, and full SurrealQL function coverage.
 	</Card>
-	<Card title="AI Friendly" icon="rocket">
+	<Card title="Graph Relations" icon="link">
+		Typed record links with automatic hydration via `fetch`, plus edge tables for many-to-many relationships.
+	</Card>
+	<Card title="CLI Tools" icon="terminal">
+		Manage schema with `init`, `pull`, `push`, `diff`, `mermaid`, and `view` commands.
+	</Card>
+	<Card title="AI Friendly" icon="robot">
 		Includes dedicated [llms.txt](/llms.txt) and [llms-full.txt](/llms-full.txt) context files for a superior experience with LLMs and AI tools.
 	</Card>
 </CardGrid>
 
-## Easy to Use
+## Quick Example
 
-```typescript
-// Define your schema
-const User = Table.normal({
+```ts
+import { Surreal, surql } from 'surrealdb';
+import { Table, Field, Index, Unreal } from 'unreal-orm';
+
+// Define a User model with validation and custom methods
+class User extends Table.normal({
   name: 'user',
+  schemafull: true,
   fields: {
     name: Field.string(),
-    email: Field.string({
-      assert: surql`string::is::email($value)`
-    }),
-    createdAt: Field.datetime({
-      default: surql`time::now()`
-    }),
+    email: Field.string({ assert: surql`string::is::email($value)` }),
+    createdAt: Field.datetime({ default: surql`time::now()` }),
   },
+}) {
+  getDisplayName() {
+    return `${this.name} <${this.email}>`;
+  }
+}
+
+// Define a unique index
+const userEmailIndex = Index.define(() => User, {
+  name: 'user_email_unique',
+  fields: ['email'],
+  unique: true,
 });
 
-// Type-safe queries with bound parameters
-const pattern = '%@example.com';
-const users = await User.select(db, {
-  where: surql`email LIKE ${pattern}`,
-  limit: 10,
-});
+// Define a Post with a relation to User
+class Post extends Table.normal({
+  name: 'post',
+  schemafull: true,
+  fields: {
+    title: Field.string(),
+    content: Field.string(),
+    author: Field.record(() => User),
+  },
+}) {}
+
+async function main() {
+  const db = new Surreal();
+  await db.connect('ws://localhost:8000', {
+    namespace: 'test',
+    database: 'test',
+    authentication: { username: 'root', password: 'root' },
+  });
+
+  // Apply schema to database
+  await Unreal.applySchema(db, [User, userEmailIndex, Post]);
+
+  // Create records
+  const user = await User.create(db, {
+    name: 'Alice',
+    email: 'alice@example.com',
+  });
+
+  const post = await Post.create(db, {
+    title: 'Hello World',
+    content: 'My first post!',
+    author: user.id,
+  });
+
+  // Query with hydrated relations
+  const result = await Post.select(db, {
+    from: post.id,
+    only: true,
+    fetch: ['author'],
+  });
+
+  console.log(result.author.getDisplayName()); // "Alice <alice@example.com>"
+}
+
+main();
 ```
+
+## Quick Links
+
+<CardGrid>
+	<LinkCard title="Installation" href="/getting-started/installation/" description="Set up UnrealORM in your project." />
+	<LinkCard title="Quickstart" href="/getting-started/quickstart/" description="Build your first model in 5 minutes." />
+	<LinkCard title="Tutorial" href="/guides/unreal-orm-tutorial/" description="Build a complete blog API step-by-step." />
+	<LinkCard title="API Reference" href="/api/" description="Full TypeScript API documentation." />
+	<LinkCard title="CLI Reference" href="/cli/" description="Commands for schema management." />
+	<LinkCard title="Cookbook" href="/guides/cookbook/" description="Practical recipes for common tasks." />
+</CardGrid>

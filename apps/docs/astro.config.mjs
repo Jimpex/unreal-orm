@@ -1,12 +1,7 @@
 // @ts-check
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
-import starlightTypeDoc, { typeDocSidebarGroup } from "starlight-typedoc";
-
-import node from "@astrojs/node";
-
 import vercel from "@astrojs/vercel";
-import starlightThemeGalaxyPlugin from "starlight-theme-galaxy";
 
 // https://astro.build/config
 
@@ -14,18 +9,28 @@ export default defineConfig({
   integrations: [
     starlight({
       plugins: [
-        // @ts-ignore
-        starlightThemeGalaxyPlugin(),
-        // Generate the documentation
-        starlightTypeDoc({
-          entryPoints: ["../../packages/unreal-orm/src/index.ts"],
-          tsconfig: "../../packages/unreal-orm/tsconfig.json",
-          watch: true,
-          typeDoc: { skipErrorChecking: true },
-        }),
+        // TODO: Re-enable when typedoc supports TypeScript 7.x
+        // starlightTypeDoc({
+        //   entryPoints: ["../../packages/unreal-orm/src/index.ts"],
+        //   tsconfig: "../../packages/unreal-orm/tsconfig.json",
+        //   watch: true,
+        //   typeDoc: { skipErrorChecking: true },
+        // }),
       ],
       title: "unreal-orm",
-      customCss: ["./src/styles/custom.css"],
+      customCss: ["./src/styles/hand-drawn.css"],
+      components: {
+        ThemeSelect: "./src/components/ThemeSelect.astro",
+      },
+      expressiveCode: {
+        themes: ["github-dark-high-contrast", "light-plus"],
+        styleOverrides: {
+          borderRadius: "0.5rem",
+          frames: {
+            extractFileNameFromCode: false,
+          },
+        },
+      },
       logo: {
         dark: "./src/assets/unreal-orm-logo-white.svg",
         light: "./src/assets/unreal-orm-logo-black.svg",
@@ -98,7 +103,8 @@ export default defineConfig({
         },
         {
           label: "CLI Reference",
-          autogenerate: { directory: "cli" },
+          items: [// @ts-ignore - Starlight v0.41 runtime rejects label on autogenerate items
+            { autogenerate: { directory: "cli" } }],
         },
         {
           label: "Contributing",
@@ -112,12 +118,14 @@ export default defineConfig({
         },
         {
           label: "API Reference",
-          autogenerate: { directory: "api" },
           collapsed: true,
+          items: [// @ts-ignore - Starlight v0.41 runtime rejects label on autogenerate items
+            { autogenerate: { directory: "api" } }],
         },
         {
           label: "Changelog",
-          autogenerate: { directory: "changelog" },
+          items: [// @ts-ignore - Starlight v0.41 runtime rejects label on autogenerate items
+            { autogenerate: { directory: "changelog" } }],
         },
       ],
     }),

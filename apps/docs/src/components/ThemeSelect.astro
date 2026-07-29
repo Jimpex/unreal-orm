@@ -1,0 +1,69 @@
+---
+const t = Astro.locals.t;
+const options = [
+  { value: 'auto', label: t('themeSelect.auto') },
+  { value: 'dark', label: t('themeSelect.dark') },
+  { value: 'light', label: t('themeSelect.light') },
+];
+---
+
+<hd-theme-select>
+  <label class="hd-theme-select">
+    <span class="sr-only">{t('themeSelect.accessibleLabel')}</span>
+    <svg class="hd-theme-select__icon" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+      <line x1="8" y1="21" x2="16" y2="21"></line>
+      <line x1="12" y1="17" x2="12" y2="21"></line>
+    </svg>
+    <select class="hd-theme-select__control" autocomplete="off">
+      {options.map(({ value, label }) => (
+        <option value={value} selected={value === 'auto'}>{label}</option>
+      ))}
+    </select>
+    <svg class="hd-theme-select__caret" aria-hidden="true" width="12" height="12" viewBox="0 0 12 12">
+      <path fill="currentColor" d="M6 9L1 4h10z"></path>
+    </svg>
+  </label>
+</hd-theme-select>
+
+<script is:inline>
+  (function () {
+    const key = 'starlight-theme';
+    const match = (v) => (v === 'auto' || v === 'dark' || v === 'light' ? v : 'auto');
+    const load = () => match(typeof localStorage !== 'undefined' && localStorage.getItem(key));
+    const system = () => (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    const apply = (theme) => {
+      const resolved = theme === 'auto' ? system() : theme;
+      document.documentElement.dataset.theme = resolved;
+      if (typeof StarlightThemeProvider !== 'undefined') {
+        StarlightThemeProvider.updatePickers(theme === 'auto' ? '' : theme);
+      }
+    };
+    const store = (theme) => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, theme === 'auto' ? '' : theme);
+      }
+    };
+
+    class HdThemeSelect extends HTMLElement {
+      constructor() {
+        super();
+        const select = this.querySelector('select');
+        if (!select) return;
+        const stored = load();
+        select.value = stored;
+        apply(stored);
+        select.addEventListener('change', (e) => {
+          const value = match(e.currentTarget.value);
+          apply(value);
+          store(value);
+        });
+      }
+    }
+    customElements.define('hd-theme-select', HdThemeSelect);
+
+    matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+      if (load() === 'auto') apply('auto');
+    });
+  })();
+</script>
