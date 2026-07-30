@@ -1,6 +1,84 @@
 import type { AnyModelClass } from "../table/types/model";
 
 /**
+ * Vector index algorithm type.
+ */
+export type VectorType = "MTREE" | "HNSW" | "DISKANN";
+
+/**
+ * Supported distance metrics for vector indexes.
+ */
+export type VectorDistance =
+	| "EUCLIDEAN"
+	| "COSINE"
+	| "MANHATTAN"
+	| "INNER_PRODUCT"
+	| "COSINE_NORMALIZED"
+	| "HAMMING";
+
+/**
+ * Supported vector element types.
+ */
+export type VectorElementType =
+	| "F64"
+	| "F32"
+	| "F16"
+	| "I64"
+	| "I32"
+	| "I16"
+	| "I8"
+	| "U8";
+
+/**
+ * Options for a vector index definition.
+ * The `type` field discriminates the algorithm and its specific parameters.
+ */
+export type VectorIndexOptions =
+	| {
+			type: "MTREE";
+			/** Vector dimension (number of elements). */
+			dimension: number;
+			/** Vector element type. Defaults to F64. */
+			elementType?: VectorElementType;
+			/** Distance metric. Defaults to EUCLIDEAN. */
+			distance?: VectorDistance;
+	  }
+	| {
+			type: "HNSW";
+			/** Vector dimension (number of elements). */
+			dimension: number;
+			/** Vector element type. Defaults to F64. */
+			elementType?: VectorElementType;
+			/** Distance metric. Defaults to EUCLIDEAN. */
+			distance?: VectorDistance;
+			/** EF construction. Defaults to 150. */
+			efc?: number;
+			/** Max connections per element. Defaults to 12. */
+			m?: number;
+			/** Max connections in the lowest layer. Defaults to 24. */
+			m0?: number;
+			/** Multiplier for level generation. Computed automatically by default. */
+			lm?: number;
+	  }
+	| {
+			type: "DISKANN";
+			/** Vector dimension (number of elements). */
+			dimension: number;
+			/** Vector element type. Defaults to F32. */
+			elementType?: VectorElementType;
+			/** Distance metric. Defaults to EUCLIDEAN. */
+			distance?: VectorDistance;
+			/** Target maximum graph degree. Defaults to 64. */
+			degree?: number;
+			/** Construction search-list size. Defaults to 100. */
+			lBuild?: number;
+			/** DiskANN pruning parameter. Defaults to 1.2. */
+			alpha?: number;
+			/** Enable hash-stabilised vector–document keys. */
+			hashedVector?: boolean;
+	  };
+
+/**
  * Defines the structure of a database index.
  * @internal
  * @example
@@ -39,6 +117,8 @@ export interface IndexDefinition {
 	bm25?: boolean;
 	/** Whether to enable keyword highlighting for full-text search. */
 	highlights?: boolean;
+	/** Vector index options. When set, creates a vector index instead of a regular index. */
+	vector?: VectorIndexOptions;
 	/** A comment describing the index. */
 	comment?: string;
 }

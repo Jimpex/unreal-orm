@@ -40,6 +40,10 @@ export class Post extends Table.normal({
 		// Array field - stores a list of strings
 		tags: Field.array(Field.string()),
 
+		// Vector embedding field for similarity search
+		// Stores a fixed-size array of numbers (e.g., 768-dimensional embeddings)
+		embedding: Field.array(Field.number()),
+
 		view_count: Field.int({ default: surql`0` }),
 	},
 }) {
@@ -89,4 +93,24 @@ export const idx_post_author = Index.define(() => Post, {
 	fields: ["author"],
 });
 
-export const PostDefinitions = [Post, idx_post_slug, idx_post_author];
+/**
+ * HNSW vector index on embedding for k-nearest-neighbor similarity search.
+ * Uses cosine distance with 768-dimensional F32 vectors.
+ */
+export const idx_post_embedding = Index.define(() => Post, {
+	name: "idx_post_embedding",
+	fields: ["embedding"],
+	vector: {
+		type: "HNSW",
+		dimension: 768,
+		distance: "COSINE",
+		elementType: "F32",
+	},
+});
+
+export const PostDefinitions = [
+	Post,
+	idx_post_slug,
+	idx_post_author,
+	idx_post_embedding,
+];

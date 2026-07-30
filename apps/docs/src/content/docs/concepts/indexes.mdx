@@ -76,3 +76,82 @@ const results = await Post.select(db, {
 ```
 
 See the [Full-Text Search](../advanced/full-text-search/) guide for a deeper dive.
+
+## Vector indexes
+
+Vector indexes enable efficient k-nearest-neighbor (kNN) similarity search on high-dimensional vector embeddings. UnrealORM supports three algorithms:
+
+| Algorithm | Best for | Storage |
+|---|---|---|
+| `MTREE` | Smaller datasets, exact distance | In-memory |
+| `HNSW` | Low-latency ANN, graph fits in memory | In-memory graph + persistence |
+| `DISKANN` | Very large corpora, RAM-limited (SurrealDB 3.1+) | Key-value-backed graph + bounded cache |
+
+### HNSW index
+
+```ts
+const EmbeddingIndex = Index.define(() => Document, {
+  name: 'doc_embedding_hnsw',
+  fields: ['embedding'],
+  vector: {
+    type: 'HNSW',
+    dimension: 768,
+    distance: 'COSINE',
+    elementType: 'F32',
+    efc: 200,       // EF construction (default: 150)
+    m: 16,          // Max connections per element (default: 12)
+    m0: 32,         // Max connections in lowest layer (default: 24)
+  },
+});
+```
+
+### MTREE index
+
+```ts
+const EmbeddingIndex = Index.define(() => Document, {
+  name: 'doc_embedding_mtree',
+  fields: ['embedding'],
+  vector: {
+    type: 'MTREE',
+    dimension: 768,
+    distance: 'COSINE',
+    elementType: 'F32',
+  },
+});
+```
+
+### DISKANN index
+
+```ts
+const EmbeddingIndex = Index.define(() => Document, {
+  name: 'doc_embedding_diskann',
+  fields: ['embedding'],
+  vector: {
+    type: 'DISKANN',
+    dimension: 768,
+    distance: 'EUCLIDEAN',
+    elementType: 'F32',
+    degree: 64,          // Target max graph degree (default: 64)
+    lBuild: 100,         // Construction search-list size (default: 100)
+    alpha: 1.2,          // Pruning parameter (default: 1.2)
+    hashedVector: true,  // Hash-stabilised vector-document keys
+  },
+});
+```
+
+### Vector options reference
+
+| Option | Applies to | Description |
+|---|---|---|
+| `type` | All | Algorithm: `'MTREE'`, `'HNSW'`, or `'DISKANN'` |
+| `dimension` | All | Vector dimension (number of elements) |
+| `elementType` | All | Vector type: `'F64'`, `'F32'`, `'F16'`, `'I64'`, `'I32'`, `'I16'`, `'I8'`, `'U8'` |
+| `distance` | All | Distance metric: `'EUCLIDEAN'`, `'COSINE'`, `'MANHATTAN'`, `'INNER_PRODUCT'`, `'COSINE_NORMALIZED'`, `'HAMMING'` |
+| `efc` | HNSW | EF construction (default: 150) |
+| `m` | HNSW | Max connections per element (default: 12) |
+| `m0` | HNSW | Max connections in lowest layer (default: 24) |
+| `lm` | HNSW | Level generation multiplier (auto-computed by default) |
+| `degree` | DISKANN | Target max graph degree (default: 64) |
+| `lBuild` | DISKANN | Construction search-list size (default: 100) |
+| `alpha` | DISKANN | Pruning parameter (default: 1.2) |
+| `hashedVector` | DISKANN | Enable hash-stabilised vector-document keys |

@@ -1,10 +1,7 @@
 import type { BoundQuery, Expr, ExprCtx } from "surrealdb";
 import { surql } from "surrealdb";
 import type { FieldDefinition, InternalFieldDef } from "../define/field/types";
-import type {
-	InferFieldType,
-	InferShapeFromFields,
-} from "../define/table/types/model";
+import type { InferFieldType } from "../define/table/types/model";
 import type { TypedExpr } from "../define/table/types/select";
 import { typed } from "../define/table/types/select";
 
@@ -252,6 +249,7 @@ export interface IsNamespace extends FunctionNamespace {
  */
 type ColumnRefBuilder<T = unknown> = Omit<
 	ColumnRef<T>,
+	| "__type"
 	| "string"
 	| "math"
 	| "array"
@@ -652,6 +650,12 @@ type MethodsFor<T> = T extends number
 				: unknown;
 
 /**
+ * A typed reference to `$value` for use in `ASSERT` callbacks.
+ * Provides the same type-specific methods as a field proxy column reference.
+ */
+export type ValueRef<T> = ColumnRef<T> & MethodsFor<NonNullable<T>>;
+
+/**
  * A proxy object for a field definition.
  */
 type ProxyFor<F extends FieldDefinition<unknown>> = ColumnRef<
@@ -700,7 +704,7 @@ function simpleGenericDef(): InternalFieldDef {
 
 function createFunctionNamespace(
 	prefix: string,
-	col: ColumnRef<unknown>,
+	col: { toSQL(ctx: ExprCtx): string },
 ): FunctionNamespace {
 	return new Proxy({} as FunctionNamespace, {
 		get(_, fn) {
@@ -713,7 +717,7 @@ function createFunctionNamespace(
 					return renderedArgs
 						? `${prefix}::${fn}(${col.toSQL(ctx)}, ${renderedArgs})`
 						: `${prefix}::${fn}(${col.toSQL(ctx)})`;
-				}, simpleGenericDef()) as ColumnRef<unknown>;
+				}, simpleGenericDef());
 		},
 	});
 }
@@ -808,7 +812,7 @@ const NAMESPACE_RETURN_TYPES: Record<
  */
 function createTypedNamespace(
 	prefix: string,
-	col: ColumnRef<unknown>,
+	col: { toSQL(ctx: ExprCtx): string },
 ): FunctionNamespace {
 	const knownTypes = NAMESPACE_RETURN_TYPES[prefix];
 	return new Proxy({} as FunctionNamespace, {
@@ -823,7 +827,7 @@ function createTypedNamespace(
 					return renderedArgs
 						? `${prefix}::${fn}(${col.toSQL(ctx)}, ${renderedArgs})`
 						: `${prefix}::${fn}(${col.toSQL(ctx)})`;
-				}, fieldDef) as ColumnRef<unknown>;
+				}, fieldDef);
 			};
 		},
 	});
@@ -880,10 +884,10 @@ function resolveEdgeTargetFields(
 	if (!edgeModel?._fields) return undefined;
 	const fields = edgeModel._fields;
 	if (direction === "in") {
-		return fields.in as InternalFieldDef | undefined;
+		return fields.in;
 	}
 	// 'out' and 'both' both prefer the 'out' field
-	return fields.out as InternalFieldDef | undefined;
+	return fields.out;
 }
 
 function makeGraphTraverse(op: string, direction: "out" | "in" | "both") {
@@ -945,37 +949,35 @@ function createOperatorMethods() {
 	};
 }
 
-function attachNamespaces(ref: ColumnRefBuilder<unknown>): void {
-	const col = ref as ColumnRef<unknown>;
-	ref.string = createTypedNamespace("string", col) as StringNamespace;
-	ref.math = createTypedNamespace("math", col) as MathNamespace;
-	ref.array = createTypedNamespace("array", col) as ArrayNamespace;
-	ref.time = createTypedNamespace("time", col) as TimeNamespace;
-	ref.is = createFunctionNamespace("is", col);
-	ref.meta = createTypedNamespace("meta", col) as MetaNamespace;
-	ref.parse = createFunctionNamespace("parse", col);
-	ref.bytes = createFunctionNamespace("bytes", col);
-	ref.crypto = createFunctionNamespace("crypto", col);
-	ref.duration = createFunctionNamespace("duration", col);
-	ref.encoding = createFunctionNamespace("encoding", col);
-	ref.geo = createFunctionNamespace("geo", col);
-	ref.http = createFunctionNamespace("http", col);
-	ref.object = createFunctionNamespace("object", col);
-	ref.rand = createFunctionNamespace("rand", col);
-	ref.record = createTypedNamespace("record", col) as RecordNamespace;
-	ref.search = createFunctionNamespace("search", col);
-	ref.session = createFunctionNamespace("session", col);
-	ref.type = createTypedNamespace("type", col) as TypeNamespace;
-	ref.vector = createFunctionNamespace("vector", col);
+function attachNamespaces(ref: ColumnRefBuilder): void {
+	ref.string = createTypedNamespace("string", ref) as StringNamespace;
+	ref.math = createTypedNamespace("math", ref) as MathNamespace;
+	ref.array = createTypedNamespace("array", ref) as ArrayNamespace;
+	ref.time = createTypedNamespace("time", ref) as TimeNamespace;
+	ref.is = createFunctionNamespace("is", ref);
+	ref.meta = createTypedNamespace("meta", ref) as MetaNamespace;
+	ref.parse = createFunctionNamespace("parse", ref);
+	ref.bytes = createFunctionNamespace("bytes", ref);
+	ref.crypto = createFunctionNamespace("crypto", ref);
+	ref.duration = createFunctionNamespace("duration", ref);
+	ref.encoding = createFunctionNamespace("encoding", ref);
+	ref.geo = createFunctionNamespace("geo", ref);
+	ref.http = createFunctionNamespace("http", ref);
+	ref.object = createFunctionNamespace("object", ref);
+	ref.rand = createFunctionNamespace("rand", ref);
+	ref.record = createTypedNamespace("record", ref) as RecordNamespace;
+	ref.search = createFunctionNamespace("search", ref);
+	ref.session = createFunctionNamespace("session", ref);
+	ref.type = createTypedNamespace("type", ref) as TypeNamespace;
+	ref.vector = createFunctionNamespace("vector", ref);
 }
 
 function makeFunctionRef<TReturn>(
 	toSQL: (ctx: ExprCtx) => string,
 	field: InternalFieldDef,
-): ColumnRef<TReturn> {
+): ColumnRef<TReturn> & MethodsFor<NonNullable<TReturn>> {
 	const ref: ColumnRefBuilder<TReturn> = {
 		[PATH]: "",
-		__type: undefined as TReturn,
 		toSQL,
 		...createOperatorMethods(),
 		as: function <R>(this: ColumnRef<TReturn>): TypedExpr<R> {
@@ -983,8 +985,8 @@ function makeFunctionRef<TReturn>(
 		},
 	};
 
-	addMethods(ref as ColumnRef<unknown>, field);
-	attachNamespaces(ref as ColumnRefBuilder<unknown>);
+	addMethods(ref, field);
+	attachNamespaces(ref);
 
 	return new Proxy(ref, {
 		get(target, prop) {
@@ -992,20 +994,20 @@ function makeFunctionRef<TReturn>(
 				return prop === PATH ? target[PATH] : undefined;
 			}
 			if (prop in target) {
-				return (target as Record<string, unknown>)[prop as string];
+				return Reflect.get(target, prop);
 			}
 			const nested = getNestedFields(field);
 			if (nested && prop in nested) {
-				const child = nested[prop as string];
+				const child = nested[prop];
 				if (!child) return undefined;
 				return createColumnRef<unknown>(
-					`${toSQL({ def: () => "" })}.${prop as string}`,
+					`${toSQL({ def: () => "" })}.${prop}`,
 					child,
 				);
 			}
 			return undefined;
 		},
-	}) as ColumnRef<TReturn>;
+	}) as ColumnRef<TReturn> & MethodsFor<NonNullable<TReturn>>;
 }
 
 /**
@@ -1015,7 +1017,7 @@ function makeFunctionRef<TReturn>(
 function makeFunctionRefFromBound<TReturn>(
 	bound: BoundQuery,
 	field: InternalFieldDef,
-): ColumnRef<TReturn> {
+): ColumnRef<TReturn> & MethodsFor<NonNullable<TReturn>> {
 	return makeFunctionRef<TReturn>((ctx) => {
 		return bound.query.replace(/\$([a-zA-Z0-9_]+)/g, (_, key) => {
 			const val = bound.bindings[key];
@@ -1066,8 +1068,7 @@ function isArrayField(field: InternalFieldDef): boolean {
 function getNestedFields(
 	field: InternalFieldDef,
 ): Record<string, InternalFieldDef> | undefined {
-	if (field.objectSchema)
-		return field.objectSchema as Record<string, InternalFieldDef>;
+	if (field.objectSchema) return field.objectSchema;
 	if (field.recordTableThunk) {
 		const model = field.recordTableThunk();
 		if (
@@ -1093,7 +1094,7 @@ function getElementField(
 	return field.arrayElementType;
 }
 
-function addMethods(ref: ColumnRef<unknown>, field: InternalFieldDef): void {
+function addMethods(ref: ColumnRefBuilder, field: InternalFieldDef): void {
 	if (isStringField(field)) addStringMethods(ref as StringColumn);
 	if (isNumberField(field)) addNumberMethods(ref as NumberColumn);
 	if (isDateTimeField(field)) addDateTimeMethods(ref as DateTimeColumn);
@@ -1108,7 +1109,7 @@ function simpleArrayDef(element?: InternalFieldDef): InternalFieldDef {
 	return {
 		type: "array<any>",
 		arrayElementType: element,
-	} as InternalFieldDef;
+	};
 }
 
 function addStringMethods(target: StringColumn): void {
@@ -1116,17 +1117,17 @@ function addStringMethods(target: StringColumn): void {
 		makeFunctionRefFromBound<string>(
 			surql`string::lowercase(${target})`,
 			simpleStringDef(),
-		) as StringColumn;
+		);
 	target.toUpperCase = () =>
 		makeFunctionRefFromBound<string>(
 			surql`string::uppercase(${target})`,
 			simpleStringDef(),
-		) as StringColumn;
+		);
 	target.trim = () =>
 		makeFunctionRefFromBound<string>(
 			surql`string::trim(${target})`,
 			simpleStringDef(),
-		) as StringColumn;
+		);
 	target.contains = (value: string | ColumnRef<string>) =>
 		surql`string::contains(${target}, ${value})`;
 	target.startsWith = (value: string | ColumnRef<string>) =>
@@ -1137,7 +1138,7 @@ function addStringMethods(target: StringColumn): void {
 		makeFunctionRefFromBound<number>(
 			surql`string::len(${target})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 	target.replace = (
 		oldValue: string | ColumnRef<string>,
 		newValue: string | ColumnRef<string>,
@@ -1145,20 +1146,20 @@ function addStringMethods(target: StringColumn): void {
 		makeFunctionRefFromBound<string>(
 			surql`string::replace(${target}, ${oldValue}, ${newValue})`,
 			simpleStringDef(),
-		) as StringColumn;
+		);
 	target.slice = (
 		start: number | ColumnRef<number>,
 		end?: number | ColumnRef<number>,
 	) =>
 		end === undefined
-			? (makeFunctionRefFromBound<string>(
+			? makeFunctionRefFromBound<string>(
 					surql`string::slice(${target}, ${start})`,
 					simpleStringDef(),
-				) as StringColumn)
-			: (makeFunctionRefFromBound<string>(
+				)
+			: makeFunctionRefFromBound<string>(
 					surql`string::slice(${target}, ${start}, ${end})`,
 					simpleStringDef(),
-				) as StringColumn);
+				);
 }
 
 function addNumberMethods(target: NumberColumn): void {
@@ -1166,27 +1167,27 @@ function addNumberMethods(target: NumberColumn): void {
 		makeFunctionRefFromBound<number>(
 			surql`math::abs(${target})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 	target.ceil = () =>
 		makeFunctionRefFromBound<number>(
 			surql`math::ceil(${target})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 	target.floor = () =>
 		makeFunctionRefFromBound<number>(
 			surql`math::floor(${target})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 	target.round = () =>
 		makeFunctionRefFromBound<number>(
 			surql`math::round(${target})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 	target.sqrt = () =>
 		makeFunctionRefFromBound<number>(
 			surql`math::sqrt(${target})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 	target.clamp = (
 		min: number | ColumnRef<number>,
 		max: number | ColumnRef<number>,
@@ -1194,7 +1195,7 @@ function addNumberMethods(target: NumberColumn): void {
 		makeFunctionRefFromBound<number>(
 			surql`math::clamp(${target}, ${min}, ${max})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 }
 
 function addDateTimeMethods(target: DateTimeColumn): void {
@@ -1202,27 +1203,27 @@ function addDateTimeMethods(target: DateTimeColumn): void {
 		makeFunctionRefFromBound<number>(
 			surql`time::year(${target})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 	target.month = () =>
 		makeFunctionRefFromBound<number>(
 			surql`time::month(${target})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 	target.day = () =>
 		makeFunctionRefFromBound<number>(
 			surql`time::day(${target})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 	target.hour = () =>
 		makeFunctionRefFromBound<number>(
 			surql`time::hour(${target})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 	target.unix = () =>
 		makeFunctionRefFromBound<number>(
 			surql`time::unix(${target})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 }
 
 function addArrayMethods(
@@ -1236,22 +1237,22 @@ function addArrayMethods(
 		makeFunctionRefFromBound<number>(
 			surql`array::len(${target})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 	target.distinct = () =>
 		makeFunctionRefFromBound<unknown[]>(
 			surql`array::distinct(${target})`,
 			simpleArrayDef(elementField),
-		) as ArrayColumn<unknown>;
+		);
 	target.join = (separator: string | ColumnRef<string>) =>
 		makeFunctionRefFromBound<string>(
 			surql`array::join(${target}, ${separator})`,
 			simpleStringDef(),
-		) as StringColumn;
+		);
 	target.flatten = () =>
 		makeFunctionRefFromBound<unknown[]>(
 			surql`array::flatten(${target})`,
 			simpleArrayDef(),
-		) as ArrayColumn<unknown>;
+		);
 }
 
 // ============================================================================
@@ -1289,10 +1290,9 @@ export function createFieldProxy<
 function createColumnRef<T = unknown>(
 	path: string,
 	field: InternalFieldDef,
-): ColumnRef<T> {
+): ColumnRef<T> & MethodsFor<NonNullable<T>> {
 	const ref: ColumnRefBuilder<T> & { __field?: InternalFieldDef } = {
 		[PATH]: path,
-		__type: undefined as T,
 		__field: field,
 		toSQL: () => path,
 		...createOperatorMethods(),
@@ -1301,8 +1301,8 @@ function createColumnRef<T = unknown>(
 		},
 	};
 
-	addMethods(ref as ColumnRef<unknown>, field);
-	attachNamespaces(ref as ColumnRefBuilder<unknown>);
+	addMethods(ref, field);
+	attachNamespaces(ref);
 
 	return new Proxy(ref, {
 		get(target, prop) {
@@ -1310,17 +1310,17 @@ function createColumnRef<T = unknown>(
 				return prop === PATH ? target[PATH] : undefined;
 			}
 			if (prop in target) {
-				return (target as Record<string, unknown>)[prop as string];
+				return Reflect.get(target, prop);
 			}
 			const nested = getNestedFields(field);
 			if (nested && prop in nested) {
-				const child = nested[prop as string];
+				const child = nested[prop];
 				if (!child) return undefined;
-				return createColumnRef<unknown>(`${path}.${prop as string}`, child);
+				return createColumnRef<unknown>(`${path}.${prop}`, child);
 			}
 			return undefined;
 		},
-	}) as ColumnRef<T>;
+	}) as ColumnRef<T> & MethodsFor<NonNullable<T>>;
 }
 
 function combineExpressions(
@@ -1671,12 +1671,9 @@ export function count(field?: ColumnRef<unknown>): NumberColumn {
 		return makeFunctionRef<number>(
 			(ctx) => `count(${field.toSQL(ctx)})`,
 			simpleNumberDef(),
-		) as NumberColumn;
+		);
 	}
-	return makeFunctionRef<number>(
-		() => "count()",
-		simpleNumberDef(),
-	) as NumberColumn;
+	return makeFunctionRef<number>(() => "count()", simpleNumberDef());
 }
 
 /**
@@ -1687,7 +1684,7 @@ export function sum(field: ColumnRef<unknown>): NumberColumn {
 	return makeFunctionRef<number>(
 		(ctx) => `math::sum(${field.toSQL(ctx)})`,
 		simpleNumberDef(),
-	) as NumberColumn;
+	);
 }
 
 /**
@@ -1697,7 +1694,7 @@ export function avg(field: ColumnRef<unknown>): NumberColumn {
 	return makeFunctionRef<number>(
 		(ctx) => `math::mean(${field.toSQL(ctx)})`,
 		simpleNumberDef(),
-	) as NumberColumn;
+	);
 }
 
 /**
@@ -1707,7 +1704,7 @@ export function min(field: ColumnRef<unknown>): NumberColumn {
 	return makeFunctionRef<number>(
 		(ctx) => `math::min(${field.toSQL(ctx)})`,
 		simpleNumberDef(),
-	) as NumberColumn;
+	);
 }
 
 /**
@@ -1717,7 +1714,7 @@ export function max(field: ColumnRef<unknown>): NumberColumn {
 	return makeFunctionRef<number>(
 		(ctx) => `math::max(${field.toSQL(ctx)})`,
 		simpleNumberDef(),
-	) as NumberColumn;
+	);
 }
 
 /**
@@ -1729,7 +1726,7 @@ export function countIn(field: ColumnRef<unknown>, edge: string): NumberColumn {
 	return makeFunctionRef<number>(
 		(ctx) => `count(${field.toSQL(ctx)}<-${edge})`,
 		simpleNumberDef(),
-	) as NumberColumn;
+	);
 }
 
 /**
@@ -1744,5 +1741,18 @@ export function countOut(
 	return makeFunctionRef<number>(
 		(ctx) => `count(${field.toSQL(ctx)}->${edge})`,
 		simpleNumberDef(),
-	) as NumberColumn;
+	);
+}
+
+/**
+ * Creates a typed `$value` proxy for use in `ASSERT` callbacks.
+ * The proxy references the SurrealDB `$value` special variable and provides
+ * type-specific methods based on the field's inferred type.
+ *
+ * @param fieldDef The field definition to create a value proxy for.
+ * @returns A typed {@link ValueRef} referencing `$value`.
+ * @internal
+ */
+export function createValueProxy<T>(fieldDef: InternalFieldDef): ValueRef<T> {
+	return createColumnRef<T>("$value", fieldDef);
 }

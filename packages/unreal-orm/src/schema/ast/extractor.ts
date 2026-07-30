@@ -294,6 +294,25 @@ export function extractIndexFromDefinition(indexDef: IndexDefinition): {
 	if (indexDef.highlights) index.highlights = true;
 	if (indexDef.comment) index.comment = indexDef.comment;
 
+	if (indexDef.vector) {
+		const v = indexDef.vector;
+		index.vectorType = v.type;
+		index.vectorDimension = v.dimension;
+		if (v.elementType) index.vectorElementType = v.elementType;
+		if (v.distance) index.vectorDistance = v.distance;
+		if (v.type === "HNSW") {
+			if (v.efc !== undefined) index.vectorEfc = v.efc;
+			if (v.m !== undefined) index.vectorM = v.m;
+			if (v.m0 !== undefined) index.vectorM0 = v.m0;
+			if (v.lm !== undefined) index.vectorLm = v.lm;
+		} else if (v.type === "DISKANN") {
+			if (v.degree !== undefined) index.vectorDegree = v.degree;
+			if (v.lBuild !== undefined) index.vectorLBuild = v.lBuild;
+			if (v.alpha !== undefined) index.vectorAlpha = v.alpha;
+			if (v.hashedVector) index.vectorHashedVector = true;
+		}
+	}
+
 	return {
 		index,
 		tableName: indexDef.table._tableName,

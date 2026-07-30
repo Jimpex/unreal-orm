@@ -1,10 +1,10 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
+import type { SchemaAST } from "unreal-orm";
 import {
 	compareSchemas,
 	formatChanges,
 	type SchemaChange,
 } from "../src/diff/compare";
-import type { SchemaAST } from "unreal-orm";
 
 // Helper to assert change exists and return it
 function getChange(changes: SchemaChange[], index: number): SchemaChange {
@@ -719,5 +719,189 @@ describe("formatChanges", () => {
 		const result = stripAnsi(formatChanges(changes));
 		expect(result).toContain("Buckets:");
 		expect(result).toContain("+ Bucket 'avatars' will be added");
+	});
+
+	test("detects added vector index with [HNSW] suffix in description", () => {
+		const remote: SchemaAST = {
+			tables: [
+				{
+					name: "document",
+					type: "NORMAL",
+					drop: false,
+					schemafull: true,
+					permissions: {},
+					fields: [],
+					indexes: [],
+					events: [],
+				},
+			],
+		};
+
+		const local: SchemaAST = {
+			tables: [
+				{
+					name: "document",
+					type: "NORMAL",
+					drop: false,
+					schemafull: true,
+					permissions: {},
+					fields: [],
+					indexes: [
+						{
+							name: "idx_embedding",
+							columns: ["embedding"],
+							unique: false,
+							vectorType: "HNSW",
+							vectorDimension: 768,
+						},
+					],
+					events: [],
+				},
+			],
+		};
+
+		const changes = compareSchemas(local, remote);
+		expect(changes).toHaveLength(1);
+		const change = getChange(changes, 0);
+		expect(change.type).toBe("index_added");
+		expect(change.description).toContain("[HNSW]");
+	});
+
+	test("detects vector dimension change with detailed description", () => {
+		const remote: SchemaAST = {
+			tables: [
+				{
+					name: "document",
+					type: "NORMAL",
+					drop: false,
+					schemafull: true,
+					permissions: {},
+					fields: [],
+					indexes: [
+						{
+							name: "idx_embedding",
+							columns: ["embedding"],
+							unique: false,
+							vectorType: "HNSW",
+							vectorDimension: 128,
+						},
+					],
+					events: [],
+				},
+			],
+		};
+
+		const local: SchemaAST = {
+			tables: [
+				{
+					name: "document",
+					type: "NORMAL",
+					drop: false,
+					schemafull: true,
+					permissions: {},
+					fields: [],
+					indexes: [
+						{
+							name: "idx_embedding",
+							columns: ["embedding"],
+							unique: false,
+							vectorType: "HNSW",
+							vectorDimension: 256,
+						},
+					],
+					events: [],
+				},
+			],
+		};
+
+		const changes = compareSchemas(local, remote);
+		expect(changes).toHaveLength(1);
+		const change = getChange(changes, 0);
+		expect(change.type).toBe("index_modified");
+		expect(change.description).toContain("dimension 128 → 256");
+	});
+
+	test("detects vector type change (MTREE → HNSW)", () => {
+		const remote: SchemaAST = {
+			tables: [
+				{
+					name: "document",
+					type: "NORMAL",
+					drop: false,
+					schemafull: true,
+					permissions: {},
+					fields: [],
+					indexes: [
+						{
+							name: "idx_vec",
+							columns: ["embedding"],
+							unique: false,
+							vectorType: "MTREE",
+							vectorDimension: 128,
+						},
+					],
+					events: [],
+				},
+			],
+		};
+
+		const local: SchemaAST = {
+			tables: [
+				{
+					name: "document",
+					type: "NORMAL",
+					drop: false,
+					schemafull: true,
+					permissions: {},
+					fields: [],
+					indexes: [
+						{
+							name: "idx_vec",
+							columns: ["embedding"],
+							unique: false,
+							vectorType: "HNSW",
+							vectorDimension: 128,
+						},
+					],
+					events: [],
+				},
+			],
+		};
+
+		const changes = compareSchemas(local, remote);
+		expect(changes).toHaveLength(1);
+		const change = getChange(changes, 0);
+		expect(change.type).toBe("index_modified");
+		expect(change.description).toContain("type MTREE → HNSW");
+	});
+
+	test("no change when vector params are identical", () => {
+		const idx = {
+			name: "idx_unchanged",
+			columns: ["embedding"],
+			unique: false,
+			vectorType: "HNSW" as const,
+			vectorDimension: 128,
+			vectorDistance: "COSINE",
+			vectorEfc: 200,
+		};
+
+		const schema: SchemaAST = {
+			tables: [
+				{
+					name: "document",
+					type: "NORMAL",
+					drop: false,
+					schemafull: true,
+					permissions: {},
+					fields: [],
+					indexes: [idx],
+					events: [],
+				},
+			],
+		};
+
+		const changes = compareSchemas(schema, schema);
+		expect(changes).toHaveLength(0);
 	});
 });

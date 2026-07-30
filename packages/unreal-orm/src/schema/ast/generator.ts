@@ -230,6 +230,43 @@ function generateIndexDdl(
 				statement += " HIGHLIGHTS";
 			}
 		}
+
+		if (index.vectorType) {
+			statement += ` ${index.vectorType} DIMENSION ${index.vectorDimension}`;
+			if (index.vectorElementType) {
+				statement += ` TYPE ${index.vectorElementType}`;
+			}
+			if (index.vectorDistance) {
+				statement += ` DIST ${index.vectorDistance}`;
+			}
+			if (index.vectorType === "HNSW") {
+				if (index.vectorEfc !== undefined) {
+					statement += ` EFC ${index.vectorEfc}`;
+				}
+				if (index.vectorM !== undefined) {
+					statement += ` M ${index.vectorM}`;
+				}
+				if (index.vectorM0 !== undefined) {
+					statement += ` M0 ${index.vectorM0}`;
+				}
+				if (index.vectorLm !== undefined) {
+					statement += ` LM ${index.vectorLm}`;
+				}
+			} else if (index.vectorType === "DISKANN") {
+				if (index.vectorDegree !== undefined) {
+					statement += ` DEGREE ${index.vectorDegree}`;
+				}
+				if (index.vectorLBuild !== undefined) {
+					statement += ` L_BUILD ${index.vectorLBuild}`;
+				}
+				if (index.vectorAlpha !== undefined) {
+					statement += ` ALPHA ${index.vectorAlpha}`;
+				}
+				if (index.vectorHashedVector) {
+					statement += " HASHED_VECTOR";
+				}
+			}
+		}
 	}
 
 	if (index.concurrently) {
@@ -477,13 +514,20 @@ export function generateMigrationSurql(
 				break;
 			}
 
-			case "index_added":
-				if (change.index && Array.isArray(change.newValue)) {
+			case "index_added": {
+				if (schemaMap && change.index) {
+					const table = schemaMap.get(change.table);
+					const index = table?.indexes.find((i) => i.name === change.index);
+					if (index) {
+						statements.push(generateIndexDdl(change.table, index, "error"));
+					}
+				} else if (change.index && Array.isArray(change.newValue)) {
 					statements.push(
 						`DEFINE INDEX ${change.index} ON TABLE ${change.table} FIELDS ${(change.newValue as string[]).join(", ")};`,
 					);
 				}
 				break;
+			}
 
 			case "index_removed":
 				if (change.index) {

@@ -8,11 +8,11 @@
  */
 
 import type {
-	SchemaAST,
-	TableAST,
+	BucketAST,
 	FieldAST,
 	IndexAST,
-	BucketAST,
+	SchemaAST,
+	TableAST,
 } from "./types";
 
 // ============================================================================
@@ -229,7 +229,21 @@ function compareIndexes(
 			JSON.stringify(targetIndex.columns);
 		const uniqueChanged = sourceIndex.unique !== targetIndex.unique;
 
-		if (columnsChanged || uniqueChanged) {
+		const vectorChanged =
+			sourceIndex.vectorType !== targetIndex.vectorType ||
+			sourceIndex.vectorDimension !== targetIndex.vectorDimension ||
+			sourceIndex.vectorDistance !== targetIndex.vectorDistance ||
+			sourceIndex.vectorElementType !== targetIndex.vectorElementType ||
+			sourceIndex.vectorEfc !== targetIndex.vectorEfc ||
+			sourceIndex.vectorM !== targetIndex.vectorM ||
+			sourceIndex.vectorM0 !== targetIndex.vectorM0 ||
+			sourceIndex.vectorLm !== targetIndex.vectorLm ||
+			sourceIndex.vectorDegree !== targetIndex.vectorDegree ||
+			sourceIndex.vectorLBuild !== targetIndex.vectorLBuild ||
+			sourceIndex.vectorAlpha !== targetIndex.vectorAlpha ||
+			sourceIndex.vectorHashedVector !== targetIndex.vectorHashedVector;
+
+		if (columnsChanged || uniqueChanged || vectorChanged) {
 			changes.push({
 				type: "index_modified",
 				table: tableName,

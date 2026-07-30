@@ -15,7 +15,6 @@
 <div align="center">
   <a href="https://unreal-orm.jimpex.dev"><b>Documentation</b></a> •
   <a href="https://unreal-orm.jimpex.dev/guides/unreal-orm-tutorial"><b>Tutorial</b></a> •
-  <a href="https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha"><b>Migration Guide</b></a> •
   <a href="https://unreal-orm.jimpex.dev/guides/migrating-to-alpha"><b>Migration Guide</b></a> •
   <a href="https://github.com/Jimpex/unreal-orm/discussions"><b>Discussions</b></a>
 </div>
@@ -28,7 +27,6 @@ A modern, type-safe ORM for SurrealDB. Native SurrealDB power, full TypeScript s
 
 UnrealORM builds on top of the official `surrealdb` package, providing a TypeScript ORM experience while preserving full access to SurrealDB's native features. Define your schema once in code, and the ORM handles type inference, DDL generation, and schema synchronization.
 
-> **Note:** UnrealORM 1.0.0-alpha.x requires SurrealDB's 2.0 (alpha) JS SDK. If you're using 1.x of their SDK, install [unreal-orm@0.6.0](https://www.npmjs.com/package/unreal-orm/v/0.6.0) instead. To upgrade, see the [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha).
 > **Note:** UnrealORM 1.0.0-alpha.x requires SurrealDB's 2.0 (alpha) JS SDK. If you're using 1.x of their SDK, install [unreal-orm@0.6.0](https://www.npmjs.com/package/unreal-orm/v/0.6.0) instead. To upgrade, see the [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-alpha).
 
 ## Quick Start
@@ -54,22 +52,18 @@ This will:
 
 ```bash
 # Using bun
-bun add unreal-orm@latest surrealdb@alpha
 bun add unreal-orm@latest surrealdb@latest
 bun add -D @unreal-orm/cli@latest
 
 # Using pnpm
-pnpm add unreal-orm@latest surrealdb@alpha
 pnpm add unreal-orm@latest surrealdb@latest
 pnpm add -D @unreal-orm/cli@latest
 
 # Using npm
-npm install unreal-orm@latest surrealdb@alpha
 npm install unreal-orm@latest surrealdb@latest
 npm install -D @unreal-orm/cli@latest
 
 # Using yarn
-yarn add unreal-orm@latest surrealdb@alpha
 yarn add unreal-orm@latest surrealdb@latest
 yarn add -D @unreal-orm/cli@latest
 ```
@@ -81,7 +75,6 @@ yarn add -D @unreal-orm/cli@latest
 - **Type-safe models** — Define tables as classes with full TypeScript inference for fields, queries, and results
 - **Schema sync** — Generate DDL from code with `applySchema()`, or generate code from database with `unreal pull`
 - **Relations** — Typed record links with automatic hydration via `fetch`
-- **Native SurrealQL** — Use `surql` templates and functional expressions directly in queries and field definitions
 - **Native SurrealQL & query builder** — Use `surql` templates and functional expressions directly, or filter with typed field proxies in `select`, `count`, `updateMany`, and `deleteMany`
 - **Indexes** — Define unique, composite, and search indexes with full type safety
 - **Custom methods** — Add instance and static methods to your models
@@ -91,7 +84,6 @@ yarn add -D @unreal-orm/cli@latest
 
 ```ts
 import { Surreal, surql } from "surrealdb";
-import Table, { Field, Index, applySchema } from "unreal-orm";
 import { Table, Field, Index, Unreal } from "unreal-orm";
 
 // Define a User model with validation and custom methods
@@ -127,9 +119,6 @@ class Post extends Table.normal({
 
 async function main() {
   const db = new Surreal();
-  await db.connect("ws://localhost:8000");
-  await db.signin({ username: "root", password: "root" });
-  await db.use({ namespace: "test", database: "test" });
   await db.connect("ws://localhost:8000", {
     namespace: "test",
     database: "test",
@@ -137,7 +126,6 @@ async function main() {
   });
 
   // Apply schema to database
-  await applySchema(db, [User, idx_user_email, Post]);
   await Unreal.applySchema(db, [User, idx_user_email, Post]);
 
   // Create records
@@ -201,6 +189,80 @@ const users = await User.select(db, {
 // Type: Omit<User, 'password' | 'secret'>[]
 ```
 
+### Type-Safe Query Builder
+
+Use the callback-based `where` API for fully typed filters with IntelliSense:
+
+```ts
+import { and, or, eq, gt } from "unreal-orm";
+
+// SELECT with typed filters
+const posts = await Post.select(db, {
+  where: (f) => f.views.gt(100),
+});
+
+// Use SurrealDB string/array/date functions on columns
+const recent = await Post.select(db, {
+  where: (f) => f.title.toLowerCase().contains("surreal"),
+});
+
+// Native function namespaces cover the entire SurrealDB function surface
+const filtered = await Post.select(db, {
+  where: (f) => and(
+    f.title.string.starts_with("hello"),
+    f.views.math.round().eq(100),
+  ),
+});
+
+// Compose logical expressions
+const featuredTech = await Post.select(db, {
+  where: (f) =>
+    and(
+      eq(f.metadata.category, "tech"),
+      or(f.metadata.featured.eq(true), gt(f.views, 1000)),
+    ),
+});
+
+// COUNT, UPDATE, and DELETE also accept callbacks
+const popular = await Post.count(db, {
+  where: (f) => f.views.gt(100),
+});
+
+await Post.updateMany(db, {
+  where: (f) => f.metadata.category.eq("tech"),
+  data: { views: 0 },
+  mode: "merge",
+});
+
+await Post.deleteMany(db, {
+  where: (f) => f.tags.contains("deprecated"),
+});
+```
+
+Available operators include `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `exact` (`==`), `isNone`, `isNull`, `isTrue`, `isFalse`, `inside`, `outside`, `intersects`, `matches` (full-text `@@`), `isIn`, `isNotIn`, `containsAny`, `containsAll`, `containsNone`, plus logical helpers `and`, `or`, `not` (all available as both column methods and standalone helpers).
+
+**Arithmetic operators** (`add`, `subtract`, `multiply`, `divide`, `modulo`) return `ColumnRef` for chaining:
+
+```ts
+// WHERE views + 10 > 100
+const trending = await Post.select(db, {
+  where: (f) => f.views.add(10).gt(100),
+});
+```
+
+**Graph traversal** (`out`, `in`, `both`) for `->`, `<-`, `<->` operators:
+
+```ts
+// WHERE author->follow->user.name = "Alice"
+const posts = await Post.select(db, {
+  where: (f) => f.author.out("follow").out("user").name.eq("Alice"),
+});
+```
+
+Columns expose **all** native SurrealDB function namespaces: `string`, `math`, `array`, `time`, `is`, `meta`, `parse`, `bytes`, `crypto`, `duration`, `encoding`, `geo`, `http`, `object`, `rand`, `record`, `search`, `session`, `type`, `vector`. Any built-in function can be called, e.g. `f.title.string.lowercase()`, `f.views.math.round(2)`, `f.password.crypto.sha256()`, `f.location.geo.distance(other)`. Nested functions with `::` use bracket notation: `f.title.string['similarity::jaro']()`.
+
+Runtime availability depends on the connected SurrealDB version; full-text `matches()` requires a `SEARCH` index, `search::*` and `vector::*` require SurrealDB 2.x+, and regex operators such as `~` and `!~` were removed in SurrealDB 3.x.
+
 ## CLI
 
 The CLI helps manage schema synchronization between your code and database:
@@ -224,7 +286,6 @@ After `init`, the CLI is installed as a dev dependency and can be run via `bunx 
 - [Hands-on Tutorial](https://unreal-orm.jimpex.dev/guides/unreal-orm-tutorial) — Build a blog API step-by-step
 - [Capabilities](https://unreal-orm.jimpex.dev/getting-started/capabilities/) — Supported SurrealDB features
 - [API Reference](https://unreal-orm.jimpex.dev/api/) — Full API documentation
-- [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-1.0.0-alpha) — Upgrading from 0.x
 - [Migration Guide](https://unreal-orm.jimpex.dev/guides/migrating-to-alpha) — Upgrading from 0.x
 
 ## Community

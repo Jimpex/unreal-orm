@@ -98,8 +98,30 @@ export interface IndexAST {
 	bm25?: boolean;
 	/** Whether to enable keyword highlighting for full-text search */
 	highlights?: boolean;
-	/** Whether this is a vector index */
-	vector?: boolean;
+	/** Vector index algorithm (MTREE, HNSW, or DISKANN) */
+	vectorType?: "MTREE" | "HNSW" | "DISKANN";
+	/** Vector dimension */
+	vectorDimension?: number;
+	/** Vector distance metric */
+	vectorDistance?: string;
+	/** Vector element type */
+	vectorElementType?: string;
+	/** HNSW: EF construction */
+	vectorEfc?: number;
+	/** HNSW: Max connections per element */
+	vectorM?: number;
+	/** HNSW: Max connections in the lowest layer */
+	vectorM0?: number;
+	/** HNSW: Multiplier for level generation */
+	vectorLm?: number;
+	/** DISKANN: Target maximum graph degree */
+	vectorDegree?: number;
+	/** DISKANN: Construction search-list size */
+	vectorLBuild?: number;
+	/** DISKANN: Pruning parameter */
+	vectorAlpha?: number;
+	/** DISKANN: Enable hash-stabilised vector–document keys */
+	vectorHashedVector?: boolean;
 	/** Index comment */
 	comment?: string;
 }

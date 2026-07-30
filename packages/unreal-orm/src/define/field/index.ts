@@ -1,6 +1,8 @@
 import type {
+	BoundQuery,
 	Decimal,
 	Duration,
+	Expr,
 	FileRef,
 	Geometry,
 	GeometryCollection,
@@ -13,12 +15,36 @@ import type {
 	RecordId,
 	Uuid,
 } from "surrealdb";
+import { createValueProxy } from "../../query/field-proxy";
 import type {
 	AnyModelClass,
 	InferFieldType,
 	InferShapeFromFields,
 } from "../table/types/model";
-import type { FieldDefinition, FieldOptions, ReferenceOptions } from "./types";
+import type {
+	AssertCallback,
+	FieldDefinition,
+	FieldOptions,
+	FieldOptionsFor,
+	InternalFieldDef,
+	ReferenceOptions,
+} from "./types";
+
+/**
+ * Resolves an assert option that may be a callback into a `BoundQuery | Expr`.
+ * If the assert is a function, it is called with a typed `$value` proxy built
+ * from the field's type string. Otherwise, the assert is returned as-is.
+ */
+function resolveAssert<T>(
+	assert: BoundQuery | Expr | AssertCallback<T> | undefined,
+	typeString: string,
+): BoundQuery | Expr | undefined {
+	if (typeof assert === "function") {
+		const fieldDef: InternalFieldDef = { type: typeString };
+		return assert(createValueProxy<T>(fieldDef));
+	}
+	return assert;
+}
 
 type PrimitiveLiteral = string | number | boolean | null | undefined;
 type LiteralValue =
@@ -94,7 +120,7 @@ function serializeLiteralValue(value: LiteralValue): string {
 /**
  * Options for defining an array field.
  */
-export interface ArrayFieldOptions<T> extends FieldOptions {
+export interface ArrayFieldOptions extends FieldOptions {
 	/**
 	 * The exact number of elements required in the array.
 	 * In SurrealDB v3, `array<T, N>` means exactly N elements.
@@ -178,12 +204,9 @@ export const Field = {
 	 * flexibleData: Field.any()
 	 * ```
 	 */
-	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-	any(options: FieldOptions = {}): FieldDefinition<any> {
-		return {
-			...options,
-			type: "any",
-		};
+	any(options: FieldOptionsFor<unknown> = {}): FieldDefinition<unknown> {
+		const { assert, ...rest } = options;
+		return { ...rest, assert: resolveAssert(assert, "any"), type: "any" };
 	},
 	/**
 	 * Defines a `bytes` field for storing binary data.
@@ -193,11 +216,11 @@ export const Field = {
 	 * avatar: Field.bytes()
 	 * ```
 	 */
-	bytes(options: FieldOptions = {}): FieldDefinition<ArrayBuffer> {
-		return {
-			...options,
-			type: "bytes",
-		};
+	bytes(
+		options: FieldOptionsFor<ArrayBuffer> = {},
+	): FieldDefinition<ArrayBuffer> {
+		const { assert, ...rest } = options;
+		return { ...rest, assert: resolveAssert(assert, "bytes"), type: "bytes" };
 	},
 	/**
 	 * Defines a `file` field for storing file pointers to a SurrealDB bucket.
@@ -218,11 +241,9 @@ export const Field = {
 	 * // Returns: FileRef with .bucket = "avatars", .key = "user-123.png"
 	 * ```
 	 */
-	file(options: FieldOptions = {}): FieldDefinition<FileRef> {
-		return {
-			...options,
-			type: "file",
-		};
+	file(options: FieldOptionsFor<FileRef> = {}): FieldDefinition<FileRef> {
+		const { assert, ...rest } = options;
+		return { ...rest, assert: resolveAssert(assert, "file"), type: "file" };
 	},
 	/**
 	 * Defines a `geometry` field for storing GeoJSON data.
@@ -236,17 +257,15 @@ export const Field = {
 	 */
 	geometry<T extends GeometryType>(
 		type: T,
-		options: FieldOptions = {},
+		options: FieldOptionsFor<GeometryTypeMap[T]> = {},
 	): FieldDefinition<GeometryTypeMap[T]> {
+		const typeString = type === "feature" ? "geometry" : `geometry<${type}>`;
+		const { assert, ...rest } = options;
 		return {
-			...options,
-			get type() {
-				if (type === "feature") {
-					return "geometry";
-				}
-				return `geometry<${type}>`;
-			},
-		} as FieldDefinition<GeometryTypeMap[T]>;
+			...rest,
+			assert: resolveAssert(assert, typeString),
+			type: typeString,
+		};
 	},
 	/**
 	 * Defines a `duration` field for storing time durations.
@@ -256,9 +275,11 @@ export const Field = {
 	 * ttl: Field.duration()
 	 * ```
 	 */
-	duration(options: FieldOptions = {}): FieldDefinition<Duration> {
+	duration(options: FieldOptionsFor<Duration> = {}): FieldDefinition<Duration> {
+		const { assert, ...rest } = options;
 		return {
-			...options,
+			...rest,
+			assert: resolveAssert(assert, "duration"),
 			type: "duration",
 		};
 	},
@@ -271,11 +292,9 @@ export const Field = {
 	 * uniqueId: Field.uuid()
 	 * ```
 	 */
-	uuid(options: FieldOptions = {}): FieldDefinition<Uuid> {
-		return {
-			...options,
-			type: "uuid",
-		};
+	uuid(options: FieldOptionsFor<Uuid> = {}): FieldDefinition<Uuid> {
+		const { assert, ...rest } = options;
+		return { ...rest, assert: resolveAssert(assert, "uuid"), type: "uuid" };
 	},
 
 	/**
@@ -283,8 +302,9 @@ export const Field = {
 	 * @param options Standard field options.
 	 * @example Field.string({ assert: surql`$value.length > 0` })
 	 */
-	string(options: FieldOptions = {}): FieldDefinition<string> {
-		return { ...options, type: "string" };
+	string(options: FieldOptionsFor<string> = {}): FieldDefinition<string> {
+		const { assert, ...rest } = options;
+		return { ...rest, assert: resolveAssert(assert, "string"), type: "string" };
 	},
 	/**
 	 * Defines a `decimal` field for high-precision numbers.
@@ -294,9 +314,11 @@ export const Field = {
 	 * balance: Field.decimal()
 	 * ```
 	 */
-	decimal(options: FieldOptions = {}): FieldDefinition<Decimal> {
+	decimal(options: FieldOptionsFor<Decimal> = {}): FieldDefinition<Decimal> {
+		const { assert, ...rest } = options;
 		return {
-			...options,
+			...rest,
+			assert: resolveAssert(assert, "decimal"),
 			type: "decimal",
 		};
 	},
@@ -309,11 +331,9 @@ export const Field = {
 	 * rating: Field.float()
 	 * ```
 	 */
-	float(options: FieldOptions = {}): FieldDefinition<number> {
-		return {
-			...options,
-			type: "float",
-		};
+	float(options: FieldOptionsFor<number> = {}): FieldDefinition<number> {
+		const { assert, ...rest } = options;
+		return { ...rest, assert: resolveAssert(assert, "float"), type: "float" };
 	},
 
 	/**
@@ -324,35 +344,40 @@ export const Field = {
 	 * views: Field.int()
 	 * ```
 	 */
-	int(options: FieldOptions = {}): FieldDefinition<number> {
-		return {
-			...options,
-			type: "int",
-		};
+	int(options: FieldOptionsFor<number> = {}): FieldDefinition<number> {
+		const { assert, ...rest } = options;
+		return { ...rest, assert: resolveAssert(assert, "int"), type: "int" };
 	},
 	/**
 	 * Defines a `number` field (integer or float).
 	 * @param options Standard field options.
 	 * @example Field.number({ default: 0 })
 	 */
-	number(options: FieldOptions = {}): FieldDefinition<number> {
-		return { ...options, type: "number" };
+	number(options: FieldOptionsFor<number> = {}): FieldDefinition<number> {
+		const { assert, ...rest } = options;
+		return { ...rest, assert: resolveAssert(assert, "number"), type: "number" };
 	},
 	/**
 	 * Defines a `boolean` field.
 	 * @param options Standard field options.
 	 * @example Field.bool({ default: false })
 	 */
-	bool(options: FieldOptions = {}): FieldDefinition<boolean> {
-		return { ...options, type: "bool" };
+	bool(options: FieldOptionsFor<boolean> = {}): FieldDefinition<boolean> {
+		const { assert, ...rest } = options;
+		return { ...rest, assert: resolveAssert(assert, "bool"), type: "bool" };
 	},
 	/**
 	 * Defines a `datetime` field.
 	 * @param options Standard field options.
 	 * @example Field.datetime({ default: surql`time::now()` })
 	 */
-	datetime(options: FieldOptions = {}): FieldDefinition<Date> {
-		return { ...options, type: "datetime" };
+	datetime(options: FieldOptionsFor<Date> = {}): FieldDefinition<Date> {
+		const { assert, ...rest } = options;
+		return {
+			...rest,
+			assert: resolveAssert(assert, "datetime"),
+			type: "datetime",
+		};
 	},
 	/**
 	 * Defines a custom field type using a specific SurrealDB type string.
@@ -363,9 +388,15 @@ export const Field = {
 	 */
 	custom<T>(
 		typeString: string,
-		options: CustomFieldOptions = {},
+		options: FieldOptionsFor<T, CustomFieldOptions> = {},
 	): FieldDefinition<T> {
-		return { ...options, type: typeString, flexible: options.flexible };
+		const { assert, ...rest } = options;
+		return {
+			...rest,
+			assert: resolveAssert(assert, typeString),
+			type: typeString,
+			flexible: options.flexible,
+		};
 	},
 	/**
 	 * Defines a single literal field type using SurrealQL literal syntax.
@@ -374,11 +405,14 @@ export const Field = {
 	 */
 	literal<T extends LiteralValue>(
 		value: T,
-		options: FieldOptions = {},
+		options: FieldOptionsFor<SurrealLiteralValue<T>> = {},
 	): FieldDefinition<SurrealLiteralValue<T>> {
+		const typeString = serializeLiteralValue(value);
+		const { assert, ...rest } = options;
 		return {
-			...options,
-			type: serializeLiteralValue(value),
+			...rest,
+			assert: resolveAssert(assert, typeString),
+			type: typeString,
 		};
 	},
 	/**
@@ -388,7 +422,7 @@ export const Field = {
 	 */
 	union<const TFields extends readonly FieldDefinition<unknown>[]>(
 		fields: TFields,
-		options: FieldOptions = {},
+		options: FieldOptionsFor<InferFieldType<TFields[number]>> = {},
 	): FieldDefinition<InferFieldType<TFields[number]>> & {
 		unionMembers: TFields;
 	} {
@@ -396,11 +430,12 @@ export const Field = {
 			throw new Error("Field.union requires at least one field definition.");
 		}
 
+		const typeString = fields.map((field) => field.type).join(" | ");
+		const { assert, ...rest } = options;
 		return {
-			...options,
-			get type() {
-				return fields.map((field) => field.type).join(" | ");
-			},
+			...rest,
+			assert: resolveAssert(assert, typeString),
+			type: typeString,
 			unionMembers: [...fields] as TFields,
 		};
 	},
@@ -433,7 +468,10 @@ export const Field = {
 	 */
 	set<TElementDef extends FieldDefinition<unknown>>(
 		element: TElementDef,
-		options: ArrayFieldOptions<InferFieldType<TElementDef>> = {},
+		options: FieldOptionsFor<
+			Set<InferFieldType<TElementDef>>,
+			ArrayFieldOptions
+		> = {},
 	): FieldDefinition<Set<InferFieldType<TElementDef>>> & {
 		arrayElementType: TElementDef;
 	} {
@@ -443,11 +481,14 @@ export const Field = {
 			);
 		}
 		const size = options.length ?? options.max;
+		const typeString = size
+			? `set<${element.type}, ${size}>`
+			: `set<${element.type}>`;
+		const { assert, ...rest } = options;
 		return {
-			...options,
-			get type() {
-				return size ? `set<${element.type}, ${size}>` : `set<${element.type}>`;
-			},
+			...rest,
+			assert: resolveAssert(assert, typeString),
+			type: typeString,
 			arrayElementType: element,
 		};
 	},
@@ -469,7 +510,10 @@ export const Field = {
 	 */
 	array<TElementDef extends FieldDefinition<unknown>>(
 		element: TElementDef,
-		options: ArrayFieldOptions<InferFieldType<TElementDef>> = {},
+		options: FieldOptionsFor<
+			Array<InferFieldType<TElementDef>>,
+			ArrayFieldOptions
+		> = {},
 	): FieldDefinition<Array<InferFieldType<TElementDef>>> & {
 		arrayElementType: TElementDef;
 	} {
@@ -479,13 +523,14 @@ export const Field = {
 			);
 		}
 		const size = options.length ?? options.max;
+		const typeString = size
+			? `array<${element.type}, ${size}>`
+			: `array<${element.type}>`;
+		const { assert, ...rest } = options;
 		return {
-			...options,
-			get type() {
-				return size
-					? `array<${element.type}, ${size}>`
-					: `array<${element.type}>`;
-			},
+			...rest,
+			assert: resolveAssert(assert, typeString),
+			type: typeString,
 			arrayElementType: element,
 		};
 	},
@@ -503,12 +548,17 @@ export const Field = {
 	 */
 	object<TSchema extends Record<string, FieldDefinition<unknown>>>(
 		schema: TSchema,
-		options: ObjectFieldOptions = {},
+		options: FieldOptionsFor<
+			InferShapeFromFields<TSchema>,
+			ObjectFieldOptions
+		> = {},
 	): FieldDefinition<InferShapeFromFields<TSchema>> & {
 		objectSchema: TSchema;
 	} {
+		const { assert, ...rest } = options;
 		return {
-			...options,
+			...rest,
+			assert: resolveAssert(assert, "object"),
 			type: "object",
 			objectSchema: schema,
 			flexible: options.flexible,
@@ -529,7 +579,10 @@ export const Field = {
 	 */
 	record<TModel extends AnyModelClass>(
 		tableClassThunk: () => TModel,
-		options: RecordFieldOptions = {},
+		options: FieldOptionsFor<
+			InstanceType<TModel> | RecordId<TModel["_tableName"]>,
+			RecordFieldOptions
+		> = {},
 	): FieldDefinition<InstanceType<TModel> | RecordId<TModel["_tableName"]>> & {
 		recordTableThunk: () => TModel;
 	} {
@@ -537,13 +590,13 @@ export const Field = {
 		const referenceOptions =
 			typeof options.reference === "object" ? options.reference : {};
 		const onDelete = referenceOptions.onDelete;
+		const typeString = `record<${tableClassThunk()._tableName}>`;
+		const { assert, ...rest } = options;
 
 		return {
-			...options,
-			get type() {
-				const tableClass = tableClassThunk();
-				return `record<${tableClass._tableName}>`;
-			},
+			...rest,
+			assert: resolveAssert(assert, typeString),
+			type: typeString,
 			recordTableThunk: tableClassThunk,
 			reference: isReference,
 			recordOnDelete: onDelete,

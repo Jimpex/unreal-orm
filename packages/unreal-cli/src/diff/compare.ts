@@ -1,13 +1,10 @@
+import chalk from "chalk";
 import type {
-	SchemaAST,
-	TableAST,
-	FieldAST,
-	IndexAST,
 	ChangeType as OrmChangeType,
 	SchemaChange as OrmSchemaChange,
+	SchemaAST,
+	TableAST,
 } from "unreal-orm";
-import { compareSchemas as ormCompareSchemas } from "unreal-orm";
-import chalk from "chalk";
 
 // Re-export ORM types for convenience
 export type { OrmChangeType as ChangeType, OrmSchemaChange as SchemaChange };
@@ -295,14 +292,17 @@ function compareIndexes(
 		const targetIndex = targetIndexes.get(indexName);
 
 		if (!targetIndex) {
+			const vectorSuffix = sourceIndex.vectorType
+				? ` [${sourceIndex.vectorType}]`
+				: "";
 			changes.push({
 				type: "index_added",
 				table: tableName,
 				index: indexName,
 				newValue: sourceIndex.columns,
 				description: isPush
-					? `Index '${indexName}' on [${sourceIndex.columns.join(", ")}] exists in code but not in database`
-					: `Index '${indexName}' on [${sourceIndex.columns.join(", ")}] exists in database but not in code`,
+					? `Index '${indexName}' on [${sourceIndex.columns.join(", ")}]${vectorSuffix} exists in code but not in database`
+					: `Index '${indexName}' on [${sourceIndex.columns.join(", ")}]${vectorSuffix} exists in database but not in code`,
 			});
 			continue;
 		}
@@ -313,14 +313,96 @@ function compareIndexes(
 			JSON.stringify(targetIndex.columns);
 		const uniqueChanged = sourceIndex.unique !== targetIndex.unique;
 
-		if (columnsChanged || uniqueChanged) {
+		const vectorChanged =
+			sourceIndex.vectorType !== targetIndex.vectorType ||
+			sourceIndex.vectorDimension !== targetIndex.vectorDimension ||
+			sourceIndex.vectorDistance !== targetIndex.vectorDistance ||
+			sourceIndex.vectorElementType !== targetIndex.vectorElementType ||
+			sourceIndex.vectorEfc !== targetIndex.vectorEfc ||
+			sourceIndex.vectorM !== targetIndex.vectorM ||
+			sourceIndex.vectorM0 !== targetIndex.vectorM0 ||
+			sourceIndex.vectorLm !== targetIndex.vectorLm ||
+			sourceIndex.vectorDegree !== targetIndex.vectorDegree ||
+			sourceIndex.vectorLBuild !== targetIndex.vectorLBuild ||
+			sourceIndex.vectorAlpha !== targetIndex.vectorAlpha ||
+			sourceIndex.vectorHashedVector !== targetIndex.vectorHashedVector;
+
+		if (columnsChanged || uniqueChanged || vectorChanged) {
+			let description = `Index '${indexName}' definition changed`;
+
+			// Add vector-specific change details
+			if (vectorChanged) {
+				const vectorDetails: string[] = [];
+				if (sourceIndex.vectorType !== targetIndex.vectorType) {
+					vectorDetails.push(
+						`type ${targetIndex.vectorType ?? "none"} → ${sourceIndex.vectorType ?? "none"}`,
+					);
+				}
+				if (sourceIndex.vectorDimension !== targetIndex.vectorDimension) {
+					vectorDetails.push(
+						`dimension ${targetIndex.vectorDimension ?? "none"} → ${sourceIndex.vectorDimension ?? "none"}`,
+					);
+				}
+				if (sourceIndex.vectorDistance !== targetIndex.vectorDistance) {
+					vectorDetails.push(
+						`distance ${targetIndex.vectorDistance ?? "none"} → ${sourceIndex.vectorDistance ?? "none"}`,
+					);
+				}
+				if (sourceIndex.vectorElementType !== targetIndex.vectorElementType) {
+					vectorDetails.push(
+						`elementType ${targetIndex.vectorElementType ?? "none"} → ${sourceIndex.vectorElementType ?? "none"}`,
+					);
+				}
+				if (sourceIndex.vectorEfc !== targetIndex.vectorEfc) {
+					vectorDetails.push(
+						`efc ${targetIndex.vectorEfc ?? "none"} → ${sourceIndex.vectorEfc ?? "none"}`,
+					);
+				}
+				if (sourceIndex.vectorM !== targetIndex.vectorM) {
+					vectorDetails.push(
+						`m ${targetIndex.vectorM ?? "none"} → ${sourceIndex.vectorM ?? "none"}`,
+					);
+				}
+				if (sourceIndex.vectorM0 !== targetIndex.vectorM0) {
+					vectorDetails.push(
+						`m0 ${targetIndex.vectorM0 ?? "none"} → ${sourceIndex.vectorM0 ?? "none"}`,
+					);
+				}
+				if (sourceIndex.vectorLm !== targetIndex.vectorLm) {
+					vectorDetails.push(
+						`lm ${targetIndex.vectorLm ?? "none"} → ${sourceIndex.vectorLm ?? "none"}`,
+					);
+				}
+				if (sourceIndex.vectorDegree !== targetIndex.vectorDegree) {
+					vectorDetails.push(
+						`degree ${targetIndex.vectorDegree ?? "none"} → ${sourceIndex.vectorDegree ?? "none"}`,
+					);
+				}
+				if (sourceIndex.vectorLBuild !== targetIndex.vectorLBuild) {
+					vectorDetails.push(
+						`lBuild ${targetIndex.vectorLBuild ?? "none"} → ${sourceIndex.vectorLBuild ?? "none"}`,
+					);
+				}
+				if (sourceIndex.vectorAlpha !== targetIndex.vectorAlpha) {
+					vectorDetails.push(
+						`alpha ${targetIndex.vectorAlpha ?? "none"} → ${sourceIndex.vectorAlpha ?? "none"}`,
+					);
+				}
+				if (sourceIndex.vectorHashedVector !== targetIndex.vectorHashedVector) {
+					vectorDetails.push(
+						`hashedVector ${targetIndex.vectorHashedVector ?? false} → ${sourceIndex.vectorHashedVector ?? false}`,
+					);
+				}
+				description += ` (${vectorDetails.join(", ")})`;
+			}
+
 			changes.push({
 				type: "index_modified",
 				table: tableName,
 				index: indexName,
 				oldValue: targetIndex,
 				newValue: sourceIndex,
-				description: `Index '${indexName}' definition changed`,
+				description,
 			});
 		}
 	}
@@ -359,7 +441,8 @@ export function formatChanges(
 
 	// Group by table (bucket changes use table: "")
 	for (const change of changes) {
-		const groupKey = change.table || (change.type.startsWith("bucket_") ? "Buckets" : "");
+		const groupKey =
+			change.table || (change.type.startsWith("bucket_") ? "Buckets" : "");
 		const existing = byTable.get(groupKey) || [];
 		existing.push(change);
 		byTable.set(groupKey, existing);

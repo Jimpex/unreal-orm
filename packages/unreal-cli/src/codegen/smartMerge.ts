@@ -1,9 +1,9 @@
 import type {
-	SchemaAST,
-	TableAST,
 	FieldAST,
 	IndexAST,
+	SchemaAST,
 	SchemaChange,
+	TableAST,
 } from "unreal-orm";
 import { compareSchemas } from "unreal-orm";
 
@@ -318,6 +318,35 @@ function generateIndexCode(index: IndexAST, tableClassName: string): string {
 	code += `  fields: [${index.columns.map((c) => `"${c}"`).join(", ")}],\n`;
 	if (index.unique) {
 		code += "  unique: true,\n";
+	}
+	if (index.vectorType) {
+		code += "  vector: {\n";
+		code += `    type: "${index.vectorType}",\n`;
+		if (index.vectorDimension !== undefined) {
+			code += `    dimension: ${index.vectorDimension},\n`;
+		}
+		if (index.vectorElementType) {
+			code += `    elementType: "${index.vectorElementType}",\n`;
+		}
+		if (index.vectorDistance) {
+			code += `    distance: "${index.vectorDistance}",\n`;
+		}
+		if (index.vectorType === "HNSW") {
+			if (index.vectorEfc !== undefined)
+				code += `    efc: ${index.vectorEfc},\n`;
+			if (index.vectorM !== undefined) code += `    m: ${index.vectorM},\n`;
+			if (index.vectorM0 !== undefined) code += `    m0: ${index.vectorM0},\n`;
+			if (index.vectorLm !== undefined) code += `    lm: ${index.vectorLm},\n`;
+		} else if (index.vectorType === "DISKANN") {
+			if (index.vectorDegree !== undefined)
+				code += `    degree: ${index.vectorDegree},\n`;
+			if (index.vectorLBuild !== undefined)
+				code += `    lBuild: ${index.vectorLBuild},\n`;
+			if (index.vectorAlpha !== undefined)
+				code += `    alpha: ${index.vectorAlpha},\n`;
+			if (index.vectorHashedVector) code += "    hashedVector: true,\n";
+		}
+		code += "  },\n";
 	}
 	code += "});\n";
 	return code;

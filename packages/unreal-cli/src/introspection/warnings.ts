@@ -50,9 +50,16 @@ export function checkFeatureSupport(
 			const geoType = match?.[1];
 			if (
 				geoType &&
-				!["point", "linestring", "polygon", "multipoint", "multilinestring", "multipolygon", "collection", "feature"].includes(
-					geoType.toLowerCase(),
-				)
+				![
+					"point",
+					"linestring",
+					"polygon",
+					"multipoint",
+					"multilinestring",
+					"multipolygon",
+					"collection",
+					"feature",
+				].includes(geoType.toLowerCase())
 			) {
 				addWarning(
 					`Field '${featureName}'`,
@@ -65,16 +72,6 @@ export function checkFeatureSupport(
 
 	// Check for unsupported index types
 	if (featureType === "index") {
-		// Vector indexes (HNSW, MTREE)
-		if (definition.includes("MTREE") || definition.includes("HNSW")) {
-			addWarning(
-				`Index '${featureName}'`,
-				"Vector index (MTREE/HNSW) detected",
-				"Vector indexes are not yet fully supported in code generation",
-			);
-			return false;
-		}
-
 		// Search analyzer indexes
 		if (definition.includes("SEARCH ANALYZER")) {
 			addWarning(

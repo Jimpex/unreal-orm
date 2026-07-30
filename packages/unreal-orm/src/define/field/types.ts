@@ -1,5 +1,5 @@
 import type { BoundQuery, Expr } from "surrealdb";
-import type { ModelStatic, TableDefineOptions } from "../table/types/model";
+import type { ValueRef } from "../../query/field-proxy";
 /**
  * Defines a SurrealDB permissions clause for a specific field.
  * The value for each property should be a valid SurrealQL `WHERE` clause, BoundQuery, or Expr.
@@ -50,6 +50,24 @@ export interface RecordFieldOptions extends FieldOptions {
 }
 
 /**
+ * A callback that receives a typed `$value` proxy for building `ASSERT` clauses.
+ * The proxy provides type-specific methods (e.g. `.contains()` for strings, `.gt()` for numbers)
+ * and returns a `BoundQuery` or `Expr` that renders to a SurrealQL assertion expression.
+ */
+export type AssertCallback<T> = (value: ValueRef<T>) => BoundQuery | Expr;
+
+/**
+ * Options with a type-safe `assert` callback for a specific field type.
+ * Used by `Field.*` builder methods to provide typed `$value` access in assertions.
+ */
+export type FieldOptionsFor<T, O extends FieldOptions = FieldOptions> = Omit<
+	O,
+	"assert"
+> & {
+	assert?: BoundQuery | Expr | AssertCallback<T>;
+};
+
+/**
  * Defines the common options available for all field types.
  * These are used by the `Field` builder methods.
  */
@@ -76,6 +94,7 @@ export interface FieldOptions {
  * @template T The TypeScript type of the field's value.
  * @internal
  */
+// biome-ignore lint/correctness/noUnusedVariables: T is a phantom type parameter used by InferFieldType for type inference
 export interface FieldDefinition<T = unknown> extends FieldOptions {
 	/** For `object` fields, allows the object to contain fields not defined in the schema. */
 	flexible?: boolean;

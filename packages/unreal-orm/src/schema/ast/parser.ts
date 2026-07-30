@@ -236,7 +236,7 @@ export function parseIndexDefinition(ql: string): IndexAST {
 
 	// Support both FIELDS and COLUMNS keywords
 	const columnsMatch = ql.match(
-		/\s(?:FIELDS|COLUMNS)\s+(.*?)(?:\s+(?:UNIQUE|FULLTEXT|SEARCH|COUNT|COMMENT|CONCURRENTLY|DEFER|HNSW|MTREE)|$)/i,
+		/\s(?:FIELDS|COLUMNS)\s+(.*?)(?:\s+(?:UNIQUE|FULLTEXT|SEARCH|COUNT|COMMENT|CONCURRENTLY|DEFER|HNSW|MTREE|DISKANN)|$)/i,
 	);
 	const columns = columnsMatch?.[1]
 		? columnsMatch[1].split(",").map((c) => c.trim())
@@ -254,6 +254,55 @@ export function parseIndexDefinition(ql: string): IndexAST {
 	const bm25 = hasKeyword(ql, "BM25");
 	const highlights = hasKeyword(ql, "HIGHLIGHTS");
 
+	// Vector indexes: MTREE, HNSW, DISKANN
+	let vectorType: "MTREE" | "HNSW" | "DISKANN" | undefined;
+	let vectorDimension: number | undefined;
+	let vectorDistance: string | undefined;
+	let vectorElementType: string | undefined;
+	let vectorEfc: number | undefined;
+	let vectorM: number | undefined;
+	let vectorM0: number | undefined;
+	let vectorLm: number | undefined;
+	let vectorDegree: number | undefined;
+	let vectorLBuild: number | undefined;
+	let vectorAlpha: number | undefined;
+	let vectorHashedVector: boolean | undefined;
+
+	const vectorMatch = ql.match(/\b(MTREE|HNSW|DISKANN)\b/i);
+	if (vectorMatch?.[1]) {
+		vectorType = vectorMatch[1].toUpperCase() as "MTREE" | "HNSW" | "DISKANN";
+
+		const dimMatch = ql.match(/\bDIMENSION\s+(\d+)/i);
+		if (dimMatch?.[1]) vectorDimension = Number(dimMatch[1]);
+
+		const typeMatch = ql.match(/\bTYPE\s+(F64|F32|F16|I64|I32|I16|I8|U8)/i);
+		if (typeMatch?.[1]) vectorElementType = typeMatch[1].toUpperCase();
+
+		const distMatch = ql.match(
+			/\bDIST\s+(EUCLIDEAN|COSINE|MANHATTAN|INNER_PRODUCT|COSINE_NORMALIZED|HAMMING)/i,
+		);
+		if (distMatch?.[1]) vectorDistance = distMatch[1].toUpperCase();
+
+		if (vectorType === "HNSW") {
+			const efcMatch = ql.match(/\bEFC\s+(\d+)/i);
+			if (efcMatch?.[1]) vectorEfc = Number(efcMatch[1]);
+			const mMatch = ql.match(/\bM\s+(\d+)/i);
+			if (mMatch?.[1]) vectorM = Number(mMatch[1]);
+			const m0Match = ql.match(/\bM0\s+(\d+)/i);
+			if (m0Match?.[1]) vectorM0 = Number(m0Match[1]);
+			const lmMatch = ql.match(/\bLM\s+([\d.]+f?)/i);
+			if (lmMatch?.[1]) vectorLm = Number(lmMatch[1].replace(/f$/, ""));
+		} else if (vectorType === "DISKANN") {
+			const degreeMatch = ql.match(/\bDEGREE\s+(\d+)/i);
+			if (degreeMatch?.[1]) vectorDegree = Number(degreeMatch[1]);
+			const lBuildMatch = ql.match(/\bL_BUILD\s+(\d+)/i);
+			if (lBuildMatch?.[1]) vectorLBuild = Number(lBuildMatch[1]);
+			const alphaMatch = ql.match(/\bALPHA\s+([\d.]+)/i);
+			if (alphaMatch?.[1]) vectorAlpha = Number(alphaMatch[1]);
+			vectorHashedVector = hasKeyword(ql, "HASHED_VECTOR");
+		}
+	}
+
 	return {
 		name: name || "unknown_index",
 		columns,
@@ -265,6 +314,18 @@ export function parseIndexDefinition(ql: string): IndexAST {
 		analyzer,
 		bm25: bm25 || undefined,
 		highlights: highlights || undefined,
+		vectorType,
+		vectorDimension,
+		vectorDistance,
+		vectorElementType,
+		vectorEfc,
+		vectorM,
+		vectorM0,
+		vectorLm,
+		vectorDegree,
+		vectorLBuild,
+		vectorAlpha,
+		vectorHashedVector: vectorHashedVector || undefined,
 	};
 }
 

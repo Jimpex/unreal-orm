@@ -113,4 +113,34 @@ describe("Schema Migration", () => {
 			"ALTER BUCKET static READONLY BACKEND 'file:/data/static';",
 		);
 	});
+
+	test("generates full vector index DDL in migration for added index", () => {
+		class Doc extends Table.normal({
+			name: "doc_mig_vec",
+			fields: { embedding: Field.array(Field.number()) },
+			schemafull: true,
+		}) {}
+
+		const idx = Index.define(() => Doc, {
+			name: "idx_doc_vec_mig",
+			fields: ["embedding"],
+			vector: {
+				type: "HNSW",
+				dimension: 128,
+				distance: "COSINE",
+				elementType: "F32",
+			},
+		});
+
+		const local = extractSchemaFromDefinables([Doc, idx]);
+		const remote = extractSchemaFromDefinables([Doc]);
+
+		const changes = compareSchemas(local, remote, true);
+		const migration = generateMigrationSurql(changes, local);
+
+		expect(migration).toContain("DEFINE INDEX idx_doc_vec_mig");
+		expect(migration).toContain("HNSW DIMENSION 128");
+		expect(migration).toContain("DIST COSINE");
+		expect(migration).toContain("TYPE F32");
+	});
 });
