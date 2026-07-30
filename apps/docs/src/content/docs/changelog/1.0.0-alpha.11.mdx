@@ -1,0 +1,256 @@
+---
+title: v1.0.0-alpha.11
+description: Changelog for Unreal ORM v1.0.0-alpha.11
+lastUpdated: 2026-07-30
+sidebar_label: 1.0.0-alpha.11
+sidebar_position: 11
+tags:
+  - release
+  - changelog
+  - alpha
+toc: true
+feedback: true
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+This release introduces **explicit database connections**, a **type-safe query builder**, **vector index support**, **file storage buckets**, and a complete **documentation redesign**.
+
+<Aside type="caution" title="Breaking Change">
+  All model CRUD and instance methods now require an explicit `db` argument. Global database configuration (`configure()`) has been removed. See the [migration guide](/guides/migrating-to-1.0.0-alpha/) for details.
+</Aside>
+
+## ⚠️ Breaking Changes
+
+### Explicit `db` Argument Required
+
+Global database configuration has been removed. All model CRUD methods (`create`, `insert`, `select`, `count`, `update`, `updateMany`, `delete`, `deleteMany`) and instance methods now require an explicit `db` argument as the first parameter.
+
+**Before:**
+```typescript
+import { configure } from "unreal-orm";
+
+configure({ getDatabase: () => db });
+// db was resolved implicitly from global config
+const users = await User.select({ where: surql`email = 'bob@bob.com'` });
+```
+
+**After:**
+```typescript
+// db must be passed explicitly as the first argument
+const users = await User.select(db, { where: surql`email = 'bob@bob.com'` });
+```
+
+The `configure()` function (previously exported from `unreal-orm`) has been removed. A `validateDb()` utility is now used internally to provide clear error messages when `db` is missing.
+
+## ✨ Features
+
+### Type-Safe Query Builder
+
+A new field proxy query builder provides typed operators, SurrealDB built-in functions, and graph traversal syntax directly on field references. The proxy is passed as a callback parameter to `where` clauses on `select`, `count`, `updateMany`, and `deleteMany`:
+
+```typescript
+const results = await Post.select(db, {
+  where: (f) => f.title.contains("hello"),
+  select: {
+    title: true,
+    commentCount: typed<number>(surql`count(<-comment)`),
+  },
+});
+```
+
+The proxy exposes typed namespaces for `string::*`, `math::*`, `array::*`, `time::*`, `meta::*`, `record::*`, `type::*`, `is::*`, and other SurrealDB function families, with full TypeScript autocompletion and return type inference. Graph traversal operators (`->`, `<-`, `<->`) are available directly on field refs. Standalone helper functions `and(...)`, `or(...)`, `not(...)`, `eq()`, `gt()`, `gte()`, `lt()`, `lte()`, `countIn()`, `countOut()`, and more are also exported for composing complex conditions.
+
+### `upsert` Method
+
+A new `UPSERT` CRUD method creates or updates a record based on unique index lookup, avoiding table scans:
+
+```typescript
+const user = await User.upsert(db, {
+  data: { email: "bob@bob.com", name: "Bob Bobson" },
+});
+```
+
+### New CRUD Helpers: `relate`, `count`, `updateMany`, `deleteMany`
+
+New static methods added to model classes:
+
+- **`relate`** — Creates graph edges with `RELATE` syntax, with optional `OR UPDATE` and custom edge IDs
+- **`count`** — Counts records with optional `where` filter and `by` grouping
+- **`updateMany`** — Bulk updates all records matching a `where` clause
+- **`deleteMany`** — Bulk deletes all records matching a `where` clause
+
+```typescript
+// Create a graph edge
+const follow = await Follow.relate(db, {
+  from: user.id,
+  to: post.id,
+  data: { since: new Date() },
+});
+
+// Count active users
+const activeCount = await User.count(db, {
+  where: (f) => f.is_active.eq(true),
+});
+
+// Bulk update
+await User.updateMany(db, {
+  where: (f) => f.is_active.eq(false),
+  data: { is_active: true },
+  mode: 'merge',
+});
+
+// Bulk delete
+await User.deleteMany(db, {
+  where: (f) => f.is_active.eq(false),
+});
+```
+
+### Range APIs (`RangeId` and `Range`)
+
+New builder APIs for SurrealDB record ID and value ranges, with support for `NONE` and `UNBOUNDED` sentinels:
+
+```typescript
+import { RangeId, NONE, UNBOUNDED } from "unreal-orm";
+
+const range = RangeId("player").from(["mage", NONE]).to(["mage", UNBOUNDED]);
+const results = await Player.select(db, { from: range });
+```
+
+### `set` Update Mode
+
+A new `set` update mode supports computed field expressions via the query builder. Available on `update` (with `data` and `mode: 'set'`) and `updateMany` (which accepts a callback for both `where` and `data`):
+
+```typescript
+// Single record update with SET mode
+await Post.update(db, postId, {
+  mode: 'set',
+  data: { views: surql`views + 1` },
+});
+
+// Bulk update with field proxy callback
+await Post.updateMany(db, {
+  mode: 'set',
+  where: (f) => f.status.eq('published'),
+  data: (f) => ({ views: f.views.add(1) }),
+});
+```
+
+### Callback-Based `where` Clauses
+
+`select`, `count`, `updateMany`, and `deleteMany` now accept callback-based `where` clauses for type-safe condition building. Use the standalone `and(...)`, `or(...)`, and `not(...)` functions to combine conditions:
+
+```typescript
+import { and } from "unreal-orm";
+
+const active = await User.select(db, {
+  where: (f) => and(f.is_active.eq(true), f.age.gte(18)),
+});
+```
+
+### Index Enhancements
+
+New index options added:
+- `COUNT` — maintain a count of indexed entries
+- `CONCURRENTLY` — build index without blocking writes
+- `DEFER` — defer index creation to next transaction
+- `FULLTEXT` / `BM25` / `HIGHLIGHTS` — full-text search index configuration
+
+### Select Options
+
+New select query options:
+- `EXPLAIN` — query execution plan
+- `SPLIT` — split results on a field
+- `WITH` — index hint
+- `TEMPFILES` — use temporary files for large result sets
+
+### Vector Index Support (MTREE, HNSW, DISKANN)
+
+Full vector index support across the ORM and CLI, including parsing, generation, extraction, comparison, introspection, and codegen:
+
+```typescript
+import { Index, Field } from "unreal-orm";
+
+class Post extends Table.normal({
+  embedding: Field.array(Field.float()),
+  // ...
+});
+
+Index.define(() => Post, {
+  name: "idx_embedding",
+  fields: ["embedding"],
+  vector: {
+    type: "MTREE",
+    dimension: 128,
+    distance: "EUCLIDEAN",
+  },
+});
+```
+
+Supports all three vector index types with configurable dimension, distance metric, and element type. The CLI `pull` command now introspects vector indexes, and `diff` shows detailed change descriptions (e.g., "dimension 128 → 256", "type MTREE → HNSW").
+
+### File Storage Buckets
+
+New `Bucket.define()` API for SurrealDB v3 file storage buckets (experimental):
+
+```typescript
+import { Bucket } from "unreal-orm";
+
+const AvatarBucket = Bucket.define({
+  name: "avatars",
+  backend: "memory",
+});
+
+const UploadBucket = Bucket.define({
+  name: "uploads",
+  backend: "file:/var/data/uploads",
+  permissions: surql`WHERE $auth.role = 'admin' OR $action = 'get'`,
+  readonly: true,
+});
+
+await Unreal.applySchema(db, [User, AvatarBucket, UploadBucket]);
+```
+
+Supports memory and file backends, read-only mode, permission clauses with `$action`/`$file`/`$target` variables, and global buckets. Requires the `files` experimental capability in SurrealDB v3.
+
+## 🔧 Improvements
+
+### Type Safety Overhaul
+
+- Enforced `RecordId` type for `CreateData.id` across `create`, `upsert`, and `relate`
+- Removed all `db as unknown as Surreal` casts in favor of `SurrealLike.query()` with typed `surql<R>` calls
+- Removed `Record<string, unknown>` destructuring casts in favor of direct typed destructuring
+- Removed `as TableData` casts via proper `surql<[TableData[]]>` result typing
+- Fixed `id.table.name` usage instead of unsafe `(id as { tb?: string }).tb` cast
+- Fixed discriminated union narrowing for update modes
+
+### Field Assert Refactoring
+
+`resolveAssert` now accepts an `AssertCallback` and uses `createValueProxy` for a typed `$value` proxy in field assertions. Removed redundant `prop as string` casts in field-proxy.
+
+### Documentation Redesign
+
+- Complete restructure into **getting-started**, **concepts**, **querying**, **advanced**, and **guides** sections
+- New hand-drawn design system with custom CSS, fonts, paper textures, and dark mode palette
+- New pages: installation, quickstart, what-is-surrealdb, fields-and-types, indexes, models-and-tables, schema-application, surrealql-mapping, selecting, inserting, updating, deleting, where-builder, relations, permissions, migrations, sdk-interop, testing, cli-usage, full-text-search, geospatial, file-storage
+- Fixed all SurrealDB SDK connection examples to use single `.connect()` call pattern
+- Upgraded Astro, Starlight, and docs dependencies to latest
+- Bumped TypeScript to 7.0.2 and Biome to 2.5.6
+
+### Dependency Updates
+
+- Bumped `surrealdb` peer and dev dependency to `^2.0.8`
+
+## 🐛 Bug Fixes
+
+### CLI
+
+- Removed duplicate `generateMigrationSurql` and `compareSchemas` from CLI — now re-exports from `unreal-orm`
+- Removed dead code from `generateMigration` (unused functions and variables)
+- Deleted empty introspection types file
+- Removed redundant `db.use()` call (handled by `db.connect()`)
+- Fixed VIEW table generation: removed incorrect `TYPE NORMAL` / `TYPE ANY` clauses
+- Hardened push transaction: ensured semicolons between statements in `BEGIN...COMMIT` block
+- Fixed inconsistent `SchemaChange` import (direct import from `unreal-orm` instead of inline)
+- Fixed `idx_email.fields` fallback for `string[] | undefined` type mismatch
+- Enhanced `compareSchemas` with vector index type suffix and detailed vector parameter change descriptions
