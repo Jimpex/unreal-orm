@@ -9,42 +9,6 @@ import type {
 import { generateBucketDdl, generateBucketAlter } from "unreal-orm";
 
 /**
- * Generates SurrealQL migration statements from schema changes.
- * Only generates the diff, not the entire schema.
- */
-export function generateMigrationFromChanges(
-	changes: SchemaChange[],
-	localSchema: SchemaAST,
-	remoteSchema: SchemaAST,
-): string {
-	const statements: string[] = [];
-
-	// Group changes by table for better organization
-	const changesByTable = new Map<string, SchemaChange[]>();
-	for (const change of changes) {
-		const existing = changesByTable.get(change.table) || [];
-		existing.push(change);
-		changesByTable.set(change.table, existing);
-	}
-
-	// Process each table's changes
-	for (const [tableName, tableChanges] of changesByTable) {
-		statements.push(`-- Table: ${tableName}`);
-
-		for (const change of tableChanges) {
-			const sql = generateChangeStatement(change, localSchema, remoteSchema);
-			if (sql) {
-				statements.push(sql);
-			}
-		}
-
-		statements.push(""); // Blank line between tables
-	}
-
-	return statements.join("\n");
-}
-
-/**
  * Generates SurrealQL for a single schema change.
  * Useful for interactive change-by-change review.
  */
@@ -70,10 +34,9 @@ export function generateSqlForChange(
 function generateChangeStatement(
 	change: SchemaChange,
 	sourceSchema: SchemaAST,
-	targetSchema: SchemaAST,
+	_targetSchema: SchemaAST,
 ): string | null {
 	const sourceTable = sourceSchema.tables.find((t) => t.name === change.table);
-	const targetTable = targetSchema.tables.find((t) => t.name === change.table);
 
 	switch (change.type) {
 		case "table_added": {
@@ -109,6 +72,7 @@ function generateChangeStatement(
 
 		case "field_type_changed":
 		case "field_default_changed":
+		case "field_value_changed":
 		case "field_assertion_changed": {
 			// Field modified - redefine with OVERWRITE
 			if (!sourceTable || !change.field) return null;
@@ -179,14 +143,6 @@ function generateChangeStatement(
 }
 
 /**
- * Extracts the table name from a record type like "record<user>" -> "user"
- */
-function extractTableFromRecordType(type: string): string | null {
-	const match = type.match(/^record<(\w+)>$/);
-	return match?.[1] ?? null;
-}
-
-/**
  * Generates a complete table definition including all fields and indexes.
  * Used when creating a new table.
  */
@@ -228,7 +184,6 @@ function generateTableDefine(table: TableAST, overwrite = false): string {
 	if (table.type === "RELATION") {
 		parts.push("TYPE RELATION");
 	} else if (table.type === "VIEW") {
-		parts.push("TYPE ANY");
 		if (table.viewQuery) parts.push(`AS ${table.viewQuery}`);
 	}
 

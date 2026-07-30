@@ -5,7 +5,7 @@ import { introspect } from "../introspection/introspect";
 import { existsSync } from "node:fs";
 import { extractSchemaFromRuntime } from "../diff/parseTypeScript";
 import { formatChanges } from "../diff/compare";
-import type { SchemaAST } from "unreal-orm";
+import type { SchemaAST, SchemaChange } from "unreal-orm";
 import { compareSchemas } from "unreal-orm";
 import { ui } from "../utils/ui";
 import { debug } from "../utils/debug";
@@ -13,7 +13,7 @@ import { debug } from "../utils/debug";
 /**
  * Gets a summary of schema changes.
  */
-function getSummary(changes: import("../diff/compare").SchemaChange[]): {
+function getSummary(changes: SchemaChange[]): {
 	total: number;
 	tables: number;
 	fields: number;

@@ -230,10 +230,5 @@ export async function createConnection(
 		debug("Remote connection established");
 	}
 
-	// Select namespace and database
-	if (config.namespace && config.database) {
-		await db.use({ namespace: config.namespace, database: config.database });
-	}
-
 	return db;
 }

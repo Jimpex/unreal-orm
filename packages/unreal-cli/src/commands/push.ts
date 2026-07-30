@@ -282,9 +282,10 @@ export const pushCommand = new Command()
 		debug(`Applying ${sqlStatements.length} SQL statement(s)`);
 		spinner.start("Applying schema changes...");
 		try {
-			// Flatten multi-line statements and join with semicolons
+			// Flatten multi-line statements, ensure each ends with semicolon
 			const allStatements = sqlStatements
 				.flatMap((sql) => sql.split("\n").filter((line) => line.trim()))
+				.map((stmt) => (stmt.trim().endsWith(";") ? stmt : `${stmt};`))
 				.join("");
 			await db.query(`BEGIN;${allStatements}COMMIT;`);
 			spinner.succeed("Schema changes applied successfully");

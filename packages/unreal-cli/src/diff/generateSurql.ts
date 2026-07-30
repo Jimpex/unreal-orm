@@ -6,8 +6,6 @@ import type {
 	IndexAST,
 	SchemaApplicationMethod,
 } from "unreal-orm";
-import { generateBucketAlter } from "unreal-orm";
-
 // Re-export for CLI consumers
 export type { SchemaApplicationMethod };
 
@@ -72,7 +70,7 @@ function generateTableDdl(
 	// Add table type
 	if (table.type === "RELATION") {
 		statement += " TYPE RELATION";
-	} else if (table.type === "NORMAL" || table.type === "VIEW") {
+	} else if (table.type === "NORMAL") {
 		statement += " TYPE NORMAL";
 	}
 
@@ -234,109 +232,4 @@ function generateIndexDdl(
 	}
 
 	return `${statement};`;
-}
-
-/**
- * Generates only the DEFINE statements needed for specific changes.
- * This is used for migrations in the push command.
- */
-export function generateMigrationSurql(
-	changes: Array<{
-		type: string;
-		table: string;
-		field?: string;
-		index?: string;
-		bucket?: string;
-		oldValue?: unknown;
-		newValue?: unknown;
-	}>,
-): string {
-	const statements: string[] = [];
-
-	for (const change of changes) {
-		switch (change.type) {
-			case "table_added":
-				// Would need full table AST to generate this
-				statements.push(`-- TODO: DEFINE TABLE ${change.table}`);
-				break;
-
-			case "field_added":
-				if (change.field && change.newValue) {
-					statements.push(
-						`DEFINE FIELD ${change.field} ON TABLE ${change.table} TYPE ${change.newValue};`,
-					);
-				}
-				break;
-
-			case "field_type_changed":
-				if (change.field && change.newValue) {
-					statements.push(
-						`DEFINE FIELD OVERWRITE ${change.field} ON TABLE ${change.table} TYPE ${change.newValue};`,
-					);
-				}
-				break;
-
-			case "index_added":
-				if (change.index && Array.isArray(change.newValue)) {
-					statements.push(
-						`DEFINE INDEX ${change.index} ON TABLE ${change.table} FIELDS ${(change.newValue as string[]).join(", ")};`,
-					);
-				}
-				break;
-
-			case "index_removed":
-				if (change.index) {
-					statements.push(
-						`REMOVE INDEX ${change.index} ON TABLE ${change.table};`,
-					);
-				}
-				break;
-
-			case "field_removed":
-				if (change.field) {
-					statements.push(
-						`REMOVE FIELD ${change.field} ON TABLE ${change.table};`,
-					);
-				}
-				break;
-
-			case "table_removed":
-				statements.push(`REMOVE TABLE ${change.table};`);
-				break;
-
-			case "bucket_added":
-				if (change.newValue && typeof change.newValue === "object") {
-					const b = change.newValue as BucketAST;
-					statements.push(generateBucketDdl(b, "error"));
-				}
-				break;
-
-			case "bucket_removed":
-				if (change.bucket) {
-					statements.push(`REMOVE BUCKET ${change.bucket};`);
-				}
-				break;
-
-			case "bucket_modified":
-				if (
-					change.oldValue &&
-					change.newValue &&
-					typeof change.oldValue === "object" &&
-					typeof change.newValue === "object"
-				) {
-					statements.push(
-						generateBucketAlter(
-							change.oldValue as BucketAST,
-							change.newValue as BucketAST,
-						),
-					);
-				}
-				break;
-
-			default:
-				statements.push(`-- TODO: Handle ${change.type}`);
-		}
-	}
-
-	return statements.join("\n");
 }

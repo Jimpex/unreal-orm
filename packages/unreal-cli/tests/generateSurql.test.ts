@@ -1,9 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import {
-	generateSurqlFromAST,
-	generateMigrationSurql,
-} from "../src/diff/generateSurql";
-import type { SchemaAST } from "unreal-orm";
+import { generateSurqlFromAST } from "../src/diff/generateSurql";
+import { generateMigrationSurql, type SchemaAST, type SchemaChange } from "unreal-orm";
 
 describe("generateSurqlFromAST", () => {
 	test("generates DEFINE TABLE statement for normal table", () => {
@@ -325,7 +322,7 @@ describe("generateMigrationSurql", () => {
 			},
 		];
 
-		const surql = generateMigrationSurql(changes);
+		const surql = generateMigrationSurql(changes as SchemaChange[]);
 		expect(surql).toContain("DEFINE FIELD name ON TABLE user TYPE string;");
 	});
 
@@ -339,7 +336,7 @@ describe("generateMigrationSurql", () => {
 			},
 		];
 
-		const surql = generateMigrationSurql(changes);
+		const surql = generateMigrationSurql(changes as SchemaChange[]);
 		expect(surql).toContain(
 			"DEFINE FIELD OVERWRITE age ON TABLE user TYPE float;",
 		);
@@ -354,7 +351,7 @@ describe("generateMigrationSurql", () => {
 			},
 		];
 
-		const surql = generateMigrationSurql(changes);
+		const surql = generateMigrationSurql(changes as SchemaChange[]);
 		expect(surql).toContain("REMOVE FIELD old_field ON TABLE user;");
 	});
 
@@ -368,7 +365,7 @@ describe("generateMigrationSurql", () => {
 			},
 		];
 
-		const surql = generateMigrationSurql(changes);
+		const surql = generateMigrationSurql(changes as SchemaChange[]);
 		expect(surql).toContain(
 			"DEFINE INDEX email_idx ON TABLE user FIELDS email;",
 		);
@@ -383,7 +380,7 @@ describe("generateMigrationSurql", () => {
 			},
 		];
 
-		const surql = generateMigrationSurql(changes);
+		const surql = generateMigrationSurql(changes as SchemaChange[]);
 		expect(surql).toContain("REMOVE INDEX old_idx ON TABLE user;");
 	});
 
@@ -395,7 +392,7 @@ describe("generateMigrationSurql", () => {
 			},
 		];
 
-		const surql = generateMigrationSurql(changes);
+		const surql = generateMigrationSurql(changes as SchemaChange[]);
 		expect(surql).toContain("REMOVE TABLE old_table;");
 	});
 
@@ -420,7 +417,7 @@ describe("generateMigrationSurql", () => {
 			},
 		];
 
-		const surql = generateMigrationSurql(changes);
+		const surql = generateMigrationSurql(changes as SchemaChange[]);
 		expect(surql).toContain("DEFINE FIELD name");
 		expect(surql).toContain("REMOVE FIELD old_field");
 		expect(surql).toContain("DEFINE INDEX name_idx");
@@ -517,7 +514,7 @@ describe("generateMigrationSurql", () => {
 			addedBucket,
 			removedBucket,
 			modifiedBucket,
-		]);
+		] as SchemaChange[]);
 
 		expect(surql).toContain("DEFINE BUCKET avatars BACKEND 'memory';");
 		expect(surql).toContain("REMOVE BUCKET old_assets;");

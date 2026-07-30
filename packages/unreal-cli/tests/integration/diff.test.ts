@@ -9,10 +9,10 @@ import {
 	applySchema,
 	extractTableFromModel,
 	extractBucketFromDefinition,
+	compareSchemas,
 	type SchemaAST,
 } from "unreal-orm";
 import { introspect } from "../../src/introspection/introspect";
-import { compareSchemas } from "../../src/diff/compare";
 
 describe("Diff Command Integration", () => {
 	let db: Surreal;
@@ -61,7 +61,7 @@ describe("Diff Command Integration", () => {
 		// Manually add index (Index.define returns runtime format, we need AST format)
 		userTable.indexes.push({
 			name: idx_email.name,
-			columns: idx_email.fields,
+			columns: idx_email.fields ?? [],
 			unique: idx_email.unique ?? false,
 		});
 

@@ -470,7 +470,7 @@ export function generateMigrationSurql(
 						}
 					}
 				} else {
-					statements.push(`-- TODO: DEFINE TABLE ${change.table}`);
+					statements.push(`DEFINE TABLE ${change.table} SCHEMAFULL;`);
 				}
 				break;
 			}
@@ -591,7 +591,7 @@ export function generateMigrationSurql(
 				break;
 
 			default:
-				statements.push(`-- TODO: Handle ${change.type}`);
+				statements.push(`-- WARNING: Unhandled change type '${change.type}' for table '${change.table}'.`);
 		}
 	}
 
