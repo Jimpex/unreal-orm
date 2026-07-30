@@ -7,6 +7,7 @@ import {
 	type RecordIdValue,
 	StringRecordId,
 	Range as SurrealRange,
+	Table,
 	toSurrealqlString,
 } from "surrealdb";
 
@@ -41,11 +42,20 @@ function isSentinel(value: unknown): value is typeof NONE | typeof UNBOUNDED {
 }
 
 function containsNestedSentinel(value: unknown): boolean {
-	// Whole-bound sentinels are handled by makeBound; only arrays/objects matter here.
+	// Top-level sentinels are handled by makeBound — only check inside arrays/objects.
 	if (isSentinel(value)) return false;
-	if (Array.isArray(value)) return value.some(containsNestedSentinel);
+	if (Array.isArray(value)) return value.some(hasSentinel);
 	if (value && typeof value === "object" && !(value instanceof RecordId)) {
-		return Object.values(value).some(containsNestedSentinel);
+		return Object.values(value).some(hasSentinel);
+	}
+	return false;
+}
+
+function hasSentinel(value: unknown): boolean {
+	if (isSentinel(value)) return true;
+	if (Array.isArray(value)) return value.some(hasSentinel);
+	if (value && typeof value === "object" && !(value instanceof RecordId)) {
+		return Object.values(value).some(hasSentinel);
 	}
 	return false;
 }
@@ -270,6 +280,6 @@ export const Range = new RangeValueStart();
  * RangeId("player").from(["mage", NONE]).to(["mage", UNBOUNDED]);
  * ```
  */
-export function RangeId(table: string): RangeIdStart {
-	return new RangeIdStart(table);
+export function RangeId(table: string | Table): RangeIdStart {
+	return new RangeIdStart(typeof table === "string" ? table : table.name);
 }
